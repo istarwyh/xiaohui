@@ -49,7 +49,7 @@ function formatCrumb(displayName: string, baseSlug: FullSlug, currentSlug: Simpl
 
 export default ((opts?: Partial<BreadcrumbOptions>) => {
   // Merge options with defaults
-  const options: BreadcrumbOptions = { ...defaultOptions, ...opts }
+  const options: BreadcrumbOptions = { ...  defaultOptions, ...opts }
 
   // computed index of folder name to its associated file data
   let folderIndex: Map<string, QuartzPluginData> | undefined
