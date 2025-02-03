@@ -1,15 +1,14 @@
 ---
-
 excalidraw-plugin: parsed
 tags: [excalidraw]
-
 ---
-==⚠  Switch to EXCALIDRAW VIEW in the MORE OPTIONS menu of this document. ⚠== You can decompress Drawing data with the command palette: 'Decompress current Excalidraw file'. For more info check in plugin settings under 'Saving'
 
+==⚠ Switch to EXCALIDRAW VIEW in the MORE OPTIONS menu of this document. ⚠== You can decompress Drawing data with the command palette: 'Decompress current Excalidraw file'. For more info check in plugin settings under 'Saving'
 
 # Excalidraw Data
 
 ## Text Elements
+
 展示层 ^xIZhsCdD
 
 海景房 ^0L6gH1Jo
@@ -50,21 +49,20 @@ HA3 ^I5Xiip3B
 
 基础设施 ^uJDpZDl5
 
-定时
-Quartz ^xBHqvkGw
+定时Quartz ^xBHqvkGw
 
-任务
-队列 ^lljqrZva
+任务队列 ^lljqrZva
 
 达尔文 ^JAa8JDVB
 
-日志
-系统 ^BYa1hPEJ
+日志系统 ^BYa1hPEJ
 
 实时特征 ^UdT3wRL3
 
 %%
+
 ## Drawing
+
 ```compressed-json
 N4KAkARALgngDgUwgLgAQQQDwMYEMA2AlgCYBOuA7hADTgQBuCpAzoQPYB2KqATLZMzYBXUtiRoIACyhQ4zZAHoFAc0JRJQgEYA6bGwC2CgF7N6hbEcK4OCtptbErHALRY8RMpWdx8Q1TdIEfARcZgRmBShcZQUebQB2bQAWGjoghH0EDihmbgBtcDBQMBKIEm4pCgBRAHUAJQA2OpqYAA1mAGYARTYALUIOKqMABQBWVJLIWEQKwOwojmVgidLM
 
@@ -202,4 +200,5 @@ htCoIwOYBsARkD1AYeSqlbRcHJjHrwMddy0UD5gxYPwA0iN+GOUpIFfBgcngHPnUCjAD8nSYJbA3gIA+
 
 U5gr4GmEWAFAhsCyBIQ6ENwDSUIgEBCdvGMHuwVA69xRFhALVDJgv9Z4LsBFUUCmYB9Qe7DgBQQksAhCoQ1YyGJ5gQgEYAXoD8mxxrgqzzCBggA0KmRtuIQHpADAF6A0RunJp2JD6QOGANCjQk0MeQJAgdnC9wgaTQ4RWwIAA===
 ```
+
 %%
