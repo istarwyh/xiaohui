@@ -30,13 +30,13 @@ export default {
       darkMode: "暗色模式",
     },
     explorer: {
-      title: "探索",
+      title: "瞅瞅",
     },
     footer: {
       createdWith: "Created with",
     },
     graph: {
-      title: "关系图谱",
+      title: "翻一翻",
     },
     recentNotes: {
       title: "最近的笔记",
@@ -47,8 +47,8 @@ export default {
       linkToOriginal: "指向原始笔记的链接",
     },
     search: {
-      title: "搜索",
-      searchBarPlaceholder: "搜索些什么",
+      title: "看看",
+      searchBarPlaceholder: "是不是能找点什么🔍",
     },
     tableOfContents: {
       title: "目录",

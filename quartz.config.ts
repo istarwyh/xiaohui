@@ -71,12 +71,18 @@ const config: QuartzConfig = {
       Plugin.ObsidianFlavoredMarkdown({ enableInHtmlEmbed: false }),
       Plugin.GitHubFlavoredMarkdown(),
       Plugin.CrawlLinks({ markdownLinkResolution: "shortest" }),
-      Plugin.Latex({ renderEngine: "katex" }),
+      Plugin.Latex({ 
+        renderEngine: "katex",
+        katexOptions: {
+          throwOnError: false,
+          strict: false
+        }
+      }),
       Plugin.Description(),
     ],
     filters: [
       Plugin.RemoveDrafts(),
-      Plugin.ExplicitPublish(),
+      // Plugin.ExplicitPublish(),
     ],
     emitters: [
       Plugin.AliasRedirects(),
