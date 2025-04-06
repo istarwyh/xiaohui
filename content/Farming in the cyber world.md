@@ -1,5 +1,5 @@
 
-我是[晓灰](https://istarwyh.github.io/resume-it/)，一个[[CyberFarmer|赛博农民]]。这也是我在阿里工作时的花名。
+我是[晓灰](https://istarwyh.github.io/resume-it/)，一个[[Cyber Farmer|赛博农民]]。这也是我在阿里工作时的花名。
 ## 我做过什么
 ### 工作项目
 - 24 年 6月～至今，我负责淘宝蚂蚁保风控 AI Agent 驱动的 [[Case Analysis AI Agent| 案件分析]] 工作
@@ -34,8 +34,5 @@
 
 本站遵循"署名-非商业用途-保持一致"的创作共用协议，转载文章请注明原文地址。本博客所有原创内容允许在[CC BY-NC-ND 3.0](https://creativecommons.org/licenses/by-nc-nd/2.5/cn/)条款下使用。
 
-## [[Blog-Technology-Stack| 本博客技术说明]]
+## [[Blog Technology Stack| 本博客技术说明]]
 
-<script async src="https://d3kno6bpmj270m.cloudfront.net/widget/userdesk.js" data-userdesk="clsok8vng0001aihcgmmbxfos"></script>
-
-<script type="text/javascript"> (function(c,l,a,r,i,t,y){ c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)}; t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i; y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y); })(window, document, "clarity", "script", "l799n31rgg"); </script>
