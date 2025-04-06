@@ -3,12 +3,16 @@
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/202411231455066.png)
 
 [[xiaohui-blog-technology-architecture.excalidraw]]
- 
+
 更多细节可看 [BuiltWith](https://builtwith.com/xiaohui.cool)
+
 ## 相关依赖
+
 - [[Information-Handler#Publish|Cloudfalre]]
 - [Quartz](https://github.com/jackyzha0/quartz.gitl)
+
 ## 致谢·Thanks for
+
 <span style="font-family: cursive">
 - World Wide Web
 <br>
@@ -20,5 +24,3 @@
 <br>
 - [quartz-syncer](https://github.com/saberzero1/quartz-syncer)
 </span>
-
-
