@@ -1,0 +1,9 @@
+# Cloudflare Pages configuration
+[build]
+command = "npm install --no-audit --no-fund && npm run build"
+
+[build.environment]
+NODE_VERSION = "20.9.0"
+
+# This is the key property Cloudflare Pages looks for
+pages_build_output_dir = "public"
