@@ -20,7 +20,8 @@
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1",
     "sync-vnote": "./scripts/sync-vnote.sh",
     "sync": "npm run sync-vnote && npx quartz sync",
-    "build": "npx quartz build"
+    "build": "npx quartz build",
+    "postinstall": "node -e \"try { require('@napi-rs/simple-git-linux-x64-gnu') } catch (e) { console.log('Platform-specific module not needed or already installed') }\""
   },
   "engines": {
     "npm": ">=9.3.1",
@@ -42,6 +43,7 @@
     "@floating-ui/dom": "^1.7.1",
     "@myriaddreamin/rehype-typst": "^0.6.0",
     "@napi-rs/simple-git": "0.1.19",
+    "@napi-rs/simple-git-linux-x64-gnu": "0.1.19",
     "@tweenjs/tween.js": "^25.0.0",
     "async-mutex": "^0.5.0",
     "chalk": "^5.4.1",
