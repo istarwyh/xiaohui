@@ -43,7 +43,6 @@
     "@floating-ui/dom": "^1.7.1",
     "@myriaddreamin/rehype-typst": "^0.6.0",
     "@napi-rs/simple-git": "0.1.19",
-    "@napi-rs/simple-git-linux-x64-gnu": "0.1.19",
     "@tweenjs/tween.js": "^25.0.0",
     "async-mutex": "^0.5.0",
     "chalk": "^5.4.1",
@@ -117,6 +116,11 @@
     "prettier": "^3.6.0",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
+  },
+  "optionalDependencies": {
+    "@napi-rs/simple-git-linux-x64-gnu": "0.1.19",
+    "@napi-rs/simple-git-darwin-x64": "0.1.19",
+    "@napi-rs/simple-git-win32-x64-msvc": "0.1.19"
   },
   "overrides": {
     "yargs": "^18.0.0"
