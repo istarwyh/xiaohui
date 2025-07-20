@@ -1,14 +1,15 @@
 
-Claude Code 是目前最强的辅助编程软件，没有加之一，应该也没有人反对吧：） 
+Claude Code 是目前最强的AI Coding Agent，没有加之一，应该也没有人反对吧：） 
 如果还没用上 Claude Code（CC）,直接看 https://cc.xiaohui.cool
 ## 📋 目录
 
+0. [我现在的工作流]()
 1. [自定义环境配置](#1-自定义环境配置)
-2. [扩展工具集成](#2-扩展工具集成)
+2. [MCP 与常用命令]()
 3. [核心工作流程](#3-核心工作流程)
-4. [工作流程优化](#4-工作流程优化)
+4. [上下文管理]()
 5. [自动化与批处理](#5-自动化与批处理)
-6. [多 Claude 实例协作](#6-多-claude-实例协作)
+6. [多 Claude 并发干活]()
 
 ---
 # 我现在的工作流
@@ -24,22 +25,23 @@ sequenceDiagram
     participant GitHub
     participant AI代码审查员 as "通义灵码 & Gemini"
 
-    开发者->>开发环境: 1. (若需并发)创建多工作区
-    开发者->>Claude: 2. 在子工作区的分支中启动无限制模式
-    开发者->>GitHub: 3. 创建或拉取 Issue
-    开发者->>Claude: 4. 根据 Issue 分派编码任务
+    开发者->>开发环境: (若需并发)创建多工作区
+    开发者->>Claude: 在子工作区的分支中启动无限制模式
+    开发者->>GitHub: 创建或拉取 Issue
+    开发者->>Claude: 根据 Issue 分派编码任务
     alt 复杂需求
         Claude->>Claude: 使用探索模式理清需求, 输出TDD技术方案
         开发者->>Claude: 简单 Review 技术方案
     end
     Claude->>开发环境: 执行方案并编写代码
-    开发者->>GitHub: 5. 提交 Pull Request (PR)
-    开发者->>AI代码审查员: 6. 对 PR 的代码进行 Review
+    开发者->>GitHub: 提交 Pull Request (PR)
+    开发者->>AI代码审查员: 对 PR 的代码进行 Review
     AI代码审查员-->>GitHub: 在 PR 中提交 Review 意见
-    开发者->>Claude: 7. 反馈 Code Review 意见
-    Claude-->>开发者: 响应、点评并修复代码
-    note right of 开发者: 开发者将修复后的代码再次提交至 GitHub
-    开发者->>Claude: 8. 将重复性工作抽象为可组合的 Commands
+    开发者->>Claude: 指示处理 PR 的 Review 意见
+    Claude->>GitHub: 读取 PR 中的 Review 意见
+    Claude-->>开发者: 基于意见响应、点评并修复代码
+    note right of 开发者: 开发者将修复后的代码<br/>再次提交至 GitHub
+    开发者->>Claude: 反思并将重复性工作抽象为可组合的 Slash Commands
 ```
 
 ## 流程细节
@@ -318,7 +320,7 @@ author:xiaohui
 
 1. **探索阶段**
    ```bash
-   # 让 Claude 先了解项目结构
+   # 让 Claude 先了解项目结构和业务背景
    "请先阅读项目的主要文件，不要立即开始编码"
    "我们讨论一下 xxx ,这里是背景资料 xxx"
    ```
@@ -577,3 +579,4 @@ cd ../project-ui && claude
 - [MCP 协议规范](https://modelcontextprotocol.io/)
 - [GitHub 集成指南](https://cli.github.com/)
 - [Claude Code Hooks：变革你 2025 年的开发工作流程](https://mp.weixin.qq.com/s/Pnk2NS4PoDnU095jmH17QQ)
+-  [Vol 55. 你离顶级 Vibe Coder 至少差一个超级指令](https://mp.weixin.qq.com/s/TgXRZE33yiUzpBOVAai08g)
