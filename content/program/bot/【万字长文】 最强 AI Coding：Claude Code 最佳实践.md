@@ -53,8 +53,8 @@ sequenceDiagram
 3. 对于新需求创建 issue，或者拉取当前 issue. 多个 issue 可以使用 GitHub Projects 管理。
 4. 按照 issue 给 Claude Code 派活。对于复杂需求，使用探索模式理清需求, 尽量产出基于 TDD 的技术方案，简单review 后让 Claude 执行
 5. 提交 PR
-6. 通义灵码和 Gemini Code Assistant Review PR 代码 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/202507201501277.png)
-7. Claude 响应 Code Review 意见，点评后修复
+	1. 通义灵码和 Gemini Code Assistant Review PR 代码 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/202507201501277.png)
+6. Claude 响应 Code Review 意见，点评后修复
 
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/202507201516392.png) 8. 对每一个重复的工作都可以抽象成 commands ,注意 commands 不要太大，方便组合。 比如我们可以让 Claude 为我们添加一个`pr-comments`命令
 
@@ -561,7 +561,7 @@ cat code.py | claude -p '分析此代码中的错误' --output-format json > ana
 
 自然地，你可以在脚本里面写循环来调用 CC 批处理多个任务
 
-## 6. 多 Claude 并发干活
+## 6. 多 Claude 并发干活 - 构建高效的 AI 协作开发团队
 
 ### 6.1 代码审查模式
 
@@ -599,7 +599,22 @@ cd ../project-ui && claude
 
 不过这样做其实环境还不够隔离，比如 `数据库`， `redis` 以及全局生效的配置文件、环境变量还是没有隔离，可能会使用相同的资源，想要做到真正的隔离得给每个 CC 分配一个 Docker 。不过先给 CC 分配一个小隔间基本就可以满足诉求了。
 
----
+6.3 子智能体团队
+Claude Code 支持创建 subAgent， subAgent 的好处是上下文会与Claude Code 当前回答里的hostAgent 上下文隔离，从而解决上下文爆炸、上下文腐烂等问题，当然这个也会有缺点--因为上下文是隔离的，所以 subAgent 只能凭借 hostAgent 交由过来的任务描述了解背景，如果需要更多的信息 subAgent 需要自己重新收集。
+所以我们使用 subAgent的时候应该注意它的任务应该是模块边界清晰的任务。通过`/agents` 命令即可进入创建 subAgent 页面。
+如下是我创建的专门用于生成微信封面的 agent -- wechat-cover-layout-designer  :
+```
+Description (tells Claude when to use this agent):                              Use this agent when you need to create a WeChat official account cover image layout with specific proportional requirements. This agent should be used when the user requests a dual-cover design (main cover +朋友圈分享 cover) with modern visual impact, responsive layout, and download functionality. Example: When a user asks for a WeChat cover design with exact 3.35:1 overall ratio, 2.35:1 main cover, and 1:1 share cover with specific text layout requirements.
+
+System prompt:
+...              
+```
+
+写完之后让CC 生成封面图，它就会handoff 给wechat-cover-layout-designer 
+![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/202508302115952.png)
+
+最后生成的微信公众号封面示例：
+![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/202508302152085.png)
 
 ## 📚 参考
 

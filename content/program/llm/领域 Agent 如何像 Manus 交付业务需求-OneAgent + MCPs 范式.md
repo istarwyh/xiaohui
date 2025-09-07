@@ -111,39 +111,72 @@ OneAgent + MCPs 范式将是每个闭环领域内的一种Agent 智能落地实�
 
 ```mermaid
 graph LR
-    %% 定义节点
-    User[User]
-    MainAgent[Main Agent（Loop）]
-    LLM1[LLM]
-    LLM3[LLM]
-    Tool1[MCP1]
-    Tool2[MCP 2]
-    SubAgent[Sub Agent（Loop）]
-    LLM2[LLM]
-    Tool3[MCP 3]
-    Tool4[MCP 4]
 
-    %% 定义连接
-    User <--> MainAgent
-    MainAgent <--> LLM1
-    MainAgent <--> Tool1
-    Tool1 <--> LLM3
-    MainAgent <--> Tool2
-    MainAgent <--> SubAgent
-    SubAgent <--> LLM2
-    SubAgent <--> Tool3
-    SubAgent <--> Tool4
+%% 定义节点
 
-    %% 定义节点样式以匹配原图颜色
-    style User fill:#f1f8e9,stroke:#555,stroke-width:2px,rx:8,ry:8
-    style MainAgent fill:#e3f2fd,stroke:#555,stroke-width:2px,rx:8,ry:8
-    style SubAgent fill:#e3f2fd,stroke:#555,stroke-width:2px,rx:8,ry:8
-    style LLM1 fill:#e8f5e9,stroke:#555,stroke-width:2px,rx:8,ry:8
-    style LLM2 fill:#e8f5e9,stroke:#555,stroke-width:2px,rx:8,ry:8
-    style Tool1 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:8
-    style Tool2 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:8
-    style Tool3 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:8
-    style Tool4 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:8
+User[User]
+
+MainAgent[Host Agent（Loop）]
+
+LLM1[LLM]
+
+LLM3[LLM]
+
+Tool1[MCP1]
+
+Tool2[Builtin Tools]
+
+SubAgent[Sub Agent（Loop）]
+
+LLM2[LLM]
+
+Tool3[MCP 3]
+
+Tool4[Builtin Tools]
+
+  
+
+%% 定义连接
+
+User <--> MainAgent
+
+MainAgent <--> LLM1
+
+MainAgent <--> Tool1
+
+Tool1 <--> LLM3
+
+MainAgent <--> Tool2
+
+MainAgent <--> SubAgent
+
+SubAgent <--> LLM2
+
+SubAgent <--> Tool3
+
+SubAgent <--> Tool4
+
+  
+
+%% 定义节点样式以匹配原图颜色
+
+style User fill:#f1f8e9,stroke:#555,stroke-width:2px,rx:8,ry:8
+
+style MainAgent fill:#e3f2fd,stroke:#555,stroke-width:2px,rx:8,ry:8
+
+style SubAgent fill:#e3f2fd,stroke:#555,stroke-width:2px,rx:8,ry:8
+
+style LLM1 fill:#e8f5e9,stroke:#555,stroke-width:2px,rx:8,ry:8
+
+style LLM2 fill:#e8f5e9,stroke:#555,stroke-width:2px,rx:8,ry:8
+
+style Tool1 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:8
+
+style Tool2 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:8
+
+style Tool3 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:8
+
+style Tool4 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:88
 
 ```
 

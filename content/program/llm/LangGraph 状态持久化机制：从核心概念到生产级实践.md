@@ -87,8 +87,7 @@ graph TD
 
 每个`thread`都包含一个按时间顺序排列的检查点序列。通过将`thread_id`与一个特定的`checkpoint_id`（检查点的唯一标识符）结合起来，开发者可以实现所谓的“时间旅行”（time travel）能力 3。这意味着，即使工作流已经执行了很长一段时间，开发者也可以通过指定一个历史检查点，让图从该点恢复并重新执行，这对于复杂的调试、错误恢复或探索不同的执行路径至关重要。框架能够识别哪些步骤已经被执行过，并跳过这些步骤的重新计算，从而只执行从指定检查点开始的新步骤，确保了效率 3。
 
-**在一个包含多个节点和复杂逻辑（如循环、分支和多代理协作）的 LangGraph 图中，持久化发生在每个“超步”结束时 。这意味着，当一个或多个节点完成执行并更新图状态后，检查点机制会捕获这个新的状态快照并将其写入数据库 。这为调试提供了极大的便利，因为开发者可以“回溯”到任何一个中间状态快照，查看特定节点的输出 。此外，LangGraph 的“回放”（replay）功能允许工作进程从指定的  
-checkpoint_id 开始恢复执行，跳过那些已经完成的步骤，从而实现精确的任务续航 3。**
+**在一个包含多个节点和复杂逻辑（如循环、分支和多代理协作）的 LangGraph 图中，持久化发生在每个“超步”结束时 。这意味着，当一个或多个节点完成执行并更新图状态后，检查点机制会捕获这个新的状态快照并将其写入数据库 。这为调试提供了极大的便利，因为开发者可以“回溯”到任何一个中间状态快照，查看特定节点的输出 。此外，LangGraph 的“回放”（replay）功能允许工作进程从指定的checkpoint_id 开始恢复执行，跳过那些已经完成的步骤，从而实现精确的任务续航 3。**
 
 ## 3. 数据流与生产级架构图剖析
 
@@ -217,20 +216,21 @@ sequenceDiagram
 | `PostgresSaver` | 生产服务器 | 中等 | 生产环境、企业级应用 | 高并发、强一致性、事务支持 | 需要独立部署和管理数据库 |
 | `Redis` | 生产服务器 | 中等 | 生产环境、高并发实时任务 | 极低延迟，支持`pub-sub`和任务队列 | 不适合作为主持久化层，需要配合其他数据库 |
 | `Couchbase` | 生产服务器 | 中等 | 企业级特定需求 | 可扩展性强，适应特定数据生态系统 | 需要额外的自定义集成 |
-**
+
+\*\*
 
 以 PostgresSaver 的同步和异步实现为例，其配置和使用方式如下 31：
 
 ```Python
-# PostgreSQL 检查点同步示例  
-from langgraph.checkpoint.postgres import PostgresSaver  
-DB_URI = "postgresql://postgres:postgres@localhost:5442/postgres?sslmode=disable"  
-with PostgresSaver.from_conn_string(DB_URI) as checkpointer:  
-    # 首次使用时需调用 setup() 来创建必要的表  
-    # checkpointer.setup()  
-    graph = builder.compile(checkpointer=checkpointer)  
-    config = {"configurable": {"thread_id": "1"}}  
-    # 调用并自动保存检查点  
+# PostgreSQL 检查点同步示例
+from langgraph.checkpoint.postgres import PostgresSaver
+DB_URI = "postgresql://postgres:postgres@localhost:5442/postgres?sslmode=disable"
+with PostgresSaver.from_conn_string(DB_URI) as checkpointer:
+    # 首次使用时需调用 setup() 来创建必要的表
+    # checkpointer.setup()
+    graph = builder.compile(checkpointer=checkpointer)
+    config = {"configurable": {"thread_id": "1"}}
+    # 调用并自动保存检查点
     graph.invoke({"messages": [{"role": "user", "content": "hi! I'm bob"}]}, config)**
 ```
 

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quartz Community Code of Conduct Cover</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@zumer/snapdom/dist/snapdom.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif']
+                    },
+                    colors: {
+                        'quartz-blue': '#2563eb',
+                        'quartz-indigo': '#4f46e5',
+                        'quartz-purple': '#7c3aed',
+                        'trust-blue': '#1e40af',
+                        'safe-green': '#059669'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Maintain 3.35:1 aspect ratio */
+        .cover-container {
+            width: 100%;
+            aspect-ratio: 3.35 / 1;
+            max-width: 1000px;
+            margin: 2rem auto;
+        }
+        
+        /* Main cover takes 2.35 portion of 3.35 total */
+        .main-cover {
+            width: calc(2.35 / 3.35 * 100%);
+        }
+        
+        /* Share cover takes 1 portion of 3.35 total */
+        .share-cover {
+            width: calc(1 / 3.35 * 100%);
+        }
+        
+        /* Gradient background for professional look */
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e40af 0%, #2563eb 25%, #4f46e5 50%, #7c3aed 75%, #059669 100%);
+        }
+        
+        /* Text scaling relative to container */
+        .responsive-text-xl {
+            font-size: clamp(1rem, 3vw, 1.5rem);
+        }
+        
+        .responsive-text-2xl {
+            font-size: clamp(1.25rem, 4vw, 2rem);
+        }
+        
+        .responsive-text-3xl {
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
+        }
+        
+        .responsive-text-4xl {
+            font-size: clamp(2rem, 6vw, 3rem);
+        }
+        
+        /* Decorative elements */
+        .floating-icon {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .pulse-glow {
+            animation: pulse-glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes pulse-glow {
+            from { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+            to { box-shadow: 0 0 40px rgba(59, 130, 246, 0.6); }
+        }
+        
+        /* Download button styling */
+        .download-btn {
+            background: linear-gradient(135deg, #2563eb, #4f46e5);
+            transition: all 0.3s ease;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">Quartz Community Code of Conduct Cover</h1>
+        
+        <!-- Cover Container -->
+        <div id="cover-image" class="cover-container bg-white rounded-none shadow-2xl overflow-hidden flex">
+            
+            <!-- Main Cover (2.35:1 ratio) -->
+            <div class="main-cover gradient-bg relative flex flex-col justify-center items-center text-white p-8">
+                <!-- Background decorative elements -->
+                <div class="absolute inset-0 overflow-hidden">
+                    <div class="absolute top-4 left-4 floating-icon opacity-20">
+                        <i class="fas fa-users text-4xl"></i>
+                    </div>
+                    <div class="absolute top-8 right-8 floating-icon opacity-20" style="animation-delay: -1s;">
+                        <i class="fas fa-heart text-3xl"></i>
+                    </div>
+                    <div class="absolute bottom-6 left-8 floating-icon opacity-20" style="animation-delay: -2s;">
+                        <i class="fas fa-shield-alt text-3xl"></i>
+                    </div>
+                    <div class="absolute bottom-8 right-6 floating-icon opacity-20" style="animation-delay: -0.5s;">
+                        <i class="fas fa-handshake text-3xl"></i>
+                    </div>
+                </div>
+                
+                <!-- Main Content - Text dominates 70%+ of space -->
+                <div class="relative z-10 text-center space-y-4">
+                    <!-- Main Title -->
+                    <div class="space-y-2">
+                        <h2 class="responsive-text-4xl font-bold tracking-tight leading-tight">
+                            QUARTZ
+                        </h2>
+                        <h3 class="responsive-text-3xl font-semibold">
+                            Community
+                        </h3>
+                        <div class="w-24 h-1 bg-white mx-auto rounded-full pulse-glow"></div>
+                        <h4 class="responsive-text-2xl font-medium">
+                            Code of Conduct
+                        </h4>
+                    </div>
+                    
+                    <!-- Core Values -->
+                    <div class="mt-8 space-y-3">
+                        <div class="flex justify-center space-x-6 responsive-text-xl">
+                            <span class="bg-white/20 px-3 py-1 rounded-full font-medium">Inclusive</span>
+                            <span class="bg-white/20 px-3 py-1 rounded-full font-medium">Safe</span>
+                        </div>
+                        <div class="flex justify-center space-x-6 responsive-text-xl">
+                            <span class="bg-white/20 px-3 py-1 rounded-full font-medium">Collaborative</span>
+                            <span class="bg-white/20 px-3 py-1 rounded-full font-medium">Respectful</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Subtitle -->
+                    <p class="responsive-text-xl font-light mt-6 opacity-90 max-w-md">
+                        Building a welcoming environment for open source citizenship
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Share Cover (1:1 ratio) -->
+            <div class="share-cover gradient-bg relative flex flex-col justify-center items-center text-white">
+                <!-- Four large characters in 2x2 grid -->
+                <div class="grid grid-cols-2 gap-4 w-full h-full p-6">
+                    <div class="flex items-center justify-center">
+                        <span class="text-5xl font-bold leading-none">社</span>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <span class="text-5xl font-bold leading-none">区</span>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <span class="text-5xl font-bold leading-none">规</span>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <span class="text-5xl font-bold leading-none">范</span>
+                    </div>
+                </div>
+                
+                <!-- Decorative corner elements -->
+                <div class="absolute top-2 left-2 w-6 h-6 border-l-2 border-t-2 border-white/40"></div>
+                <div class="absolute top-2 right-2 w-6 h-6 border-r-2 border-t-2 border-white/40"></div>
+                <div class="absolute bottom-2 left-2 w-6 h-6 border-l-2 border-b-2 border-white/40"></div>
+                <div class="absolute bottom-2 right-2 w-6 h-6 border-r-2 border-b-2 border-white/40"></div>
+            </div>
+        </div>
+        
+        <!-- Download Button -->
+        <div class="text-center mt-8">
+            <button 
+                id="downloadBtn" 
+                class="download-btn text-white px-8 py-3 rounded-lg font-semibold shadow-lg inline-flex items-center space-x-2"
+            >
+                <i class="fas fa-download"></i>
+                <span>Download Cover Image</span>
+            </button>
+        </div>
+        
+        <!-- Instructions -->
+        <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Design Features</h3>
+            <ul class="space-y-2 text-gray-600">
+                <li><i class="fas fa-check text-green-500 mr-2"></i><strong>Professional Gradient:</strong> Trust-building blue to purple gradient representing reliability and innovation</li>
+                <li><i class="fas fa-check text-green-500 mr-2"></i><strong>Community Values:</strong> Key principles (Inclusive, Safe, Collaborative, Respectful) prominently displayed</li>
+                <li><i class="fas fa-check text-green-500 mr-2"></i><strong>3.35:1 Aspect Ratio:</strong> Perfect for WeChat covers with responsive scaling</li>
+                <li><i class="fas fa-check text-green-500 mr-2"></i><strong>Text Dominance:</strong> Typography occupies 70%+ of space as required</li>
+                <li><i class="fas fa-check text-green-500 mr-2"></i><strong>Floating Icons:</strong> Subtle community symbols (users, heart, shield, handshake)</li>
+                <li><i class="fas fa-check text-green-500 mr-2"></i><strong>Share Cover:</strong> Chinese characters "社区规范" (Community Guidelines) in 2x2 grid</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('downloadBtn').addEventListener('click', async function() {
+            const button = this;
+            const originalText = button.innerHTML;
+            
+            // Show loading state
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Generating...</span>';
+            button.disabled = true;
+            
+            try {
+                const element = document.getElementById('cover-image');
+                
+                // Use snapdom for faster, better quality capture
+                const canvas = await snapdom.toCanvas(element, {
+                    width: element.offsetWidth * 2, // Higher resolution
+                    height: element.offsetHeight * 2,
+                    scale: 2 // Better quality
+                });
+                
+                // Download the image
+                const link = document.createElement('a');
+                link.download = 'quartz-community-code-of-conduct-cover.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                // Success feedback
+                button.innerHTML = '<i class="fas fa-check"></i><span>Downloaded!</span>';
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Download failed:', error);
+                button.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Error - Try Again</span>';
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }, 3000);
+            }
+        });
+        
+        // Responsive behavior test
+        window.addEventListener('resize', function() {
+            // Container automatically maintains 3.35:1 ratio via CSS aspect-ratio
+            console.log('Cover dimensions maintained at', window.innerWidth);
+        });
+    </script>
+</body>
+</html>
