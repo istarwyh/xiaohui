@@ -7,23 +7,31 @@ aliases:
 
 <div class="hero">
 
-<p>🌾 用代码播种 · 用思想灌溉</p>
+<p class="typewriter">🌾 用代码播种 · 用思想灌溉</p>
 
 </div>
+
+<div class="content-wrapper">
 
 ## 🌟 精选作物
 
 1. [[Farming in the cyber world|赛博农耕说明]]
-2. [[Full Stream|全流开发]]
-3. [[My Graduation Note Leaving Alibaba|阿里离职手记]]
-4. [[NARE (Nexus Agent Runtime Enviroment)]]
-5. [[忍不住看网络小说]]
+2. [[Team-Efficiency|团队效能]]
+3. [[为什么要学文言文？]]
+4. [[708090|七零八零九零]]
+5. [[NARE (Nexus Agent Runtime Enviroment)]]
+
+</div>
+
+<div class="content-wrapper">
 
 ## 🚜 最新耕作记录
 
-- [[Truth]]
-- [[AI时代的信息价值]]
-- [[1050 每个月]]
+- [[通用智能体 Prompt 示例完整版]]
+- [[NARE (Nexus Agent Runtime Enviroment)]]
+- [[Invest Consider]]
+
+</div>
 
 <script async src="https://d3kno6bpmj270m.cloudfront.net/widget/userdesk.js" data-userdesk="clsok8vng0001aihcgmmbxfos"></script>
 

@@ -5,7 +5,7 @@ import * as Component from "./quartz/components"
 export const sharedPageComponents: SharedLayout = {
   head: Component.Head(),
   header: [],
-  afterBody: [],
+  afterBody: [Component.MatrixBackground(), Component.MatrixDebug()],
   footer: Component.Footer({
     links: {
       关于我: "/Farming-in-the-cyber-world",
