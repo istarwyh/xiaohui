@@ -8,9 +8,10 @@ export const sharedPageComponents: SharedLayout = {
   afterBody: [],
   footer: Component.Footer({
     links: {
-      关于我: "/aboutme/自我介绍",
-      GitHub: "https://github.com/isatrwyh",
-      赛博农耕: "/Farming in the cyber world",
+      关于我: "/Farming-in-the-cyber-world",
+      GitHub: "https://github.com/istarwyh",
+      赛博农耕: "/Cyber-Farmer",
+      AI加速我: "https://aispeeds.me",
     },
   }),
 }
