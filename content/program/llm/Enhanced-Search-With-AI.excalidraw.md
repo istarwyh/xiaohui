@@ -1,14 +1,14 @@
 ---
-
 excalidraw-plugin: parsed
 tags: [excalidraw]
-
 ---
+
 ==⚠ Switch to EXCALIDRAW VIEW in the MORE OPTIONS menu of this document. ⚠==
 
-
 ## Excalidraw Data
+
 ### Text Elements
+
 Users ^05kc3cro
 
 Q分类 ^mLZKxnGt
@@ -19,8 +19,7 @@ Q分类 ^mLZKxnGt
 
 AI问答 ^PeDU2E1Z
 
-文档
-Diff ^UqiW2d2x
+文档Diff ^UqiW2d2x
 
 当前文档 ^VRywF4mj
 
@@ -68,14 +67,13 @@ LLM ^mAxuLCUc
 
 A ^ltwuiNlH
 
-QA
-卡片 ^PntAg3ls
+QA 卡片 ^PntAg3ls
 
 KV Store ^Y1zb9rVM
 
 C ^FUKcqCOF
 
-* ^r9ZYpCCY
+- ^r9ZYpCCY
 
 Inverted Index ^KoPsZTVl
 
@@ -87,14 +85,14 @@ Ask ^O5PwDcCu
 
 PTM关键词提取 ^ZayGcaAf
 
-区别于关键词匹配，向量召回具有更好的处理复杂查询的能力，并在处理大量文档时较为高效。
-不过当大量文档召回，为了给 LLM 准确的上下文信息，需要对文档重排序。
-通过合理的粗排、精排、重排，可以让给 LLM 的参考文档最相关，为系统的问答效果提供更好的基础。 ^xSrxts1l
+区别于关键词匹配，向量召回具有更好的处理复杂查询的能力，并在处理大量文档时较为高效。不过当大量文档召回，为了给 LLM 准确的上下文信息，需要对文档重排序。通过合理的粗排、精排、重排，可以让给 LLM 的参考文档最相关，为系统的问答效果提供更好的基础。 ^xSrxts1l
 
 FAQ ^2Wnq0ePz
 
 %%
+
 ### Drawing
+
 ```compressed-json
 N4KAkARALgngDgUwgLgAQQQDwMYEMA2AlgCYBOuA7hADTgQBuCpAzoQPYB2KqATLZMzYBXUtiRoIACyhQ4zZAHoFAc0JRJQgEYA6bGwC2CgF7N6hbEcK4OCtptbErHALRY8RMpWdx8Q1TdIEfARcZgRmBShcZQUebTieGjoghH0EDihmbgBtcDBQMELoeHF0QOwojmVgpMLIRhZ2LjQAVgBOAGZ+IobWTgA5TjFuAEYOjpGABgAOSZbprrzIQg5i
 
@@ -618,4 +616,5 @@ zxgMuzHE5uz1nRubxz4tGu+Htf5uvUxFyWtVdi51G9kN11dsN1m9jO3NyN42mie+OYtwlyQaCQjvMME1
 
 9gdwhcuEIDyMAkARmIgEej4kAS4jvwZZBegdBB+gd0DTDGIcbyHEAnwZQDbgWiD0wWRqpD/YBxDz1icDmgfEgfCCdwTgAJZkSWBAMwDCAAZYMoYgCBDqfBsFE+DGoBlDCOj7YVEYIAAQZXnYAeVCpkmUBMoUAfZdthCHwNHAyozId2AQ0gVAZgAXw+wyj8tYBw6Bod/xNyBytcIBz4NKAXgIAA==
 ```
+
 %%

@@ -29,7 +29,6 @@ Xander: https://flowus.cn/share/5f2d300f-468c-4ab6-b7cd-f88d1e6500e4
 这里面需要
 
 - 中间表固化结果
-
   - ODS: Operational Data Store OLTP
   - DIM: 商家、品、营销活动,指标层？
   - DWD: Data Warehouse Detail

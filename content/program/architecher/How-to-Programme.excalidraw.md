@@ -1,31 +1,25 @@
 ---
-
 excalidraw-plugin: parsed
 tags: [excalidraw]
-
 ---
-==⚠  Switch to EXCALIDRAW VIEW in the MORE OPTIONS menu of this document. ⚠== You can decompress Drawing data with the command palette: 'Decompress current Excalidraw file'. For more info check in plugin settings under 'Saving'
 
+==⚠ Switch to EXCALIDRAW VIEW in the MORE OPTIONS menu of this document. ⚠== You can decompress Drawing data with the command palette: 'Decompress current Excalidraw file'. For more info check in plugin settings under 'Saving'
 
 # Excalidraw Data
+
 ## Text Elements
+
 建模 ^HvSbNU3n
 
 设计&测试 ^kdJJjmul
 
 重构 ^BMzCdH7j
 
-面向对象
-职责应由哪些对象承担 ^8xLJMqtQ
+面向对象职责应由哪些对象承担 ^8xLJMqtQ
 
-派分职责
-设计原则指导职责分配
-测试验收代码 ^5YcpCKU8
+派分职责设计原则指导职责分配测试验收代码 ^5YcpCKU8
 
-代码打磨
-可读性、扩展性、
-设计模式、类库复用 
- ^BLEiww4R
+代码打磨可读性、扩展性、设计模式、类库复用 ^BLEiww4R
 
 领域建模 ^K0xIywqS
 
@@ -34,7 +28,9 @@ tags: [excalidraw]
 最佳实践 ^loo7ioh6
 
 %%
+
 ## Drawing
+
 ```compressed-json
 N4KAkARALgngDgUwgLgAQQQDwMYEMA2AlgCYBOuA7hADTgQBuCpAzoQPYB2KqATLZMzYBXUtiRoIACyhQ4zZAHoFAc0JRJQgEYA6bGwC2CgF7N6hbEcK4OCtptbErHALRY8RMpWdx8Q1TdIEfARcZgRmBShcZQUebTieGjoghH0EDihmbgBtcDBQMELoeHF0QOwojmVgpMLIRhZ2LjQAVgA2Nv4ihtZOADlOMW4ARmGAFgBOFoB2AAYJibGuyEIO
 
@@ -112,4 +108,5 @@ AvrggxpbACgJWFwBjDHpvUjcGsDBn4hIZIQQyItCRn1TmA2AfEEiAeGPRhIV1VONKnYxjUlqOILGZ6Fv
 
 dILgE0DBA6I8UzqUQBXb88XRRQFLgVJDkddhAYjd+v+Kqzcy7ANkQdMwGRApc4ArWdYPDJ9l+zfKoErNIiHCBowQIIAECEAA
 ```
+
 %%

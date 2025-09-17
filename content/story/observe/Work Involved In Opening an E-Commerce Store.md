@@ -11,10 +11,10 @@
 - 商品详情
 - 财务:[[Finance Technology Area Relation.canvas|Finance Technology Area Relation]]
 - 用户服务
-	- 售前
-	- 售后
+  - 售前
+  - 售后
 - 供应链
-	- 补货
-	- 履约
-	- 销量预测
-	- 库存
+  - 补货
+  - 履约
+  - 销量预测
+  - 库存

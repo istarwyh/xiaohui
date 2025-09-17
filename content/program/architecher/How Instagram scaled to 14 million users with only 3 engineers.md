@@ -2,6 +2,7 @@
 reference_link: https://read.engineerscodex.com/p/how-instagram-scaled-to-14-million
 author: 天舟
 ---
+
 从 2010 年 10 月到 2011 年 12 月，Instagram 在短短一年多的时间里，用户数量从 0 增长到 1400 万。他们仅用 3 名工程师就做到了这一点。
 
 他们之所以能做到这一点，是因为遵循了 3 个关键原则并拥有可靠的技术栈。
@@ -11,11 +12,8 @@ author: 天舟
 ## **Instagram 的指导原则**
 
 - 一切从简。
-    
 - 不要重复发明轮子。
-    
 - 尽可能使用经过验证的可靠技术。
-    
 
 ---
 
@@ -66,11 +64,8 @@ Instagram 使用 Fabric 同时在多个实例上并行运行命令。这样就�
 为此，它大致需要：
 
 1. 最新的相关照片 ID
-    
 2. 与这些照片 ID 匹配的实际照片
-    
 3. 这些照片的用户数据
-    
 
 ### **数据库：Postgres**
 
@@ -85,11 +80,8 @@ PostgreSQL 和 Django 之间的连接使用 Pgbouncer 连接池。
 Instagram 面临并解决的一个有趣挑战是**生成可按时间排序的 ID**。他们生成的可按时间排序的 ID 是这样的：
 
 - 41 位比特表示以毫秒为单位的时间（提供 41 年的 ID 和自定义纪元）
-    
 - 13 位比特表示逻辑分片 ID
-    
 - 10 位比特表示自动递增序列，模数为 1024。这意味着我们可以为每个分区每毫秒生成 1024 个 ID
-    
 
 得益于 Postgres 中可按时间排序的 ID，应用服务器成功接收到了最新的相关照片 ID。
 
@@ -156,8 +148,6 @@ Instagram 使用开源 Django 应用程序 **Sentry** 实时监控 Python 错�
 ## **最终的架构概览图**
 
 ![图片](https://mmbiz.qpic.cn/sz_mmbiz_png/MYlicw4Vl5SjFW9wq5K6PibsYOF7gNichRiauqCEQleJ0o1ia4dMptaP5EAftWd4AgwparJwoDr5HF2UXhjArDr8K4A/640?wx_fmt=png&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1)
-
-  
 
 --
 

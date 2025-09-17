@@ -1,16 +1,18 @@
 ---
-
 excalidraw-plugin: parsed
 tags: [excalidraw]
-
 ---
+
 ==⚠ Switch to EXCALIDRAW VIEW in the MORE OPTIONS menu of this document. ⚠== You can decompress Drawing data with the command palette: 'Decompress current Excalidraw file'. For more info check in plugin settings under 'Saving'
 
+#
 
 #
-#
+
 ## Excalidraw Data
+
 ### Text Elements
+
 User ^WrIFIChv
 
 Dashboard Module ^e863N6ZU
@@ -59,8 +61,7 @@ offline ZcjProduct ^0lmddlg0
 
 offline ZcjServicer ^MpdKaekD
 
-offline
-IntelliSupplier ^MlgT4s4F
+offline IntelliSupplier ^MlgT4s4F
 
 offline ZcjSupplier ^xJwjUicZ
 
@@ -91,7 +92,9 @@ violation ^NeHdFEPS
 Alibaba GEI ^Fo2glnzc
 
 %%
+
 ### Drawing
+
 ```compressed-json
 N4KAkARALgngDgUwgLgAQQQDwMYEMA2AlgCYBOuA7hADTgQBuCpAzoQPYB2KqATLZMzYBXUtiRoIACyhQ4zZAHoFAc0JRJQgEYA6bGwC2CgF7N6hbEcK4OCtptbErHALRY8RMpWdx8Q1TdIEfARcZgRmBShcZQUebTieGjoghH0EDihmbgBtcDBQMELoeHF0KCwoJMLIRhZ2LjQARgBmHgAWfiLa1k4AOU4xbkaAVgAOAHZhgE5GgAYOvMhCDmIs
 
@@ -727,4 +730,5 @@ qwWRIeRWdDMCxPaWqEEdCjADYAAwBMEQYATICJ7iJ/WDDUgD1eDBJEuV2AZCgSADjhGLBWMMdWXJBInC
 
 EgHCAgAA
 ```
+
 %%

@@ -2,7 +2,6 @@
 reference_link: https://mp.weixin.qq.com/s/aBa5O9TZ1OZ3oPSOkVXUGQ
 ---
 
-
 这个故事展开，是四个产品，五次腾挪。它的背后或许是创业艰难，或许是九败一胜，或许是我们应该寻找 PMF。我此刻脑子里想到的是：放手试错，拥抱失败。
 
 ## 72 小时
