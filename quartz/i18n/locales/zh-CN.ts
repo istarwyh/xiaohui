@@ -33,7 +33,7 @@ export default {
       title: "阅读模式",
     },
     explorer: {
-      title: "探索",
+      title: "文件导航",
     },
     footer: {
       createdWith: "Created with",
@@ -66,8 +66,8 @@ export default {
       lastFewNotes: ({ count }) => `最近的${count}条笔记`,
     },
     error: {
-      title: "无法找到",
-      notFound: "私有笔记或笔记不存在。",
+      title: "页面未找到",
+      notFound: "您访问的页面不存在或为私有内容。",
       home: "返回首页",
     },
     folderContent: {

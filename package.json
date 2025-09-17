@@ -4,12 +4,12 @@
   "private": true,
   "version": "4.4.0",
   "type": "module",
-  "author": "jackyzha0 <j.zhao2k19@gmail.com>",
+  "author": "talk@xiaohui.cool",
   "license": "MIT",
-  "homepage": "https://quartz.jzhao.xyz",
+  "homepage": "https://xiaohui.cool",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jackyzha0/quartz.git"
+    "url": "https://github.com/istarwyh/xiaohui.git"
   },
   "scripts": {
     "quartz": "./quartz/bootstrap-cli.mjs",
@@ -19,7 +19,7 @@
     "test": "tsx ./quartz/util/path.test.ts && tsx ./quartz/depgraph.test.ts",
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1",
     "sync-vnote": "./scripts/sync-vnote.sh",
-    "sync": "npm run sync-vnote && npx quartz sync",
+    "sync": "npm run sync-vnote && npx prettier . --write && npx quartz sync",
     "build": "npx quartz build",
     "postinstall": "node -e \"try { require('@napi-rs/simple-git-linux-x64-gnu') } catch (e) { console.log('Platform-specific module not needed or already installed') }\""
   },
