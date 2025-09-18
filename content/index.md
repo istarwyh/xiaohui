@@ -7,7 +7,7 @@ aliases:
 
 <div class="hero">
 
-<p class="typewriter">🌾 用代码播种 · 用思想灌溉</p>
+<p class="typewriter">🌱 在数字田野中耕耘智慧</p>
 
 </div>
 
@@ -15,11 +15,11 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[Farming in the cyber world|赛博农耕说明]]
-2. [[Team-Efficiency|团队效能]]
-3. [[为什么要学文言文？]]
-4. [[708090|七零八零九零]]
-5. [[NARE (Nexus Agent Runtime Enviroment)]]
+1. [[网站设计]]
+2. [[How the economic machine works by Ray Dalio|经济机器如何运作]]
+3. [[Make Learning Happy|让学习快乐起来]]
+4. [[How-to-Choose-Note-Software|如何选择笔记软件]]
+5. [[AI时代的信息价值]]
 
 </div>
 

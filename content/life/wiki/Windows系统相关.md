@@ -1,5 +1,4 @@
 ## 背景知识
-
 - BIOS：Basic Input Output System，主要功能是为计算机提供最底层的、最直接的硬件设置和控制。
 - x86:1978年6月8日，Intel发布了新款16位CPU“8086”，诞生x86架构，32位指令集（一套通用的计算机指令集合）。一般可认为这是“CPU+Linux”操作系统的架构，几乎可认为目前市面上所有主流服务器都是基于x86架构的CPU公版二次开发而来。
 - X86_64、x64、AMD64:x86指令集的64位扩展
@@ -20,7 +19,8 @@
 
 ## 准备工作
 
-1.wi+S输入“系统信息”。传统对应BIOS，UEFI对应EFI启动模式。2.先[查阅](https://mp.weixin.qq.com/s?__biz=MTI2NzIyNzM0MQ==&mid=2650529491&idx=1&sn=0924942a434d41da503e913c6553d65b&chksm=7bb8d3714ccf5a67cf70796c050d927749cba469e7b119fc50fa961b5b1238ee715b448c30a1&scene=21#wechat_redirect)自己主板怎么进入BIOS，一般是看到开机logo就反复按f12键（大多台湾电脑）或del键或Esc键
+1.wi+S输入“系统信息”。传统对应BIOS，UEFI对应EFI启动模式。 
+2.先[查阅](https://mp.weixin.qq.com/s?__biz=MTI2NzIyNzM0MQ==&mid=2650529491&idx=1&sn=0924942a434d41da503e913c6553d65b&chksm=7bb8d3714ccf5a67cf70796c050d927749cba469e7b119fc50fa961b5b1238ee715b448c30a1&scene=21#wechat_redirect)自己主板怎么进入BIOS，一般是看到开机logo就反复按f12键（大多台湾电脑）或del键或Esc键
 
 ### 原材料
 
@@ -38,12 +38,12 @@ ISO文件，微软官方或 http://msdn.itellyou.cn/
 
 ```shell
 CMD Diskpart>List disk
-Select disk U盘
-Clean
-Creat partition primary
-Select partition 1
-Active Format fs=exfat quick
-Assign
+Select disk U盘 
+Clean 
+Creat partition primary 
+Select partition 1 
+Active Format fs=exfat quick 
+Assign 
 Exit
 ```
 
@@ -69,7 +69,8 @@ Exit
 
 ## 安装启动
 
-可参考[10分钟学会装系统!](https://mp.weixin.qq.com/s?__biz=MTI2NzIyNzM0MQ==&mid=2650529881&idx=1&sn=2453f44d64b82491a0eecb3016dc06bf&chksm=7bb8edfb4ccf64ed9ea68bca186ab0656bb9ff6bb6b39180387aaaaf5b9802113502a1266052&scene=21#wechat_redirect)：1.进入BIOS后，Main->SATA Mode->IDE（新机器）or ACHI（老机器）—>enter+左右键->Boot->使emovable Devices或USB Devices优先级最高（f6+/f5-）or USB HDD->f10保存
+可参考[10分钟学会装系统!](https://mp.weixin.qq.com/s?__biz=MTI2NzIyNzM0MQ==&mid=2650529881&idx=1&sn=2453f44d64b82491a0eecb3016dc06bf&chksm=7bb8edfb4ccf64ed9ea68bca186ab0656bb9ff6bb6b39180387aaaaf5b9802113502a1266052&scene=21#wechat_redirect)： 
+1.进入BIOS后，Main->SATA Mode->IDE（新机器）or ACHI（老机器）—>enter+左右键->Boot->使emovable Devices或USB Devices优先级最高（f6+/f5-）or USB HDD->f10保存
 
 2.进入Exit,并Exit Saving Changes
 
@@ -80,9 +81,7 @@ P.S.
 如果没有特殊的需求，硬盘是完全[没必要分区](https://mp.weixin.qq.com/s?__biz=MTI2NzIyNzM0MQ==&mid=2650529002&idx=2&sn=6ab6dd021ece93f0045faa965a52849a&chksm=7bb8d1484ccf585e59d8f80392f523e2f0a8aeefa59cffa455c3ee50b732664255bada79dbd1&scene=21#wechat_redirect)的,转而使用库——虚拟文件夹（默认关闭，需查看-显示库）效率更高。
 
 ## Windows安装后
-
 ### 获取系统信息
-
 FstFetch
 
 ### 1.Windows初始优化
@@ -92,7 +91,6 @@ FstFetch
 - `dism++`根据自己使用习惯调整
 
 常用内置工具或命令：
-
 ```shell
 
 gpedit.msc 本地组策略编辑器-注册表的文字化编辑
@@ -116,7 +114,6 @@ tasklist|findstr "5528" 根据PID查看进程
 
 taskkill /pid xxxx /f
 ```
-
 ### 2.日常垃圾清理
 
 - 在磁盘分区上鼠标右键点击“属性”，选择磁盘清理，对于日常没有权限删除的系统类文件夹可以通过“清理系统文件”的方式处理。在“设置-系统-存储”中，可以开启“存储感知”功能，让电脑自动删除“回收站”和“UWP应用”中存储的无用文件，释放磁盘空间。
@@ -135,7 +132,6 @@ taskkill /pid xxxx /f
 ### 4.细节决定舒适
 
 #### 更干净的"此电脑"
-
 [“此电脑”太乱 删掉就好](http://www.cfan.com.cn/2017/0831/129267.shtml):
 
 ##### 删除3D对象这x种文件夹
@@ -149,15 +145,14 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyCo
 
 1. 对着“NameSpace”项鼠标右键单击，选中“导出”，先将注册表项备份出来.
 2. 删除下列项
-
 ```
-{088e3905-0323-4b02-9826-5d99428e115f}下载文件夹
-{3dfdf296-dbec-4fb4-81d1-6a3438bcf4de}音乐文件夹
-{d3162b92-9365-467a-956b-92703aca08af}文档文件夹
+{088e3905-0323-4b02-9826-5d99428e115f}下载文件夹 
+{3dfdf296-dbec-4fb4-81d1-6a3438bcf4de}音乐文件夹 
+{d3162b92-9365-467a-956b-92703aca08af}文档文件夹 
 {0DB7E03F-FC29-4DC6-9020-FF41B59E513A}3D对象文件夹
 ```
-
 ##### 删除百度云这种盘符
+
 
 同上定位
 
@@ -165,10 +160,9 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyCo
 计算机\\HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace
 ```
 
-删除这种对应的项即可 ![](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/ceda00a8-c246-47ec-b79e-9d4eecb65418/.1556104434726.png)
-
+删除这种对应的项即可
+	![](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/ceda00a8-c246-47ec-b79e-9d4eecb65418/.1556104434726.png)
 ##### 关闭windows系统广告
-
 - OFGB
 
-#Command
+#Command 

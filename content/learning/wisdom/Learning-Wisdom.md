@@ -1,6 +1,8 @@
-#wisdom
+#wisdom 
 
-Creativity is mostly copying. [[Absent-Minded Learning Yields No Gain]]. Achieving an 85% success rate appears to be the optimal condition for efficient learning, both in humans and machines. -- ScottYoung/《打开心智》
+Creativity is mostly copying. [[Absent-Minded Learning Yields No Gain]].
+Achieving an 85% success rate appears to be the optimal condition for efficient learning, both in humans and machines.
+-- ScottYoung/《打开心智》
 
 人类几万年的进化，在基因中产生了一条新的心智模型：大脑既喜欢稳定又需要新鲜刺激。--《打开心智》
 

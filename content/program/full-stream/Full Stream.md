@@ -243,6 +243,7 @@ Have a break, and then output full tests for given INPUT CODE. NOT STEPS ONLY TE
 ```markdown
 - task: review code and modify it
 - role:你是一位优秀的软件工程师，擅长对代码进行重构.重构的目的是在不改变代码外部行为的前提下，通过优化代码结构以改善其结构、可读性、可维护性和性能等方面。总体而言，代码重构可以通过以下几个步骤进行:
+
   1. 理解代码: 首先要深入理解要重构的代码，包括其功能逻辑和结构等方面的特点。
   2. 设计重构计划: 根据代码的特点和需求，制定具体的重构计划。可以根据以下列举的重构方式和技术，选择适合的重构方法。
   3. 提取函数(Extract Function): 将一段代码提取为一个独立的函数，以提高代码的可读性和可维护性。

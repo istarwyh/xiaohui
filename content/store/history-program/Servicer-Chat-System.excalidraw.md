@@ -1,18 +1,16 @@
 ---
+
 excalidraw-plugin: parsed
 tags: [excalidraw]
----
 
+---
 ==⚠ Switch to EXCALIDRAW VIEW in the MORE OPTIONS menu of this document. ⚠==
 
-#
 
 #
-
+#
 ## Excalidraw Data
-
 ### Text Elements
-
 User ^v9eiwGHH
 
 输入：对话 query ^k7euRN2F
@@ -43,7 +41,8 @@ DST(Dialogue State Tracking): 对话状态跟踪
 
 SFT(Supervised Fine-Tuning)：监督式微调
 
-RLHF (Reinforcement Learning from Human Feedback)：来自人类反馈的强化学习 ^NXUy2bzP
+RLHF (Reinforcement Learning from Human Feedback)：来自人类反馈的强化学习
+ ^NXUy2bzP
 
 基础购物数据 ^S5bwvqdb
 
@@ -53,17 +52,21 @@ RLHF (Reinforcement Learning from Human Feedback)：来自人类反馈的强化�
 
 NLU+DST ^2ewWXmGJ
 
-query改写解决多轮对话中指代和省略等问题 ^tVnFgc9P
+query改写解决
+多轮对话中
+指代和省略等问题 ^tVnFgc9P
 
 知识管理系统 ^JRkoQChW
 
-规则默认出卡（比如置顶卡） ^Isru3ABC
+规则默认出卡
+（比如置顶卡） ^Isru3ABC
 
 营销信息 ^UvjNVQ0h
 
 服务保障信息 ^WsI52Hti
 
-商品推荐（同类/关联） ^qje9Q2QD
+商品推荐
+（同类/关联） ^qje9Q2QD
 
 榜单信息 ^HeV9uZs0
 
@@ -75,11 +78,27 @@ query改写解决多轮对话中指代和省略等问题 ^tVnFgc9P
 
 query改写 ^m22Lnzfw
 
-比如效期、功效、物流、退款、价格、库存、使用说明 ^b7DPLeNw
+比如
+效期、
+功效、
+物流、
+退款、
+价格、
+库存、
+使用说明 ^b7DPLeNw
 
-比如年龄、性别、身高、体重、肤质 ^ucKc3Mqx
+比如
+年龄、
+性别、
+身高、
+体重、
+肤质 ^ucKc3Mqx
 
-比如催发、砍价、催开票、催补发 ^rwVDeNCR
+比如
+催发、
+砍价、
+催开票、
+催补发 ^rwVDeNCR
 
 尺码助手 ^ca7GEG37
 
@@ -105,7 +124,8 @@ IC属性库 ^4hVO8KYa
 
 互相补位 ^SFePgTFZ
 
-人工可采纳智能回答 ^mhdtfrRo
+人工可采纳
+智能回答 ^mhdtfrRo
 
 官方客服 ^qEfKPuiz
 
@@ -122,9 +142,7 @@ IC属性库 ^4hVO8KYa
 安抚助手 ^1ozaRWRx
 
 %%
-
 ### Drawing
-
 ```compressed-json
 N4KAkARALgngDgUwgLgAQQQDwMYEMA2AlgCYBOuA7hADTgQBuCpAzoQPYB2KqATLZMzYBXUtiRoIACyhQ4zZAHoFAc0JRJQgEYA6bGwC2CgF7N6hbEcK4OCtptbErHALRY8RMpWdx8Q1TdIEfARcZgRmBShcZQUebTieGjoghH0EDihmbgBtcDBQMELoeHF0QOwojmVgpMLIRhZ2LjQARgBWAAYAZn4ihtZOADlOMW4WgDZxtpaAdjaZgBYF3shC
 
@@ -626,5 +644,4 @@ NahX0J8hQ7KJGY0PIDF1wkAogO3xj6WB3L+anCleBlAQAVXkGAXUYMAAgBJwf64RObq3CITzhTwBOttZ
 
 oR9ctgAbAfOuf1iGLpQCgrhAQXCuQGiBAAA=
 ```
-
 %%

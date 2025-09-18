@@ -1,10 +1,8 @@
 ## 1. 现有案例
-
 - [chatDoc](https://chatdoc.com/chatdoc/#/chat/8fc7c110-8afe-45a5-9c6a-6446be454554)
 - https://www.chatpdf.com
 
 ## 2. 实现原理
-
 以下内容翻译自: [ChatGPT for YOUR OWN PDF files with LangChain](https://www.youtube.com/watch?v=TLf90ipMzfE&ab_channel=PromptEngineering) 与 [周刊](https://github.com/dt-fe/weekly)
 
 事实上由于 GPT 非常强大，只要你把 PDF 文章内容发给他，他就可以解答你对于该文章的任何问题了。
@@ -19,6 +17,7 @@
 2. 把这些文本拆分成 N 份更小的文本，用 openai 进行文本向量化。
 3. 当用户提问时，对用户提问进行向量化，并用数学函数计算与 PDF 已向量化内容的相似程度。
 4. 把最相似的文本发送给 openai，让他总结并回答你的问题。
+
 
 ### 2.1. 登录 Colab
 
@@ -72,7 +71,6 @@ reader = PdfReader('/content/gdrive/My Drive/2023_GPT4All_Technical_Report.pdf')
 我们读取了 `2023_GPT4All_Technical_Report.pdf` 报告，这是一个号称本地可跑对标 GPT4 的服务（[测评](https://sspai.com/post/79196)）。
 
 ### 2.5. 将 PDF 内容文本化并拆分为多个小 Chunk
-
 首先执行如下代码读取 PDF 文本内容：
 
 ```python
@@ -113,7 +111,6 @@ docsearch = FAISS.from_texts(texts, embeddings)
 总之这一步之后，我们本地就拿到了各段文本与其向量的对应关系，比如 “这是一段文字” 对应的向量为 `[-0.231, 0.423, -0.2347831, ...]`。
 
 ### 2.7. 利用 Chain 生成问答服务
-
 接下来要串起完整流程了，初始化一个 QA chain 表示与 GPT 使用 chat 模型进行问答：
 
 ```python
@@ -153,5 +150,4 @@ chain.run(input_documents=docs, question=query)
 当然，如果问题需要结合 PDF 所有内容才能概括出来，这种向量匹配的方式就不太行了，因为他总是发送与问题最相关的文本片段。
 
 ## 3. 总结
-
 结合向量化与 GPT 这两个能力可以解决任意场景模糊化匹配以及需要人性化回答问题的场景。

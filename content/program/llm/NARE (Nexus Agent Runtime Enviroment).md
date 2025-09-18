@@ -66,9 +66,11 @@ flowchart TD
 调度器不再仅仅是轮询分配任务，而是成为一个智能的“调度中心”，包含以下子组件：
 
 - **a. 意图识别与分类器 (Intent Dispatcher / System Call Interface)**：
+
   - **类比**： 操作系统的**系统调用 (syscall)** 和**中断控制器**。所有外部请求（用户输入、API调用）首先到达此处。
 
   - **功能**：
+
     - **请求解析**： 对原始输入（如自然语言指令）进行初步解析，提取关键特征。
 
     - **意图分类**： 使用一个轻量级模型（如 fine-tuned 的小型 LLM 或分类器）将请求分类为预定义的“意图”或“服务”类型（如 `"代码生成"`, `"数据分析"`, `"内容创作"`, `"决策支持"`）。
@@ -78,12 +80,15 @@ flowchart TD
   - **输出**： 一个富含元数据的任务对象，包含 `intent_type`，`priority`，`estimated_resource_profile` 等字段，为后续调度提供依据。
 
 - **b. 多队列调度算法 (Multi-Queue Scheduling)**：
+
   - **类比**： Linux CFS 的**多队列调度**，针对不同的工作负载类型（交互式、批处理、实时）使用不同的策略。
 
   - **功能**：
+
     - **意图队列**： 根据 `intent_type` 将任务放入不同的队列（如 `realtime_queue`, `batch_queue`, `interactive_queue`）。
 
     - **策略决策**：
+
       - **实时队列**： 采用**最高优先级优先 (HPF)** 或**最早截止时间优先 (EDF)** 算法，用于需要极低延迟的任务（如控制指令）。
 
       - **交互式队列**： 采用**时间片轮转 (Round Robin)** 或 **CFS（完全公平调度器）** 算法，保证所有交互式用户请求都能得到及时响应，防止饿死。
@@ -96,12 +101,15 @@ flowchart TD
 
 - **功能**： 监控和分配系统资源（CPU、内存、GPU、网络带宽、外部API调用配额）。
 - **技术实现**：
+
   - 为每个 Agent 进程设置 **资源配额**（例如使用 `cgroups` 在 Linux 上实现）。
   - 实现 **令牌桶算法** 或 **漏桶算法** 来管理 LLM API 的调用频率，防止限流。
   - 向调度器提供资源信息，辅助其做出调度决策。
 
 - **a. 资源配额与隔离 (cgroups & Namespaces)**：
+
   - **功能**：
+
     - 为每个 Agent **进程** 创建**资源控制组 (cgroups)**，严格限制其 CPU、内存、GPU 和网络带宽的使用上限。
 
     - 为 Agent 提供**命名空间 (Namespaces)** 隔离，例如隔离其文件系统视图、网络栈（如果需要），确保安全性和稳定性。
@@ -109,9 +117,11 @@ flowchart TD
   - **技术实现**： 直接利用 Linux 内核的 cgroups v2 和 namespaces 功能，AOSIP Kernel 通过一个 `ResourceController` 模块进行管理。
 
 - **b. 资源代理 (Resource Broker)**：
+
   - **类比**： 分布式资源管理系统（如 YARN, Mesos）。
 
   - **功能**：
+
     - 管理外部资源池（如多个 LLM API 密钥、数据库连接池）。
 
     - Agent 需要通过资源管理器“申请”这些资源的使用许可。管理器实施**令牌桶**等算法进行限流和配额管理。
@@ -122,6 +132,7 @@ flowchart TD
 
 - **功能**： 实现 **认知连续性 (Cognitive Continuity)** 的核心。为每个会话/任务链维护一个共享的、可持久化的上下文。
 - **技术实现**：
+
   - 提供一个 **键值存储** 或 **文档数据库** 接口（如 Redis 或 MongoDB）。
   - 每个上下文是一个独立的存储空间，通过 `context_id` 标识。
   - 提供标准化的 API 供 Agent 读写：
@@ -132,6 +143,7 @@ flowchart TD
 - **类比**： **虚拟内存系统**。每个任务（进程）都有自己的虚拟地址空间，而物理内存由操作系统统一管理。
 
 - **功能**：
+
   - **上下文ID (Context ID) 作为“虚拟地址空间”**： 每个任务链拥有唯一的 `ctx_id`，其上下文信息分散存储在物理存储（内存、Redis、DB）中。
 
   - **上下文切换 (Context Switching)**： 当调度器将任务分配给一个 Agent 时，它会将相关的上下文信息“加载”到该 Agent 的“工作内存”中。任务挂起或完成后，上下文被“保存”回中央存储。
@@ -142,6 +154,7 @@ flowchart TD
 
 - **功能**： 实现 **互操作性 (Interoperability)**。管理所有已注册的工具（遵循 MCP 协议）。
 - **技术实现**：
+
   - 维护一个 **工具注册表**。
   - 提供 `list_tools()` 和 `call_tool(tool_name, parameters)` 方法。
   - 工具调用是 **异步的**，并自动将输入和输出记录到指定的 `context_id` 中。
@@ -149,6 +162,7 @@ flowchart TD
 - **类比**： **设备驱动层**。操作系统通过统一的驱动接口管理各种硬件。
 
 - **功能**：
+
   - 所有外部工具（搜索引擎、API、数据库、自定义函数）都必须向此管理器注册“驱动”。
 
   - 管理器提供统一的 `tool_call(tool_name, parameters)` 接口。
@@ -218,44 +232,41 @@ flowchart TD
 - **沙箱机制**：脚本执行通过安全的沙箱环境（如WebAssembly、Docker容器或受限子进程）进行，防止恶意代码访问主机资源。沙箱仅能访问Agent的VFS和有限的系统资源。
 
 - **持久化选项**：Agent可以通过工具管理器将VFS文件保存到持久存储（如数据库、云存储）或共享上下文中。例如：
-
 ### **2. AOSIP Agent (代理)**
 
 每个 Agent 是一个独立的进程，内部运行着一个异步事件循环。
 
-- **Agent 内部循环 (Event Loop)**:
+-   **Agent 内部循环 (Event Loop)**:
+    ```python
+    import asyncio
 
-  ```python
-  import asyncio
+    class AOSIPAgent:
+        def __init__(self, kernel_address):
+            self.kernel = connect_to_kernel(kernel_address) # 连接到内核
+            self.abilities = ["web_search", "text_generation"] # 向内核注册的能力
 
-  class AOSIPAgent:
-      def __init__(self, kernel_address):
-          self.kernel = connect_to_kernel(kernel_address) # 连接到内核
-          self.abilities = ["web_search", "text_generation"] # 向内核注册的能力
+        async def run(self):
+            await self.kernel.register(self.abilities) # 启动时向内核注册
+            while True:
+                # 1. 从内核请求任务（非阻塞等待）
+                task = await self.kernel.request_task(self.agent_id)
 
-      async def run(self):
-          await self.kernel.register(self.abilities) # 启动时向内核注册
-          while True:
-              # 1. 从内核请求任务（非阻塞等待）
-              task = await self.kernel.request_task(self.agent_id)
+                # 2. 感知：从上下文读取相关信息
+                context = await self.kernel.context_read(task.context_id)
 
-              # 2. 感知：从上下文读取相关信息
-              context = await self.kernel.context_read(task.context_id)
+                # 3. 规划与执行：核心逻辑（可能调用LLM）
+                # 此过程会频繁调用内核的工具管理器
+                result = await self.execute_task(task, context)
 
-              # 3. 规划与执行：核心逻辑（可能调用LLM）
-              # 此过程会频繁调用内核的工具管理器
-              result = await self.execute_task(task, context)
+                # 4. 将结果写回共享上下文
+                await self.kernel.context_append(task.context_id, "result", result)
 
-              # 4. 将结果写回共享上下文
-              await self.kernel.context_append(task.context_id, "result", result)
-
-              # 5. 通知内核任务完成
-              await self.kernel.report_task_done(task.id, result)
-  ```
-
-- **技术实现要点**：
-  - **自治性**： Agent 内部 `execute_task` 方法包含了其核心“智能”（如提示工程、思维链推理），这是其自治性的体现。
-  - **协作性**： 通过内核的上下文和工具管理器与其他 Agent 间接协作，符合 **Actor 模型**——不直接共享内存，而是通过消息（经内核转发）通信。
+                # 5. 通知内核任务完成
+                await self.kernel.report_task_done(task.id, result)
+    ```
+-   **技术实现要点**：
+    -   **自治性**： Agent 内部 `execute_task` 方法包含了其核心“智能”（如提示工程、思维链推理），这是其自治性的体现。
+    -   **协作性**： 通过内核的上下文和工具管理器与其他 Agent 间接协作，符合 **Actor 模型**——不直接共享内存，而是通过消息（经内核转发）通信。
 
 ```mermaid
 sequenceDiagram
@@ -307,7 +318,7 @@ sequenceDiagram
     B->>CM: 将最终报告保存到共享上下文
     B->>S: 任务完成报告
     S->>U: 返回最终结果
-```
+````
 
 ## **三、 关键协议与接口 (A2C & A2A)**
 
@@ -335,10 +346,12 @@ Agent 间**不直接通信**，所有协作都通过内核中介完成，这极�
 ## **四、 实现“弹性与容错”的技术机制**
 
 1.  **心跳与健康检查**：
+
     - 内核定期向所有注册的 Agent 发送心跳包。
     - Agent 无响应后，内核将其标记为“失活”，并将其未完成的任务重新放入调度队列 (**重试**)。
 
 2.  **任务检查点 (Checkpointing)**：
+
     - 对于长任务，Agent 可以定期向内核报告进度（`report_progress()`），内核将其保存到上下文中。
     - 如果 Agent 崩溃，当任务被重新调度时，新的 Agent 可以从最近的检查点恢复执行，而不是从头开始。
 

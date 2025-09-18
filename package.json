@@ -20,7 +20,7 @@
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1",
     "sync-vnote": "./scripts/sync-vnote.sh",
     "update-homepage": "node ./scripts/update-homepage.js",
-    "sync": "npm run sync-vnote && npm run update-homepage && npx prettier . --write && npx quartz sync",
+    "sync": "npm run sync-vnote && npm run update-homepage && npx quartz sync",
     "build": "npm run update-homepage && npx quartz build",
     "postinstall": "node -e \"try { require('@napi-rs/simple-git-linux-x64-gnu') } catch (e) { console.log('Platform-specific module not needed or already installed') }\""
   },
