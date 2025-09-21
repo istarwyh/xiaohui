@@ -7,7 +7,7 @@ aliases:
 
 <div class="hero">
 
-<p class="typewriter">🌱 在数字田野中耕耘智慧</p>
+<p class="typewriter">🚜 用技术犁地 · 用创意施肥</p>
 
 </div>
 
@@ -15,11 +15,11 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[网站设计]]
-2. [[How the economic machine works by Ray Dalio|经济机器如何运作]]
-3. [[Make Learning Happy|让学习快乐起来]]
-4. [[How-to-Choose-Note-Software|如何选择笔记软件]]
-5. [[AI时代的信息价值]]
+1. [[Learning-Wisdom|学习智慧]]
+2. [[Truth]]
+3. [[忍不住看网络小说]]
+4. [[NARE (Nexus Agent Runtime Enviroment)]]
+5. [[Information-Handler|信息处理]]
 
 </div>
 
@@ -28,8 +28,8 @@ aliases:
 ## 🚜 最新耕作记录
 
 - [[通用智能体 Prompt 示例完整版]]
-- [[NARE (Nexus Agent Runtime Enviroment)]]
-- [[Invest Consider]]
+- [[公众号标题可用Emoji]]
+- [[【万字长文】 最强 AI Coding：Claude Code 最佳实践]]
 
 </div>
 

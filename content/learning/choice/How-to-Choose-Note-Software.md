@@ -51,5 +51,7 @@
 | 卡片/大纲式笔记         | 非常方便知识关联与追溯                            | Logseq           |
 | 白板               | 方便知识展示、关系寻找                            | Logseq、Heptabse         |
 
-其他文章：https://mp.weixin.qq.com/s/vUhwlCD6oC6UkLp8XjBAMA
+感兴趣可继续阅读[这个](https://mp.weixin.qq.com/s/vUhwlCD6oC6UkLp8XjBAMA)
+
+
 #tool 
