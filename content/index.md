@@ -7,7 +7,7 @@ aliases:
 
 <div class="hero">
 
-<p class="typewriter">🚜 用技术犁地 · 用创意施肥</p>
+<p class="typewriter">⚡ 在赛博空间种植未来</p>
 
 </div>
 
@@ -15,11 +15,11 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[Learning-Wisdom|学习智慧]]
-2. [[Truth]]
-3. [[忍不住看网络小说]]
-4. [[NARE (Nexus Agent Runtime Enviroment)]]
-5. [[Information-Handler|信息处理]]
+1. [[债权经济学]]
+2. [[Education-Wisdom|教育智慧]]
+3. [[1050 每个月]]
+4. [[自适应学习]]
+5. [[How-to-Choose-Note-Software|如何选择笔记软件]]
 
 </div>
 
@@ -27,9 +27,9 @@ aliases:
 
 ## 🚜 最新耕作记录
 
-- [[通用智能体 Prompt 示例完整版]]
-- [[公众号标题可用Emoji]]
-- [[【万字长文】 最强 AI Coding：Claude Code 最佳实践]]
+- [[AI时代的信息价值]]
+- [[Boundary-Diminishing-Effect]]
+- [[Winter 2022, I will be delivering food in Linyi City]]
 
 </div>
 
