@@ -15,11 +15,11 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[Frequently-Used-Prompt|常用提示词]]
-2. [[忍不住看网络小说]]
-3. [[网站设计]]
-4. [[NARE (Nexus Agent Runtime Enviroment)]]
-5. [[为什么要学文言文？]]
+1. [[为什么要学文言文？]]
+2. [[Frequently-Used-Prompt|常用提示词]]
+3. [[Good-Information-Channel|优质信息渠道]]
+4. [[本科，硕士和博士的区别]]
+5. [[为什么要学习基础知识？]]
 
 </div>
 
@@ -27,9 +27,9 @@ aliases:
 
 ## 🚜 最新耕作记录
 
-- [[Frequently-Used-Prompt]]
-- [[How-to-Choose-Note-Software]]
-- [[Meta-Prompt]]
+- [[Create Once,Publish Where]]
+- [[为什么要学文言文？]]
+- [[JAR 调试指南]]
 
 </div>
 
