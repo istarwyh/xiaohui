@@ -15,11 +15,11 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[债权经济学]]
-2. [[Education-Wisdom|教育智慧]]
-3. [[1050 每个月]]
-4. [[自适应学习]]
-5. [[How-to-Choose-Note-Software|如何选择笔记软件]]
+1. [[Frequently-Used-Prompt|常用提示词]]
+2. [[忍不住看网络小说]]
+3. [[网站设计]]
+4. [[NARE (Nexus Agent Runtime Enviroment)]]
+5. [[为什么要学文言文？]]
 
 </div>
 
@@ -27,9 +27,9 @@ aliases:
 
 ## 🚜 最新耕作记录
 
-- [[AI时代的信息价值]]
-- [[Boundary-Diminishing-Effect]]
-- [[Winter 2022, I will be delivering food in Linyi City]]
+- [[Frequently-Used-Prompt]]
+- [[How-to-Choose-Note-Software]]
+- [[Meta-Prompt]]
 
 </div>
 
