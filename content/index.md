@@ -7,7 +7,7 @@ aliases:
 
 <div class="hero">
 
-<p class="typewriter">⚡ 在赛博空间种植未来</p>
+<p class="typewriter">🌾 用代码播种 · 用思想灌溉</p>
 
 </div>
 
@@ -15,11 +15,11 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[为什么要学文言文？]]
-2. [[Frequently-Used-Prompt|常用提示词]]
-3. [[Good-Information-Channel|优质信息渠道]]
-4. [[本科，硕士和博士的区别]]
-5. [[为什么要学习基础知识？]]
+1. [[理性之外的教育方式]]
+2. [[708090|七零八零九零]]
+3. [[Farming in the cyber world|赛博农耕说明]]
+4. [[自我管理]]
+5. [[Full Stream|全流开发]]
 
 </div>
 
@@ -27,9 +27,9 @@ aliases:
 
 ## 🚜 最新耕作记录
 
+- [[如何打造可靠的Agent系统]]
 - [[Create Once,Publish Where]]
 - [[为什么要学文言文？]]
-- [[JAR 调试指南]]
 
 </div>
 
