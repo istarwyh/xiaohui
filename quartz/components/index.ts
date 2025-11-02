@@ -4,6 +4,7 @@ import FolderContent from "./pages/FolderContent"
 import NotFound from "./pages/404"
 import ArticleTitle from "./ArticleTitle"
 import Darkmode from "./Darkmode"
+import ReaderMode from "./ReaderMode"
 import Head from "./Head"
 import PageTitle from "./PageTitle"
 import ContentMeta from "./ContentMeta"
@@ -20,6 +21,10 @@ import MobileOnly from "./MobileOnly"
 import RecentNotes from "./RecentNotes"
 import Breadcrumbs from "./Breadcrumbs"
 import Comments from "./Comments"
+import Flex from "./Flex"
+import ConditionalRender from "./ConditionalRender"
+import MatrixBackground from "./MatrixBackground"
+import MatrixDebug from "./MatrixDebug"
 
 export {
   ArticleTitle,
@@ -27,6 +32,7 @@ export {
   TagContent,
   FolderContent,
   Darkmode,
+  ReaderMode,
   Head,
   PageTitle,
   ContentMeta,
@@ -44,4 +50,8 @@ export {
   NotFound,
   Breadcrumbs,
   Comments,
+  Flex,
+  ConditionalRender,
+  MatrixBackground,
+  MatrixDebug,
 }

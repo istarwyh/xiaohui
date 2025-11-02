@@ -4,12 +4,12 @@
   "private": true,
   "version": "4.4.0",
   "type": "module",
-  "author": "jackyzha0 <j.zhao2k19@gmail.com>",
+  "author": "talk@xiaohui.cool",
   "license": "MIT",
-  "homepage": "https://quartz.jzhao.xyz",
+  "homepage": "https://xiaohui.cool",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jackyzha0/quartz.git"
+    "url": "https://github.com/istarwyh/xiaohui.git"
   },
   "scripts": {
     "quartz": "./quartz/bootstrap-cli.mjs",
@@ -19,8 +19,9 @@
     "test": "tsx ./quartz/util/path.test.ts && tsx ./quartz/depgraph.test.ts",
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1",
     "sync-vnote": "./scripts/sync-vnote.sh",
-    "sync": "npm run sync-vnote && npx quartz sync",
-    "build": "npx quartz build",
+    "update-homepage": "node ./scripts/update-homepage.js",
+    "sync": "npm run sync-vnote && npm run update-homepage && npx quartz sync",
+    "build": "npm run update-homepage && npx quartz build",
     "postinstall": "node -e \"try { require('@napi-rs/simple-git-linux-x64-gnu') } catch (e) { console.log('Platform-specific module not needed or already installed') }\""
   },
   "engines": {
@@ -44,6 +45,7 @@
     "@myriaddreamin/rehype-typst": "^0.6.0",
     "@napi-rs/simple-git": "0.1.19",
     "@tweenjs/tween.js": "^25.0.0",
+    "ansi-truncate": "^1.4.0",
     "async-mutex": "^0.5.0",
     "chalk": "^5.4.1",
     "chokidar": "^4.0.3",
@@ -118,8 +120,8 @@
     "typescript": "^5.8.3"
   },
   "optionalDependencies": {
-    "@napi-rs/simple-git-linux-x64-gnu": "0.1.19",
     "@napi-rs/simple-git-darwin-x64": "0.1.19",
+    "@napi-rs/simple-git-linux-x64-gnu": "0.1.19",
     "@napi-rs/simple-git-win32-x64-msvc": "0.1.19"
   },
   "overrides": {

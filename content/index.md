@@ -7,23 +7,31 @@ aliases:
 
 <div class="hero">
 
-<p>🌾 用代码播种 · 用思想灌溉</p>
+<p class="typewriter">🌾 用代码播种 · 用思想灌溉</p>
 
 </div>
 
+<div class="content-wrapper">
+
 ## 🌟 精选作物
 
-1. [[Farming in the cyber world|赛博农耕说明]]
-2. [[Full Stream|全流开发]]
-3. [[My Graduation Note Leaving Alibaba|阿里离职手记]]
-4. [[When we talk about BlockChain, what are we talking about]]
-5. [[忍不住看网络小说]]
+1. [[理性之外的教育方式]]
+2. [[708090|七零八零九零]]
+3. [[Farming in the cyber world|赛博农耕说明]]
+4. [[自我管理]]
+5. [[Full Stream|全流开发]]
+
+</div>
+
+<div class="content-wrapper">
 
 ## 🚜 最新耕作记录
 
-- [[Truth]]
-- [[AI时代的信息价值]]
-- [[1050 每个月]]
+- [[如何打造可靠的Agent系统]]
+- [[Create Once,Publish Where]]
+- [[为什么要学文言文？]]
+
+</div>
 
 <script async src="https://d3kno6bpmj270m.cloudfront.net/widget/userdesk.js" data-userdesk="clsok8vng0001aihcgmmbxfos"></script>
 

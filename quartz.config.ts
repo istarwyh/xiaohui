@@ -17,7 +17,7 @@ const config: QuartzConfig = {
     },
     locale: "zh-CN",
     baseUrl: "https://xiaohui.cool",
-    ignorePatterns: ["private", "templates", ".obsidian"],
+    ignorePatterns: ["private", "templates", ".obsidian", "*.canvas", "claude-code-*.html"],
     defaultDateType: "created",
     generateSocialImages: true,
     theme: {
@@ -70,13 +70,17 @@ const config: QuartzConfig = {
       }),
       Plugin.ObsidianFlavoredMarkdown({ enableInHtmlEmbed: false }),
       Plugin.GitHubFlavoredMarkdown(),
-      Plugin.CrawlLinks({ markdownLinkResolution: "shortest" }),
-      Plugin.Latex({ 
+      Plugin.CrawlLinks({
+        markdownLinkResolution: "shortest",
+        prettyLinks: true,
+        openLinksInNewTab: false,
+      }),
+      Plugin.Latex({
         renderEngine: "katex",
         katexOptions: {
           throwOnError: false,
-          strict: false
-        }
+          strict: false,
+        },
       }),
       Plugin.Description(),
     ],
@@ -93,6 +97,8 @@ const config: QuartzConfig = {
       Plugin.ContentIndex({
         enableSiteMap: true,
         enableRSS: true,
+        rssLimit: 20,
+        rssFullHtml: true,
       }),
       Plugin.Assets(),
       Plugin.Static(),

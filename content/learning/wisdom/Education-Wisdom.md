@@ -1,4 +1,3 @@
-#wisdom 
 最贫穷的父母也能教给一样东西，那就是面对贫穷带来的无知与无能该如何面对。
 
 生物演化嘛，如果外在都能适应环境，何必提升内在？[--](https://mp.weixin.qq.com/s/g_FgfmZAaa9b2n8E0JAuSQ)
@@ -19,7 +18,6 @@
 
 聪明的人的诅咒就是：其实自己什么都能干好，摆在自己面前的选择太多了，机会成本太高了，于是总是在面对“艰难的”选择。--刘宇波
 
-
 理科的目的在于解释自然，追求真理，工科的目的在于改造自然，推进发展。工科的尽头是理科，理科通过工科改变世界。---顾险峰
 
 教育的本质是一棵树摇动另一棵树，一朵云推动另一朵云，一个灵魂唤醒另一个灵魂。--佚名
@@ -33,3 +31,44 @@
 如果你倒过来教孩子们，只关注成绩，他们会选容易的课程，只关注在课堂和考试中表现好，但不会真正学习。他们可能学到错误的东西，可能会挑战自己更少。--Jesen 黄仁勋
 
 没有什么真正的独唱，一定是穿越时空的重唱、合唱。我们都是围绕古老基音产生的泛音，在历史重复的韵脚里形成越来越丰富和谐的音调。
+
+#wisdom #education
+
+
+
+```mermaid  
+sequenceDiagram  
+    participant User as 开发者  
+    participant Terminal as 终端  
+    participant JVM as JVM进程  
+    participant IDE as IDE调试器  
+    participant App as 应用程序  
+  
+    Note over User,App: 1. 启动调试会话  
+    User->>Terminal: 执行调试命令  
+    Terminal->>JVM: java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5679 -jar app.jar    JVM->>JVM: 启动JDWP调试代理  
+    JVM->>App: 启动应用程序  
+    App->>Terminal: 输出"Please input:"<br/>等待用户输入  
+        Note over User,App: 2. IDE连接调试器  
+    User->>IDE: 配置远程调试<br/>localhost:5679  
+    IDE->>JVM: 建立调试连接  
+    JVM->>IDE: 确认连接成功  
+    Note over User,App: 3. 设置断点调试  
+    User->>IDE: 在StringProcessor.main()<br/>第14行设置断点  
+    IDE->>JVM: 注册断点信息  
+    Note over User,App: 4. 触发断点  
+    User->>Terminal: 输入测试文本  
+    Terminal->>App: 传递用户输入  
+    App->>JVM: 执行到断点位置  
+    JVM->>IDE: 发送断点命中事件  
+    IDE->>User: 显示断点命中<br/>高亮当前行  
+    Note over User,App: 5. 调试交互  
+    User->>IDE: 查看变量值<br/>单步执行  
+    IDE->>JVM: 执行调试命令<br/>(step, continue等)  
+    JVM->>App: 继续程序执行  
+    App->>Terminal: 输出处理结果  
+    Note over User,App: 6. 结束调试  
+    User->>IDE: 断开调试连接  
+    IDE->>JVM: 关闭调试会话  
+    JVM->>App: 程序继续正常运行  
+```

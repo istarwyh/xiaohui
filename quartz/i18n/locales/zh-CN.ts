@@ -29,14 +29,17 @@ export default {
       lightMode: "亮色模式",
       darkMode: "暗色模式",
     },
+    readerMode: {
+      title: "阅读模式",
+    },
     explorer: {
-      title: "瞅瞅",
+      title: "探索",
     },
     footer: {
       createdWith: "Created with",
     },
     graph: {
-      title: "翻一翻",
+      title: "关系图谱",
     },
     recentNotes: {
       title: "最近的笔记",
@@ -47,8 +50,8 @@ export default {
       linkToOriginal: "指向原始笔记的链接",
     },
     search: {
-      title: "看看",
-      searchBarPlaceholder: "是不是能找点什么🔍",
+      title: "搜索",
+      searchBarPlaceholder: "搜索些什么",
     },
     tableOfContents: {
       title: "目录",
@@ -63,8 +66,8 @@ export default {
       lastFewNotes: ({ count }) => `最近的${count}条笔记`,
     },
     error: {
-      title: "无法找到",
-      notFound: "私有笔记或笔记不存在。",
+      title: "页面未找到",
+      notFound: "您访问的页面不存在或为私有内容。",
       home: "返回首页",
     },
     folderContent: {
