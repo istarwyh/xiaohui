@@ -7,7 +7,7 @@ aliases:
 
 <div class="hero">
 
-<p class="typewriter">🌾 用代码播种 · 用思想灌溉</p>
+<p class="typewriter">🌳 代码如种子 · 思考如雨露</p>
 
 </div>
 
@@ -15,10 +15,10 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[理性之外的教育方式]]
-2. [[708090|七零八零九零]]
-3. [[Farming in the cyber world|赛博农耕说明]]
-4. [[自我管理]]
+1. [[忍不住看网络小说]]
+2. [[理性之外的教育方式]]
+3. [[After-I-Saw-The-Truth|看见真相之后]]
+4. [[为什么要学文言文？]]
 5. [[Full Stream|全流开发]]
 
 </div>
@@ -27,9 +27,9 @@ aliases:
 
 ## 🚜 最新耕作记录
 
-- [[如何打造可靠的Agent系统]]
-- [[Create Once,Publish Where]]
-- [[为什么要学文言文？]]
+- [[【万字长文】从零构建 Agent 系统]]
+- [[你可能是一时的国王，但你永远无法打败市场]]
+- [[Farming in the cyber world]]
 
 </div>
 
