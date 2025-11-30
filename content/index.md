@@ -7,7 +7,7 @@ aliases:
 
 <div class="hero">
 
-<p class="typewriter">🌳 代码如种子 · 思考如雨露</p>
+<p class="typewriter">🌱 在数字田野中耕耘智慧</p>
 
 </div>
 
@@ -15,11 +15,11 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[忍不住看网络小说]]
-2. [[理性之外的教育方式]]
-3. [[After-I-Saw-The-Truth|看见真相之后]]
-4. [[为什么要学文言文？]]
-5. [[Full Stream|全流开发]]
+1. [[Information Diffusion|信息传播]]
+2. [[Truth]]
+3. [[Good-Information-Channel|优质信息渠道]]
+4. [[本科，硕士和博士的区别]]
+5. [[Make Learning Happy|让学习快乐起来]]
 
 </div>
 
@@ -28,8 +28,8 @@ aliases:
 ## 🚜 最新耕作记录
 
 - [[【万字长文】从零构建 Agent 系统]]
-- [[你可能是一时的国王，但你永远无法打败市场]]
-- [[Farming in the cyber world]]
+- [[【招聘贴】LangGraph 状态持久化机制：从核心概念到生产级实践]]
+- [[金句转海报]]
 
 </div>
 
