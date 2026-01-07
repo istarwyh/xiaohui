@@ -7,7 +7,7 @@ aliases:
 
 <div class="hero">
 
-<p class="typewriter">🌱 在数字田野中耕耘智慧</p>
+<p class="typewriter">⚡ 在赛博空间种植未来</p>
 
 </div>
 
@@ -15,11 +15,11 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[Information Diffusion|信息传播]]
-2. [[Truth]]
-3. [[Good-Information-Channel|优质信息渠道]]
-4. [[本科，硕士和博士的区别]]
-5. [[Make Learning Happy|让学习快乐起来]]
+1. [[My Graduation Note Leaving Alibaba|阿里离职手记]]
+2. [[为什么要学文言文？]]
+3. [[Information Diffusion|信息传播]]
+4. [[After-I-Saw-The-Truth|看见真相之后]]
+5. [[自适应学习]]
 
 </div>
 
@@ -27,9 +27,9 @@ aliases:
 
 ## 🚜 最新耕作记录
 
-- [[【万字长文】从零构建 Agent 系统]]
-- [[【招聘贴】LangGraph 状态持久化机制：从核心概念到生产级实践]]
-- [[金句转海报]]
+- [[Truth]]
+- [[【万字长文】 最强 AI Coding：Claude Code 最佳实践]]
+- [[【年度总结】从Claude Code到 OneAgent：最佳Agent 构建实践全解析]]
 
 </div>
 
