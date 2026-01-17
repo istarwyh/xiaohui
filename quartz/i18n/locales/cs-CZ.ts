@@ -32,6 +32,9 @@ export default {
     readerMode: {
       title: "Režim čtečky",
     },
+    readingProgress: {
+      label: "Průběh čtení",
+    },
     explorer: {
       title: "Procházet",
     },

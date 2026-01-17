@@ -32,6 +32,9 @@ export default {
     readerMode: {
       title: "Chế độ đọc",
     },
+    readingProgress: {
+      label: "Tiến độ đọc",
+    },
     explorer: {
       title: "Trong bài này",
     },

@@ -32,6 +32,9 @@ export default {
     readerMode: {
       title: "Modalità lettore",
     },
+    readingProgress: {
+      label: "Skaitymo pažanga",
+    },
     explorer: {
       title: "Naršyklė",
     },

@@ -1,6 +1,82 @@
 @use "./base.scss";
 
 // 黑客帝国数字流全局样式
+
+// 键盘导航和可访问性改进
+// 为所有可聚焦元素添加清晰的焦点指示器
+*:focus {
+  outline: 2px solid #7cb342;
+  outline-offset: 2px;
+}
+
+// 为交互式元素优化焦点样式
+a:focus,
+button:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid #9acd32;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(154, 205, 50, 0.2);
+}
+
+// 暗色主题下的焦点样式
+[saved-theme="dark"] {
+  *:focus {
+    outline-color: #9acd32;
+  }
+
+  a:focus,
+  button:focus,
+  input:focus,
+  textarea:focus,
+  select:focus {
+    box-shadow: 0 0 0 4px rgba(154, 205, 50, 0.3);
+  }
+}
+
+// 跳转链接（无障碍导航）
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #9acd32;
+  color: #000;
+  padding: 8px;
+  text-decoration: none;
+  z-index: 100000;
+
+  &:focus {
+    top: 0;
+  }
+}
+
+// 减少动画支持 - 尊重用户偏好
+@media (prefers-reduced-motion: reduce) {
+  // 禁用所有动画
+  .matrix-bg,
+  .matrix-rain,
+  .matrix-bg::before,
+  .matrix-bg::after {
+    animation: none !important;
+    opacity: 0 !important;
+    display: none !important;
+  }
+
+  // 禁用打字机效果
+  .hero .typewriter {
+    animation: none !important;
+    border-right: none !important;
+  }
+
+  // 简化过渡效果
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* 数字流背景容器 */
 .matrix-bg {
   position: fixed;
@@ -12,6 +88,9 @@
   background: #000;
   overflow: hidden;
   pointer-events: none;
+  // 性能优化
+  will-change: transform;
+  contain: layout style paint;
 }
 
 .matrix-bg::before {
@@ -39,6 +118,10 @@
   animation: matrix-fall linear infinite;
   white-space: nowrap;
   pointer-events: none;
+  // 性能优化
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .matrix-rain.bright {
@@ -224,6 +307,23 @@
     line-height: 10px;
   }
 
+  // 移动端减少数字流密度和复杂度
+  .matrix-bg::after {
+    opacity: 0.3; // 降低扫描线强度
+  }
+
+  // 优化移动端性能
+  .matrix-rain {
+    // 移动设备上使用更简单的文本阴影
+    &.bright {
+      text-shadow: 0 0 2px #9acd32;
+    }
+    &.medium,
+    &.dim {
+      text-shadow: none;
+    }
+  }
+
   [saved-theme="dark"] {
     .sidebar {
       background: rgba(0, 0, 0, 0.9) !important;
@@ -232,6 +332,23 @@
     article {
       padding: 1rem;
     }
+
+    // 移动端简化背景效果
+    body {
+      background-image: none;
+    }
+  }
+}
+
+// 超小屏幕进一步优化
+@media (max-width: 480px) {
+  .matrix-bg::after {
+    display: none; // 完全禁用扫描线
+  }
+
+  .matrix-rain {
+    font-size: 8px;
+    line-height: 8px;
   }
 }
 

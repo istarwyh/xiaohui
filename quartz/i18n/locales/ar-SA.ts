@@ -35,6 +35,9 @@ export default {
     readerMode: {
       title: "وضع القارئ",
     },
+    readingProgress: {
+      label: "تقدم القراءة",
+    },
     footer: {
       createdWith: "أُنشئ باستخدام",
     },
