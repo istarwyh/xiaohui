@@ -66,10 +66,5 @@ function initReadingProgress() {
   })
 }
 
-// DOM 加载完成后初始化
-document.addEventListener("DOMContentLoaded", initReadingProgress)
-
-// SPA 导航时重新初始化
-document.addEventListener("nav", () => {
-  setTimeout(initReadingProgress, 100)
-})
+// Initialize immediately (script is loaded via afterDOMLoaded hook)
+initReadingProgress()

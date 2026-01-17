@@ -34,6 +34,9 @@ export interface Translation {
     readerMode: {
       title: string
     }
+    readingProgress: {
+      label: string
+    }
     explorer: {
       title: string
     }
