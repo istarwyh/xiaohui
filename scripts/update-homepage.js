@@ -20,38 +20,39 @@ if (!UNSPLASH_ACCESS_KEY) {
 
 // Curated Unsplash photo IDs for tech/coding themes
 // These are hand-picked high-quality photos to avoid API rate limits
+// Using actual photo hash IDs that work with Unsplash CDN
 const unsplashPhotos = [
   {
-    id: "842ofHC6MaI",
-    alt: "code on laptop screen",
+    id: "1542831371-29b0f74f9713",
+    alt: "lines of HTML codes",
   },
   {
-    id: "npxXWgQ33ZQ",
-    alt: "programming code",
+    id: "1515879218367-8466d910aaa4",
+    alt: "computer screen with code",
   },
   {
-    id: "Q1p7bh3SHj8",
-    alt: "coding on computer",
+    id: "1562813733-b31f71025d54",
+    alt: "man sitting facing laptop",
   },
   {
-    id: "4Mw7nkQDByk",
-    alt: "laptop with code",
+    id: "1555066931-4365d14bab8c",
+    alt: "MacBook Pro with programming codes",
   },
   {
-    id: "Im7lZjxeLhg",
-    alt: "developer workspace",
+    id: "1461749280684-dccba630e2f6",
+    alt: "monitor showing Java programming",
   },
   {
-    id: "cckf4TsHAuw",
-    alt: "binary code",
+    id: "1498050108023-c5249f4df085",
+    alt: "MacBook with lines of code on busy desk",
   },
   {
-    id: "FO7JIlwjOtU",
-    alt: "developer coding",
+    id: "1614741118887-7a4ee193a5fa",
+    alt: "black flat screen monitor with website",
   },
   {
-    id: "iar-afB0QQw",
-    alt: "tech workspace",
+    id: "1526374965328-7f61d4dc18c5",
+    alt: "Matrix code visualization",
   },
 ]
 
