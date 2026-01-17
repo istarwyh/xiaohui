@@ -26,6 +26,7 @@ import ConditionalRender from "./ConditionalRender"
 import MatrixBackground from "./MatrixBackground"
 import MatrixDebug from "./MatrixDebug"
 import ReadingProgress from "./ReadingProgress"
+import CardFeed from "./CardFeed"
 
 export {
   ArticleTitle,
@@ -56,4 +57,5 @@ export {
   MatrixBackground,
   MatrixDebug,
   ReadingProgress,
+  CardFeed,
 }
