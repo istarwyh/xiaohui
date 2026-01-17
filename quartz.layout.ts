@@ -28,27 +28,27 @@ export const defaultContentPageLayout: PageLayout = {
         cards: [
           {
             title: "全流开发",
-            slug: "Full-Stream",
+            slug: "program/full-stream/Full Stream",
             imageUrl: "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&h=600&fit=crop&q=80",
           },
           {
             title: "教育智慧",
-            slug: "Education-Wisdom",
+            slug: "learning/wisdom/Education-Wisdom",
             imageUrl: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=800&h=600&fit=crop&q=80",
           },
           {
             title: "团队效能",
-            slug: "Team-Efficiency",
+            slug: "learning/Team-Efficiency",
             imageUrl: "https://images.unsplash.com/photo-1562813733-b31f71025d54?w=800&h=600&fit=crop&q=80",
           },
           {
             title: "看见真相之后",
-            slug: "After-I-Saw-The-Truth",
+            slug: "learning/wisdom/After-I-Saw-The-Truth",
             imageUrl: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=600&fit=crop&q=80",
           },
           {
             title: "赛博农耕说明",
-            slug: "Farming-in-the-cyber-world",
+            slug: "Farming in the cyber world",
             imageUrl: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=600&fit=crop&q=80",
           },
           {
