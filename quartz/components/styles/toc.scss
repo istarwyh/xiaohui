@@ -6,6 +6,11 @@
   overflow-y: hidden;
   min-height: 1.4rem;
   flex: 0 0.5 auto;
+  // 粘性定位 - 滚动时保持可见
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  align-self: flex-start;
   &:has(button.toc-header.collapsed) {
     flex: 0 1 1.4rem;
   }
@@ -43,9 +48,34 @@ ul.toc-content.overflow {
   position: relative;
   margin: 0.5rem 0;
   padding: 0;
-  max-height: calc(100% - 2rem);
+  max-height: calc(100vh - 5rem);
+  overflow-y: auto;
   overscroll-behavior: contain;
   list-style: none;
+  // 平滑滚动
+  scroll-behavior: smooth;
+  // 优化滚动性能
+  -webkit-overflow-scrolling: touch;
+
+  // 自定义滚动条样式（适配暗色主题）
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(154, 205, 50, 0.3);
+    border-radius: 3px;
+    transition: background 0.3s ease;
+
+    &:hover {
+      background: rgba(154, 205, 50, 0.5);
+    }
+  }
 
   & > li > a {
     color: var(--dark);

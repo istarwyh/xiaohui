@@ -158,6 +158,13 @@ class ContentAnalyzer {
 
 // 全局黑客帝国数字流效果
 function initMatrixEffect() {
+  // 检查用户是否设置了减少动画偏好
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  if (prefersReducedMotion) {
+    console.log("⏸️ Matrix effect disabled: user prefers reduced motion")
+    return
+  }
+
   // 创建数字流背景容器
   const matrixBg = document.createElement("div")
   matrixBg.className = "matrix-bg"
@@ -357,12 +364,31 @@ function initMatrixEffect() {
   let matrixInterval: number | null = null
   let burstInterval: number | null = null
   let mouseMoveHandler: ((e: MouseEvent) => void) | null = null
+  let animationFrameId: number | null = null
+  let lastColumnTime = 0
+  const columnInterval = 150 // ms between columns
 
   function startMatrix() {
     if (!isDarkTheme()) return
 
-    // 持续创建数字流
-    matrixInterval = window.setInterval(createColumn, 150)
+    // 使用 requestAnimationFrame 代替 setInterval 以获得更好的性能
+    function animate(currentTime: number) {
+      if (!isPageVisible || !isDarkTheme()) {
+        animationFrameId = requestAnimationFrame(animate)
+        return
+      }
+
+      // 节流创建数字流
+      if (currentTime - lastColumnTime >= columnInterval) {
+        createColumn()
+        lastColumnTime = currentTime
+      }
+
+      animationFrameId = requestAnimationFrame(animate)
+    }
+
+    // 启动动画循环
+    animationFrameId = requestAnimationFrame(animate)
 
     // 偶尔创建爆发效果
     burstInterval = window.setInterval(() => {
@@ -410,6 +436,11 @@ function initMatrixEffect() {
   }
 
   function stopMatrix() {
+    // 停止 requestAnimationFrame
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId)
+      animationFrameId = null
+    }
     if (matrixInterval) {
       clearInterval(matrixInterval)
       matrixInterval = null

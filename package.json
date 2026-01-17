@@ -22,7 +22,7 @@
     "update-homepage": "node ./scripts/update-homepage.js",
     "sync": "npm run sync-vnote && npm run update-homepage && npx quartz sync",
     "build": "npm run update-homepage && npx quartz build",
-    "postinstall": "node -e \"try { require('@napi-rs/simple-git-linux-x64-gnu') } catch (e) { console.log('Platform-specific module not needed or already installed') }\""
+    "postinstall": "node ./scripts/check-git-deps.js"
   },
   "engines": {
     "npm": ">=9.3.1",

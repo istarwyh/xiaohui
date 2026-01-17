@@ -10,11 +10,23 @@ const emitThemeChangeEvent = (theme: "light" | "dark") => {
 }
 
 document.addEventListener("nav", () => {
+  const updateAriaLabel = (button: Element, theme: "light" | "dark") => {
+    const label = theme === "dark" ? "切换到亮色模式" : "切换到暗色模式"
+    button.setAttribute("aria-label", label)
+    button.setAttribute("title", label)
+  }
+
   const switchTheme = () => {
     const newTheme =
       document.documentElement.getAttribute("saved-theme") === "dark" ? "light" : "dark"
     document.documentElement.setAttribute("saved-theme", newTheme)
     localStorage.setItem("theme", newTheme)
+
+    // 更新所有暗色模式按钮的 aria-label
+    for (const darkmodeButton of document.getElementsByClassName("darkmode")) {
+      updateAriaLabel(darkmodeButton, newTheme)
+    }
+
     emitThemeChangeEvent(newTheme)
   }
 
@@ -22,11 +34,20 @@ document.addEventListener("nav", () => {
     const newTheme = e.matches ? "dark" : "light"
     document.documentElement.setAttribute("saved-theme", newTheme)
     localStorage.setItem("theme", newTheme)
+
+    // 更新所有暗色模式按钮的 aria-label
+    for (const darkmodeButton of document.getElementsByClassName("darkmode")) {
+      updateAriaLabel(darkmodeButton, newTheme)
+    }
+
     emitThemeChangeEvent(newTheme)
   }
 
   for (const darkmodeButton of document.getElementsByClassName("darkmode")) {
     darkmodeButton.addEventListener("click", switchTheme)
+    // 设置初始 aria-label
+    const currentTheme = document.documentElement.getAttribute("saved-theme") as "light" | "dark"
+    updateAriaLabel(darkmodeButton, currentTheme)
     window.addCleanup(() => darkmodeButton.removeEventListener("click", switchTheme))
   }
 

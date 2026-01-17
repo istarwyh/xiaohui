@@ -25,6 +25,7 @@ import Flex from "./Flex"
 import ConditionalRender from "./ConditionalRender"
 import MatrixBackground from "./MatrixBackground"
 import MatrixDebug from "./MatrixDebug"
+import ReadingProgress from "./ReadingProgress"
 
 export {
   ArticleTitle,
@@ -54,4 +55,5 @@ export {
   ConditionalRender,
   MatrixBackground,
   MatrixDebug,
+  ReadingProgress,
 }

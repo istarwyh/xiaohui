@@ -12,11 +12,19 @@ document.addEventListener("nav", () => {
     isReaderMode = !isReaderMode
     const newMode = isReaderMode ? "on" : "off"
     document.documentElement.setAttribute("reader-mode", newMode)
+
+    // 更新所有阅读模式按钮的 aria-pressed 属性
+    for (const readerModeButton of document.getElementsByClassName("readermode")) {
+      readerModeButton.setAttribute("aria-pressed", isReaderMode.toString())
+    }
+
     emitReaderModeChangeEvent(newMode)
   }
 
   for (const readerModeButton of document.getElementsByClassName("readermode")) {
     readerModeButton.addEventListener("click", switchReaderMode)
+    // 设置初始 aria-pressed 状态
+    readerModeButton.setAttribute("aria-pressed", isReaderMode.toString())
     window.addCleanup(() => readerModeButton.removeEventListener("click", switchReaderMode))
   }
 

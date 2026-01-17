@@ -7,7 +7,7 @@ aliases:
 
 <div class="hero">
 
-<p class="typewriter">⚡ 在赛博空间种植未来</p>
+<p class="typewriter">🚜 用技术犁地 · 用创意施肥</p>
 
 </div>
 
@@ -15,11 +15,11 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[My Graduation Note Leaving Alibaba|阿里离职手记]]
-2. [[为什么要学文言文？]]
-3. [[Information Diffusion|信息传播]]
-4. [[After-I-Saw-The-Truth|看见真相之后]]
-5. [[自适应学习]]
+1. [[708090|七零八零九零]]
+2. [[起个好名字多重要]]
+3. [[Create Once,Publish Where]]
+4. [[Farming in the cyber world|赛博农耕说明]]
+5. [[Patent|专利]]
 
 </div>
 
