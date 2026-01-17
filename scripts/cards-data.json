@@ -27,17 +27,17 @@
     },
     {
       "title": "Truth",
-      "slug": "Truth",
+      "slug": "life/wisdom/Truth",
       "imageUrl": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop&q=80"
     },
     {
       "title": "【万字长文】 最强 AI Coding：Claude Code 最佳实践",
-      "slug": "【万字长文】 最强 AI Coding：Claude Code 最佳实践",
+      "slug": "program/bot/【万字长文】-最强-AI-Coding：Claude-Code-最佳实践",
       "imageUrl": "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?w=800&h=600&fit=crop&q=80"
     },
     {
       "title": "【年度总结】从Claude Code到 OneAgent：最佳Agent 构建实践全解析",
-      "slug": "【年度总结】从Claude Code到 OneAgent：最佳Agent 构建实践全解析",
+      "slug": "program/llm/【年度总结】从Claude-Code到-OneAgent：最佳Agent-构建实践全解析",
       "imageUrl": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&h=600&fit=crop&q=80"
     }
   ]

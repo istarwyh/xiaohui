@@ -56,6 +56,39 @@ const unsplashPhotos = [
   },
 ]
 
+/**
+ * Converts a file path to a slug format matching Quartz's sluggify function.
+ * MUST stay in sync with quartz/util/path.ts sluggify()
+ *
+ * @param {string} s - The file path string to sluggify
+ * @returns {string} The sluggified string
+ *
+ * Transformations applied per path segment:
+ * - Whitespace (\s) → hyphens (-)
+ * - Ampersand (&) → "-and-"
+ * - Percent (%) → "-percent"
+ * - Question mark (?) → removed
+ * - Hash (#) → removed
+ * - Other characters (including Chinese/Unicode) → preserved as-is
+ *
+ * @example
+ * sluggify("program/bot/【万字长文】 最强 AI Coding：Claude Code 最佳实践.md")
+ * // Returns: "program/bot/【万字长文】-最强-AI-Coding：Claude-Code-最佳实践"
+ */
+export function sluggify(s) {
+  return s
+    .split("/")
+    .map((segment) =>
+      segment
+        .replace(/\s/g, "-")        // Spaces to hyphens
+        .replace(/&/g, "-and-")     // & to -and-
+        .replace(/%/g, "-percent")  // % to -percent
+        .replace(/\?/g, "")         // Remove ?
+        .replace(/#/g, "")          // Remove #
+    )
+    .join("/")
+}
+
 // 精选作物 (Featured Posts)
 const featuredPosts = [
   { title: "全流开发", slug: "program/full-stream/Full-Stream" },
@@ -79,10 +112,14 @@ function getRecentFiles() {
       if (stat.isDirectory() && !item.startsWith(".") && item !== "templates") {
         findMarkdownFiles(fullPath)
       } else if (item.endsWith(".md") && item !== "index.md") {
+        // Get relative path from content directory and convert to slug format
+        const relativePath = path.relative(contentDir, fullPath)
+        const slug = sluggify(relativePath.replace(/\.md$/, ""))
+
         files.push({
           path: fullPath,
           name: item.replace(".md", ""),
-          slug: item.replace(".md", ""),
+          slug: slug,
           mtime: stat.mtime,
         })
       }
