@@ -58,11 +58,11 @@ const unsplashPhotos = [
 
 // 精选作物 (Featured Posts)
 const featuredPosts = [
-  { title: "全流开发", slug: "program/full-stream/Full Stream" },
+  { title: "全流开发", slug: "program/full-stream/Full-Stream" },
   { title: "教育智慧", slug: "learning/wisdom/Education-Wisdom" },
   { title: "团队效能", slug: "learning/Team-Efficiency" },
   { title: "看见真相之后", slug: "learning/wisdom/After-I-Saw-The-Truth" },
-  { title: "赛博农耕说明", slug: "Farming in the cyber world" },
+  { title: "赛博农耕说明", slug: "Farming-in-the-cyber-world" },
 ]
 
 // Get recent files

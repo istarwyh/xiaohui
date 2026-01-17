@@ -28,7 +28,7 @@ export const defaultContentPageLayout: PageLayout = {
         cards: [
           {
             title: "全流开发",
-            slug: "program/full-stream/Full Stream",
+            slug: "program/full-stream/Full-Stream",
             imageUrl: "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&h=600&fit=crop&q=80",
           },
           {
@@ -48,7 +48,7 @@ export const defaultContentPageLayout: PageLayout = {
           },
           {
             title: "赛博农耕说明",
-            slug: "Farming in the cyber world",
+            slug: "Farming-in-the-cyber-world",
             imageUrl: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=600&fit=crop&q=80",
           },
           {
