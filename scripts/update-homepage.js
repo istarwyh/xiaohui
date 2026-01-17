@@ -96,7 +96,7 @@ function getRecentFiles() {
 
 // Generate Unsplash URL for a photo
 function getUnsplashUrl(photoId, width = 800, height = 600) {
-  return `https://images.unsplash.com/${photoId}?w=${width}&h=${height}&fit=crop&q=80`
+  return `https://images.unsplash.com/photo-${photoId}?w=${width}&h=${height}&fit=crop&q=80`
 }
 
 // Map posts to images (cycling through available photos)
