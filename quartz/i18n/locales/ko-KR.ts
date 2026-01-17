@@ -32,6 +32,9 @@ export default {
     readerMode: {
       title: "리더 모드",
     },
+    readingProgress: {
+      label: "읽기 진행률",
+    },
     explorer: {
       title: "탐색기",
     },

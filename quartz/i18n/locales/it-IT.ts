@@ -32,6 +32,9 @@ export default {
     readerMode: {
       title: "Modalità lettura",
     },
+    readingProgress: {
+      label: "Progresso di lettura",
+    },
     explorer: {
       title: "Esplora",
     },

@@ -7,7 +7,7 @@ aliases:
 
 <div class="hero">
 
-<p class="typewriter">🚜 用技术犁地 · 用创意施肥</p>
+<p class="typewriter">🌾 用代码播种 · 用思想灌溉</p>
 
 </div>
 
@@ -15,11 +15,11 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[708090|七零八零九零]]
-2. [[起个好名字多重要]]
-3. [[Create Once,Publish Where]]
-4. [[Farming in the cyber world|赛博农耕说明]]
-5. [[Patent|专利]]
+1. [[Farming in the cyber world|赛博农耕说明]]
+2. [[Education-Wisdom|教育智慧]]
+3. [[Interview Problem|面试问题]]
+4. [[Frequently-Used-Prompt|常用提示词]]
+5. [[本科，硕士和博士的区别]]
 
 </div>
 

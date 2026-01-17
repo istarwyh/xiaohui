@@ -3,7 +3,7 @@
  * 根据页面滚动位置更新进度条
  */
 
-function initReadingProgress() {
+document.addEventListener("nav", () => {
   const progressBar = document.querySelector(
     ".reading-progress-bar",
   ) as HTMLElement | null
@@ -60,11 +60,9 @@ function initReadingProgress() {
   window.addEventListener("scroll", throttledUpdateProgress, { passive: true })
   window.addEventListener("resize", throttledUpdateProgress, { passive: true })
 
-  // SPA 导航时重新初始化
-  document.addEventListener("nav", () => {
-    setTimeout(updateProgress, 100)
+  // 清理函数：在下次导航前移除事件监听器
+  window.addCleanup(() => {
+    window.removeEventListener("scroll", throttledUpdateProgress)
+    window.removeEventListener("resize", throttledUpdateProgress)
   })
-}
-
-// Initialize immediately (script is loaded via afterDOMLoaded hook)
-initReadingProgress()
+})

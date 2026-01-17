@@ -32,6 +32,9 @@ export default {
     readerMode: {
       title: "閱讀模式",
     },
+    readingProgress: {
+      label: "閱讀進度",
+    },
     explorer: {
       title: "探索",
     },

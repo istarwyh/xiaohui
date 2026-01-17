@@ -32,6 +32,9 @@ export default {
     readerMode: {
       title: "Lukijatila",
     },
+    readingProgress: {
+      label: "Lukuedistyminen",
+    },
     explorer: {
       title: "Selain",
     },

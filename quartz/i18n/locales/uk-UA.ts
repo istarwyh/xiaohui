@@ -32,6 +32,9 @@ export default {
     readerMode: {
       title: "Режим читання",
     },
+    readingProgress: {
+      label: "Прогрес читання",
+    },
     explorer: {
       title: "Провідник",
     },

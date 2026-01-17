@@ -32,6 +32,9 @@ export default {
     readerMode: {
       title: "Okuma modu",
     },
+    readingProgress: {
+      label: "Okuma ilerlemesi",
+    },
     explorer: {
       title: "Gezgin",
     },

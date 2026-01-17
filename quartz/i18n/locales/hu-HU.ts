@@ -32,6 +32,9 @@ export default {
     readerMode: {
       title: "Olvasó mód",
     },
+    readingProgress: {
+      label: "Olvasási folyamat",
+    },
     explorer: {
       title: "Fájlböngésző",
     },
