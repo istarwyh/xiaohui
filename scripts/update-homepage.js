@@ -91,22 +91,27 @@ function getRecentFiles() {
     .map((f) => `- [[${f.name}]]`)
 }
 
-// 随机选择精选作物
-function getRandomFeatured(count = 5) {
-  const shuffled = [...featuredPosts].sort(() => 0.5 - Math.random())
-  return shuffled.slice(0, count)
+// 固定的精选作物（不再随机选择，保持首页稳定）
+function getFeaturedPosts() {
+  return [
+    "[[Full Stream|全流开发]]",
+    "[[Education-Wisdom|教育智慧]]",
+    "[[Team-Efficiency|团队效能]]",
+    "[[After-I-Saw-The-Truth|看见真相之后]]",
+    "[[Farming in the cyber world|赛博农耕说明]]",
+  ]
 }
 
-// 随机选择Hero文案
-function getRandomHero() {
-  return heroMessages[Math.floor(Math.random() * heroMessages.length)]
+// 固定的Hero文案
+function getHeroMessage() {
+  return "🌾 用代码播种 · 用思想灌溉"
 }
 
 // 更新首页内容
 function updateHomepage() {
   const recentFiles = getRecentFiles()
-  const featuredItems = getRandomFeatured()
-  const heroMessage = getRandomHero()
+  const featuredItems = getFeaturedPosts()
+  const heroMessage = getHeroMessage()
 
   const newContent = `---
 title: 太阳总会升起

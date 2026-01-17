@@ -7,7 +7,7 @@ aliases:
 
 <div class="hero">
 
-<p class="typewriter">🌱 在数字田野中耕耘智慧</p>
+<p class="typewriter">🌾 用代码播种 · 用思想灌溉</p>
 
 </div>
 
@@ -15,10 +15,10 @@ aliases:
 
 ## 🌟 精选作物
 
-1. [[Good-Information-Channel|优质信息渠道]]
-2. [[为什么要学文言文？]]
-3. [[Learning-Wisdom|学习智慧]]
-4. [[Education-Wisdom|教育智慧]]
+1. [[Full Stream|全流开发]]
+2. [[Education-Wisdom|教育智慧]]
+3. [[Team-Efficiency|团队效能]]
+4. [[After-I-Saw-The-Truth|看见真相之后]]
 5. [[Farming in the cyber world|赛博农耕说明]]
 
 </div>
