@@ -1,57 +1,61 @@
 ---
 title: 私人成长会员
-description: 加入晓灰的私人成长会员，获得一对一咨询、直播教学、社群交流和大厂内推机会
+description: 与晓灰深度交流 AI Agent、分布式系统、职业成长
 ---
 
-## 🚀 私人成长会员
-
-欢迎加入我的私人成长会员计划！作为一名在阿里、蚂蚁等大厂工作多年的工程师，我希望通过这个会员计划，将我的经验和资源分享给更多有志于技术成长的朋友。
-
----
-
-## 💎 会员权益
-
-### 1. 一对一咨询
-- 职业规划与发展建议
-- 技术方向选择指导
-- 面试准备与模拟
-- 代码 Review 与架构设计讨论
-
-### 2. 定期直播教学
-- AI Agent 开发实战
-- Java 后端架构设计
-- 大厂工作方法论
-- 技术面试技巧分享
-
-### 3. 私密社群
-- 加入专属微信/Discord 社群
-- 与志同道合的朋友交流
-- 第一时间获取行业动态
-- 不定期线下聚会
-
-### 4. 大厂内推
-- 阿里巴巴、蚂蚁集团内推机会
-- 简历优化建议
-- 面试流程指导
-- 薪资谈判技巧
+<div class="membership-header">
+  <span class="page-label">MEMBERSHIP</span>
+  <h1>私人成长会员</h1>
+  <p class="header-desc">如果你读过我的文章，对我分享的内容感兴趣，这里是一个更深入交流的方式。</p>
+</div>
 
 ---
 
-## 💰 价格
+## 为什么做这件事
 
-<div class="membership-pricing">
-  <div class="price-card">
-    <h3>终身会员</h3>
-    <div class="price">$29 USD</div>
-    <p>一次付费，永久有效</p>
+我在大厂工作了七年，从淘宝到蚂蚁，经历过财务系统重构、知识库建设、AI Agent 落地。这些年踩过的坑、总结的方法论，散落在各处笔记里。
+
+我一直相信，**最有价值的知识往往不在公开文档里，而在私下的对话中**。那些「为什么这样设计」「当时怎么想的」「如果重来会怎么做」，才是真正有用的东西。
+
+所以我想建立一个小圈子，和真正感兴趣的人深度交流。
+
+---
+
+## 你会得到什么
+
+<div class="benefit-grid">
+  <div class="benefit-item">
+    <h3>一对一交流</h3>
+    <p>职业规划、技术选型、架构设计、面试准备。预约时间，我们深聊一次。</p>
+  </div>
+  <div class="benefit-item">
+    <h3>私密社群</h3>
+    <p>一个小而精的圈子。分享行业动态、技术见解、以及那些不适合公开说的话。</p>
+  </div>
+  <div class="benefit-item">
+    <h3>直播与分享</h3>
+    <p>不定期的技术直播。AI Agent 实战、系统设计、大厂工作方法论。</p>
+  </div>
+  <div class="benefit-item">
+    <h3>内推机会</h3>
+    <p>阿里、蚂蚁的内推通道。简历优化建议，面试流程指导。</p>
   </div>
 </div>
 
 ---
 
-## 🛒 立即加入
+## 价格
 
-点击下方按钮，通过 PayPal 安全支付：
+<div class="price-section">
+  <div class="price-amount">$29</div>
+  <p class="price-note">一次付费，长期有效</p>
+</div>
+
+---
+
+## 加入方式
+
+通过 PayPal 完成支付：
 
 <div id="paypal-button-container"></div>
 
@@ -88,73 +92,121 @@ description: 加入晓灰的私人成长会员，获得一对一咨询、直播�
   }).render('#paypal-button-container');
 </script>
 
----
-
-## 📧 支付后流程
-
-1. **支付成功后**，请将您的 PayPal 交易确认邮件转发至：**talk@xiaohui.cool**
-2. 我会在 **24 小时内** 通过邮件回复您，发送会员专属资源和社群邀请链接
-3. 如有任何问题，欢迎随时邮件联系我
+支付成功后，将 PayPal 确认邮件转发至 **talk@xiaohui.cool**，我会在 24 小时内回复你。
 
 ---
 
-## ❓ 常见问题
+## 常见问题
 
-### Q: 支付后多久能收到会员资格？
-A: 通常在 24 小时内，我会通过邮件发送会员专属内容和社群邀请。
+**支付后多久能收到？** 通常 24 小时内。
 
-### Q: 支持哪些支付方式？
-A: 目前支持 PayPal 支付（支持信用卡、借记卡）。
+**支持哪些支付方式？** PayPal（支持信用卡、借记卡）。
 
-### Q: 可以退款吗？
-A: 由于会员内容的特殊性，支付后不支持退款。请在购买前仔细阅读会员权益。
-
-### Q: 一对一咨询如何预约？
-A: 成为会员后，我会发送预约链接，您可以选择合适的时间进行咨询。
+**可以退款吗？** 支付后不支持退款，请确认后再购买。
 
 ---
 
-## 📞 联系我
+## 联系我
 
-如果您有任何疑问，欢迎通过以下方式联系：
-
-- **Email**: talk@xiaohui.cool
-- **微信**: istarwyh
+有任何问题，随时邮件联系：**talk@xiaohui.cool**
 
 <style>
-.membership-pricing {
-  display: flex;
-  justify-content: center;
+/* Brutalist / Editorial Style */
+
+.membership-header {
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--lightgray);
+}
+
+.page-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--gray);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.membership-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  letter-spacing: -0.02em;
+}
+
+.header-desc {
+  font-size: 1.1rem;
+  color: var(--darkgray);
+  margin: 0;
+  max-width: 600px;
+}
+
+/* Benefit Grid */
+.benefit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
   margin: 2rem 0;
 }
 
-.price-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 2rem 3rem;
-  border-radius: 16px;
-  text-align: center;
-  box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+.benefit-item {
+  padding: 1.5rem 0;
+  border-top: 2px solid var(--dark);
 }
 
-.price-card h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.5rem;
+.benefit-item h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
 }
 
-.price-card .price {
-  font-size: 3rem;
-  font-weight: bold;
-  margin: 1rem 0;
-}
-
-.price-card p {
+.benefit-item p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--darkgray);
   margin: 0;
-  opacity: 0.9;
+}
+
+/* Price Section */
+.price-section {
+  margin: 2rem 0;
+  padding: 2rem 0;
+  border-top: 3px solid var(--dark);
+  border-bottom: 1px solid var(--lightgray);
+}
+
+.price-amount {
+  font-size: 4rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.price-note {
+  font-size: 0.9rem;
+  color: var(--gray);
+  margin: 0;
 }
 
 #paypal-button-container {
-  max-width: 400px;
-  margin: 2rem auto;
+  max-width: 350px;
+  margin: 1.5rem 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .membership-header h1 {
+    font-size: 2rem;
+  }
+  
+  .benefit-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .price-amount {
+    font-size: 3rem;
+  }
 }
 </style>
