@@ -12,6 +12,7 @@ export const sharedPageComponents: SharedLayout = {
       GitHub: "https://github.com/istarwyh",
       赛博农耕: "/Cyber-Farmer",
       AI加速我: "https://aispeeds.me",
+      成为会员: "/membership",
     },
   }),
 }
