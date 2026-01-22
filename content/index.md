@@ -47,6 +47,26 @@ aliases:
 
 <div class="section-divider"></div>
 
+<div class="explore-section">
+  <div class="explore-header">
+    <div class="explore-title">
+      <span class="section-label">EXPLORE</span>
+      <h2>自由探索</h2>
+    </div>
+    <p class="explore-desc">输入关键词搜索文章，或浏览下方精选内容</p>
+  </div>
+  <div class="search-inline">
+    <button class="search-trigger" onclick="document.querySelector('.search-button')?.click()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <span>搜索文章...</span>
+      <kbd>Ctrl+K</kbd>
+    </button>
+  </div>
+</div>
+
 <div class="section-header">
   <span class="section-label">SELECTED WORKS</span>
   <h2>精选文章</h2>
@@ -57,6 +77,12 @@ aliases:
 
 <div id="card-feed-placeholder">
   <!-- Cards will be rendered here by the CardFeed component -->
+</div>
+
+<div class="browse-more">
+  <a href="/program" class="browse-link">技术文章 →</a>
+  <a href="/learning" class="browse-link">学习笔记 →</a>
+  <a href="/life" class="browse-link">生活思考 →</a>
 </div>
 
 <div class="closing-note">
@@ -223,6 +249,100 @@ aliases:
   letter-spacing: -0.02em;
 }
 
+/* Explore Section */
+.explore-section {
+  margin-bottom: 3rem;
+}
+
+.explore-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.explore-title h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.explore-desc {
+  font-size: 0.9rem;
+  color: var(--gray);
+  margin: 0;
+}
+
+.search-inline {
+  margin-bottom: 2rem;
+}
+
+.search-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 500px;
+  padding: 0.875rem 1.25rem;
+  background: var(--light);
+  border: 1px solid var(--lightgray);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  text-align: left;
+}
+
+.search-trigger:hover {
+  border-color: var(--gray);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.search-trigger svg {
+  color: var(--gray);
+  flex-shrink: 0;
+}
+
+.search-trigger span {
+  flex-grow: 1;
+  color: var(--gray);
+  font-size: 0.95rem;
+}
+
+.search-trigger kbd {
+  background: var(--lightgray);
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  color: var(--darkgray);
+}
+
+/* Browse More */
+.browse-more {
+  display: flex;
+  gap: 2rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--lightgray);
+  flex-wrap: wrap;
+}
+
+.browse-link {
+  font-size: 0.9rem;
+  color: var(--dark);
+  text-decoration: none;
+  border-bottom: 1px solid var(--dark);
+  padding-bottom: 2px;
+  transition: border-color 0.2s;
+}
+
+.browse-link:hover {
+  border-color: var(--gray);
+}
+
 /* Closing Note */
 .closing-note {
   margin-top: 4rem;
@@ -277,6 +397,20 @@ aliases:
   }
   
   .intro-links {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .explore-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .search-trigger kbd {
+    display: none;
+  }
+  
+  .browse-more {
     flex-direction: column;
     gap: 0.75rem;
   }
