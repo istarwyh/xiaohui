@@ -27,46 +27,14 @@ export const defaultContentPageLayout: PageLayout = {
     Component.ConditionalRender({
       component: Component.CardFeed({
         cards: [
-          {
-            title: "全流开发",
-            slug: "program/full-stream/Full-Stream",
-            imageUrl: "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&h=600&fit=crop&q=80",
-          },
-          {
-            title: "教育智慧",
-            slug: "learning/wisdom/Education-Wisdom",
-            imageUrl: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=800&h=600&fit=crop&q=80",
-          },
-          {
-            title: "团队效能",
-            slug: "learning/Team-Efficiency",
-            imageUrl: "https://images.unsplash.com/photo-1562813733-b31f71025d54?w=800&h=600&fit=crop&q=80",
-          },
-          {
-            title: "看见真相之后",
-            slug: "learning/wisdom/After-I-Saw-The-Truth",
-            imageUrl: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=600&fit=crop&q=80",
-          },
-          {
-            title: "赛博农耕说明",
-            slug: "Farming-in-the-cyber-world",
-            imageUrl: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=600&fit=crop&q=80",
-          },
-          {
-            title: "Truth",
-            slug: "life/wisdom/Truth",
-            imageUrl: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop&q=80",
-          },
-          {
-            title: "【万字长文】 最强 AI Coding：Claude Code 最佳实践",
-            slug: "program/bot/【万字长文】-最强-AI-Coding：Claude-Code-最佳实践",
-            imageUrl: "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?w=800&h=600&fit=crop&q=80",
-          },
-          {
-            title: "【年度总结】从Claude Code到 OneAgent：最佳Agent 构建实践全解析",
-            slug: "program/llm/【年度总结】从Claude-Code到-OneAgent：最佳Agent-构建实践全解析",
-            imageUrl: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&h=600&fit=crop&q=80",
-          },
+          { title: "全流开发", slug: "program/full-stream/Full-Stream", imageUrl: "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&h=600&fit=crop&q=80" },
+          { title: "教育智慧", slug: "learning/wisdom/Education-Wisdom", imageUrl: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=800&h=600&fit=crop&q=80" },
+          { title: "团队效能", slug: "learning/Team-Efficiency", imageUrl: "https://images.unsplash.com/photo-1562813733-b31f71025d54?w=800&h=600&fit=crop&q=80" },
+          { title: "看见真相之后", slug: "learning/wisdom/After-I-Saw-The-Truth", imageUrl: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=600&fit=crop&q=80" },
+          { title: "赛博农耕说明", slug: "Farming-in-the-cyber-world", imageUrl: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=600&fit=crop&q=80" },
+          { title: "免费使用 Claude Code 的四个方法", slug: "store/微信公众号/免费使用-Claude-Code-的四个方法", imageUrl: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop&q=80" },
+          { title: "membership", slug: "membership", imageUrl: "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?w=800&h=600&fit=crop&q=80" },
+          { title: "【万字长文】 最强 AI Coding：Claude Code 最佳实践", slug: "program/bot/【万字长文】-最强-AI-Coding：Claude-Code-最佳实践", imageUrl: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&h=600&fit=crop&q=80" },
         ],
       }),
       condition: (page) => page.fileData.slug === "index",

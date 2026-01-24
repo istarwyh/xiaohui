@@ -9,6 +9,44 @@ const __dirname = path.dirname(__filename)
 
 const contentDir = path.join(__dirname, "../content")
 const indexPath = path.join(contentDir, "index.md")
+const layoutPath = path.join(__dirname, "../quartz.layout.ts")
+
+const FORCE_UPDATE_INDEX = process.env.FORCE_UPDATE_INDEX === "1"
+const INDEX_AUTOGEN_MARKER = "<!-- AUTO_GENERATED_BY_UPDATE_HOMEPAGE -->"
+
+function cardsToTsObjectLiteral(cards) {
+  return cards
+    .map((post) => {
+      const title = JSON.stringify(post.title)
+      const slug = JSON.stringify(post.slug)
+      const imageUrl = JSON.stringify(post.imageUrl)
+      return `          { title: ${title}, slug: ${slug}, imageUrl: ${imageUrl} },`
+    })
+    .join("\n")
+}
+
+function updateHomepageCardsInLayout(cards) {
+  if (!fs.existsSync(layoutPath)) {
+    throw new Error(`Cannot find quartz.layout.ts at ${layoutPath}`)
+  }
+
+  const layout = fs.readFileSync(layoutPath, "utf8")
+  const cardsLiteral = cardsToTsObjectLiteral(cards)
+
+  const pattern =
+    /(Component\.CardFeed\(\{[\s\S]*?cards:\s*\[)([\s\S]*?)(\]\s*,[\s\S]*?\}\)\s*,)/m
+
+  const match = layout.match(pattern)
+  if (!match) {
+    throw new Error(
+      "Could not locate homepage CardFeed cards array in quartz.layout.ts. " +
+        "Expected a Component.CardFeed({ cards: [...] }) block.",
+    )
+  }
+
+  const nextLayout = layout.replace(pattern, `$1\n${cardsLiteral}\n        $3`)
+  fs.writeFileSync(layoutPath, nextLayout)
+}
 
 // Unsplash API configuration - read from environment variable
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY
@@ -164,6 +202,8 @@ function updateHomepage() {
   // Map posts to Unsplash images
   const postsWithImages = mapPostsToImages(allPosts)
 
+  updateHomepageCardsInLayout(postsWithImages)
+
   // Generate TypeScript-compatible card data
   const cardsData = postsWithImages
     .map(
@@ -178,6 +218,8 @@ aliases:
   - index
   - home
 ---
+
+${INDEX_AUTOGEN_MARKER}
 
 <!-- This page uses the CardFeed component defined in quartz/components/CardFeed.tsx -->
 <!-- Card data is injected via the layout configuration in quartz.layout.ts -->
@@ -201,7 +243,27 @@ ${cardsData}
 -->
 `
 
-  fs.writeFileSync(indexPath, newContent)
+  const canWriteIndex = (() => {
+    if (FORCE_UPDATE_INDEX) {
+      return true
+    }
+    if (!fs.existsSync(indexPath)) {
+      return true
+    }
+
+    const currentIndex = fs.readFileSync(indexPath, "utf8")
+    return currentIndex.includes(INDEX_AUTOGEN_MARKER)
+  })()
+
+  if (canWriteIndex) {
+    fs.writeFileSync(indexPath, newContent)
+  } else {
+    console.log("ℹ️  Skipped updating content/index.md (manual homepage detected)")
+    console.log(
+      "   To allow auto-updates, add the marker to index.md: " + INDEX_AUTOGEN_MARKER,
+    )
+    console.log("   Or set FORCE_UPDATE_INDEX=1 to overwrite once")
+  }
 
   // Also generate a cards-data.json for easier import
   const cardsDataPath = path.join(__dirname, "cards-data.json")
@@ -221,6 +283,7 @@ ${cardsData}
   console.log(`📝 Featured posts: ${featuredPosts.length}`)
   console.log(`🆕 Recent posts: ${recentFiles.length}`)
   console.log(`📄 Card data saved to: ${cardsDataPath}`)
+  console.log(`🧩 Homepage cards synced to: ${layoutPath}`)
 }
 
 updateHomepage()
