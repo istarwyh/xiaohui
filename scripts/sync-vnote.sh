@@ -14,6 +14,10 @@ mkdir -p "$TARGET_DIR"
 # --delete: 删除目标目录中源目录没有的文件
 # --exclude: 排除不需要同步的文件和目录
 rsync -avh --delete \
+    --exclude="index.md" \
+    --exclude="membership.md" \
+    --exclude=".claude" \
+    --exclude="Users" \
     --exclude=".git" \
     --exclude=".gitignore" \
     --exclude=".obsidian" \

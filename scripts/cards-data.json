@@ -26,8 +26,8 @@
       "imageUrl": "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=600&fit=crop&q=80"
     },
     {
-      "title": "Truth",
-      "slug": "life/wisdom/Truth",
+      "title": "membership",
+      "slug": "membership",
       "imageUrl": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop&q=80"
     },
     {
@@ -36,8 +36,8 @@
       "imageUrl": "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?w=800&h=600&fit=crop&q=80"
     },
     {
-      "title": "【年度总结】从Claude Code到 OneAgent：最佳Agent 构建实践全解析",
-      "slug": "program/llm/【年度总结】从Claude-Code到-OneAgent：最佳Agent-构建实践全解析",
+      "title": "Claude Code Skill 不过是一个文件夹？",
+      "slug": "program/bot/Claude-Code-Skill-不过是一个文件夹？",
       "imageUrl": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&h=600&fit=crop&q=80"
     }
   ]
