@@ -110,11 +110,6 @@ void setUp(){
 
 ## 最后讨论一下
 
-### GWT ？
-1. Given:情景/条件
-2. When:采取什么行动
-3. Then:得到什么结果
-
 ### 集成测试 Vs 单元测试？
 之所以写测试，是因为正确的测试确实可以提高开发效率，所以选择怎样写测试的判断标准之一就是要找到`ROI`(Return Of Investment) 最高的截面。柳胜认为测试的ROI计算公式为[^3KU]
 >![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/202309091459177.png)
@@ -165,8 +160,6 @@ void setUp(){
 >2. If you find yourself wanting to test a set of private methods directly, seriously consider extracting a class (or standalone function), but only if it makes sense independent of your testing desires. 
 >3. If you want to test a single private method and don't see the point in extracting it out of the class, convert it into a pure function (no references to instance variables) and test that method. That way, if later on you decide to move the function somewhere else, moving the tests is as simple as copy+paste.
 
-### 其他测试类型
-![](https://substackcdn.com/image/fetch/w_550,c_limit,f_auto,q_auto:good,fl_lossy/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Ff4886cb0-e840-4d4a-84c7-8d9543d98101_1280x1664.gif)
 
 [^3KU]:[3KU法则：如何找出最优自动化实施截面？](https://time.geekbang.org/column/article/497405)
 [^IntegrationVsUnit]:[TDD中的测试（3）：集成测试还是单元测试？](https://time.geekbang.org/column/article/496699)

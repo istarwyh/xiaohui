@@ -351,6 +351,7 @@ class TestingAStackDemo {
     }
 }
 ```
+
 ![](https://junit.org/junit5/docs/current/user-guide/images/writing-tests_nested_test_ide.png)
 ### 2.3. JUnit5原理
 单独的JUnit5其实是难以使用的,通常IDE或者代码管理工具,比如IntelliJ IDEA, Eclipse, NetBeans, Visual Studio Code, Gradle, Maven都会对JUnit5进行集成,从而让测试对开发更友好.所以以IDEA+JUnit5为例,第一步其实是从IDEA[内部插件](https://github.com/JetBrains/intellij-community/tree/61fb94acd0e337972338618b58c38a4509aefcff/plugins/junit5_rt/src/com/intellij/junit5)代码开始的.
