@@ -107,6 +107,7 @@ Claude Code 本身是 Loop 组成的智能体，并且内部自带 Loop。
 ```
 
 下图是 CC 在 Loop 中迭代实现目标的效果。
+
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260131193242629.png)
 
 到这，懂行的应该就会问：**上下文窗口不会爆掉吗？** 
@@ -179,6 +180,7 @@ E2E 测试运行（Reward Signal）
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260131193317955.png)
 
 - 使用 ralph-loop 持续自迭代，目前风险样本召回率 0 -> 86% ，没有人类手工参与
+![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260207195453950.jpg)
 
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260131193223988.png)
 
