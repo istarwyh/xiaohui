@@ -81,7 +81,11 @@ Google 浏览器官方出品，可以自动点击浏览器页面、截图甚至�
 /plugin install chrome-devtools-mcp@chromedevtools-chrome-devtools-mcp
 ```
 
-OK, 先搞这几个，这些等于给 CC 买点装备。下面进入 Loop。
+OK, 先搞这几个，这些等于给 CC 买点装备。
+
+
+下面进入 Loop。
+## 两个 Loop Plugin
 ### Ralph-Loop
 
 Claude Code 本身是 Loop 组成的智能体，并且内部自带 Loop。
