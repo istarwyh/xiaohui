@@ -21,7 +21,7 @@
     "sync-vnote": "./scripts/sync-vnote.sh",
     "update-homepage": "node ./scripts/update-homepage.js",
     "sync": "npm run sync-vnote && npm run update-homepage && npx quartz sync",
-    "build": "npm run update-homepage && npx quartz build",
+    "build": "npm run update-homepage && npx quartz build && cp -r extra-pages/* public/",
     "postinstall": "node ./scripts/check-git-deps.js"
   },
   "engines": {
