@@ -22,6 +22,7 @@
     "update-homepage": "node ./scripts/update-homepage.js",
     "sync": "npm run sync-vnote && npm run update-homepage && npx quartz sync",
     "build": "npm run update-homepage && npx quartz build && cp -r extra-pages/* public/",
+    "build:cf": "git fetch --unshallow || true && npm run build",
     "postinstall": "node ./scripts/check-git-deps.js"
   },
   "engines": {
