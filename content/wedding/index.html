@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>龙凤呈祥 · 婚礼行程甘特图</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Ma+Shan+Zheng&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Noto Serif SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", serif;
+      background: #1a0a0a;
+      min-height: 100vh;
+      padding: 0;
+      color: #4a1a1a;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* ===== 背景纹理 ===== */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(200, 50, 30, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(200, 150, 50, 0.1) 0%, transparent 50%),
+        repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(200, 150, 50, 0.02) 40px, rgba(200, 150, 50, 0.02) 41px),
+        repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(200, 150, 50, 0.02) 40px, rgba(200, 150, 50, 0.02) 41px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, #2a0e0e 0%, #1a0808 40%, #0f0505 100%);
+      z-index: -1;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ===== 顶部标题区 ===== */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      position: relative;
+      padding: 48px 20px 36px;
+    }
+
+    .header::before {
+      content: '龍鳳呈祥';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: "Ma Shan Zheng", cursive;
+      font-size: 6rem;
+      color: rgba(200, 150, 50, 0.06);
+      white-space: nowrap;
+      pointer-events: none;
+      letter-spacing: 20px;
+    }
+
+    .header-ornament {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .header-ornament .line {
+      width: 80px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #c8963a, transparent);
+    }
+
+    .header-ornament .xi {
+      font-size: 2.4rem;
+      color: #c8963a;
+      text-shadow: 0 0 20px rgba(200, 150, 58, 0.4);
+    }
+
+    .header h1 {
+      font-family: "Ma Shan Zheng", "Noto Serif SC", cursive;
+      font-size: 2.8rem;
+      color: #e8c55a;
+      margin-bottom: 6px;
+      letter-spacing: 8px;
+      text-shadow: 0 2px 12px rgba(200, 150, 50, 0.3), 0 0 40px rgba(200, 100, 30, 0.15);
+    }
+
+    .header .subtitle {
+      font-size: 0.9rem;
+      color: #a07040;
+      letter-spacing: 6px;
+      font-weight: 400;
+    }
+
+    .header .date-range {
+      margin-top: 16px;
+      font-size: 0.88rem;
+      color: #d4a853;
+      background: rgba(200, 150, 58, 0.08);
+      display: inline-block;
+      padding: 8px 28px;
+      border: 1px solid rgba(200, 150, 58, 0.2);
+      border-radius: 4px;
+      letter-spacing: 1px;
+    }
+
+    .header .double-xi {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 20px;
+    }
+
+    .header .double-xi span {
+      font-size: 1.6rem;
+      color: rgba(200, 150, 58, 0.25);
+    }
+
+    /* ===== 图例 ===== */
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: #c8a060;
+    }
+
+    .legend-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid rgba(200, 150, 58, 0.3);
+    }
+
+    /* ===== 甘特图主体 ===== */
+    .gantt-wrapper {
+      background: linear-gradient(135deg, rgba(40, 15, 15, 0.95), rgba(30, 10, 10, 0.98));
+      border: 1px solid rgba(200, 150, 58, 0.2);
+      border-radius: 8px;
+      box-shadow:
+        0 4px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(200, 150, 58, 0.1);
+      overflow-x: auto;
+      padding: 28px;
+      position: relative;
+    }
+
+    .gantt-wrapper::before,
+    .gantt-wrapper::after {
+      content: '囍';
+      position: absolute;
+      font-size: 8rem;
+      color: rgba(200, 150, 58, 0.03);
+      font-family: "Ma Shan Zheng", cursive;
+      pointer-events: none;
+    }
+
+    .gantt-wrapper::before { top: 20px; left: 20px; }
+    .gantt-wrapper::after { bottom: 20px; right: 20px; }
+
+    .gantt-table {
+      width: 100%;
+      min-width: 1150px;
+      border-collapse: collapse;
+      position: relative;
+      z-index: 1;
+    }
+
+    .gantt-table thead th {
+      padding: 12px 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-align: center;
+      border-bottom: 2px solid rgba(200, 150, 58, 0.15);
+      color: #c8a060;
+    }
+
+    .gantt-table thead th.task-header {
+      text-align: left;
+      width: 280px;
+      min-width: 280px;
+      padding-left: 20px;
+      font-size: 0.85rem;
+      color: #d4a853;
+      letter-spacing: 1px;
+    }
+
+    .gantt-table thead th.day-header {
+      position: relative;
+    }
+
+    .day-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .day-label .lunar {
+      color: #e8c55a;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .day-label .solar {
+      color: #a07040;
+      font-size: 0.68rem;
+      font-weight: 400;
+    }
+
+    .day-label .weekday {
+      color: #7a5a3a;
+      font-size: 0.62rem;
+      font-weight: 400;
+    }
+
+    .gantt-table tbody tr {
+      transition: background 0.2s;
+    }
+
+    .gantt-table tbody tr:hover {
+      background: rgba(200, 150, 58, 0.04);
+    }
+
+    .gantt-table tbody td {
+      padding: 6px 4px;
+      border-bottom: 1px solid rgba(200, 150, 58, 0.06);
+      vertical-align: middle;
+      height: 46px;
+    }
+
+    .gantt-table tbody td.task-cell {
+      padding-left: 20px;
+      font-size: 0.82rem;
+      color: #d4b880;
+      white-space: nowrap;
+    }
+
+    .task-cell .task-icon {
+      margin-right: 8px;
+      font-size: 0.9rem;
+    }
+
+    .task-cell .task-time {
+      font-size: 0.68rem;
+      color: #8a6a4a;
+      margin-left: 8px;
+    }
+
+    .gantt-table tbody td.bar-cell {
+      position: relative;
+      padding: 6px 2px;
+    }
+
+    .bar {
+      height: 30px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: #fff;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .bar::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%);
+      border-radius: 3px 3px 0 0;
+    }
+
+    .bar-prep {
+      background: linear-gradient(135deg, #b8860b, #8b6914);
+      border-color: rgba(200, 150, 58, 0.4);
+    }
+    .bar-wedding {
+      background: linear-gradient(135deg, #c41e3a, #8b0000);
+      border-color: rgba(220, 50, 50, 0.4);
+    }
+    .bar-family {
+      background: linear-gradient(135deg, #a0522d, #6b3a2a);
+      border-color: rgba(160, 82, 45, 0.4);
+    }
+    .bar-travel {
+      background: linear-gradient(135deg, #2e8b57, #1a5c38);
+      border-color: rgba(46, 139, 87, 0.4);
+    }
+    .bar-newyear {
+      background: linear-gradient(135deg, #dc143c, #8b0000);
+      border-color: rgba(220, 20, 60, 0.5);
+    }
+    .bar-return {
+      background: linear-gradient(135deg, #4682b4, #2a5a8a);
+      border-color: rgba(70, 130, 180, 0.4);
+    }
+
+    .bar-half-left { border-radius: 4px 0 0 4px; margin-right: 0; }
+    .bar-half-right { border-radius: 0 4px 4px 0; margin-left: 0; }
+
+    .section-row td {
+      padding-top: 18px !important;
+      padding-bottom: 8px !important;
+      border-bottom: none !important;
+    }
+
+    .section-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #e8c55a;
+      letter-spacing: 3px;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .section-label::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 14px;
+      background: #c8963a;
+      margin-right: 10px;
+      vertical-align: middle;
+      border-radius: 2px;
+    }
+
+    .today-marker {
+      background: rgba(200, 150, 58, 0.06) !important;
+    }
+
+    .wedding-day {
+      background: rgba(196, 30, 58, 0.08) !important;
+    }
+
+    /* ===== 详情卡片 ===== */
+    .detail-section {
+      margin-top: 36px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+    }
+
+    .detail-card {
+      background: linear-gradient(135deg, rgba(40, 15, 15, 0.95), rgba(30, 10, 10, 0.98));
+      border: 1px solid rgba(200, 150, 58, 0.15);
+      border-radius: 8px;
+      padding: 22px 26px;
+      box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .detail-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+    }
+
+    .detail-card.card-wedding::before { background: linear-gradient(180deg, #c41e3a, #8b0000); }
+    .detail-card.card-prep::before { background: linear-gradient(180deg, #b8860b, #8b6914); }
+    .detail-card.card-travel::before { background: linear-gradient(180deg, #2e8b57, #1a5c38); }
+
+    .detail-card h3 {
+      font-size: 1rem;
+      margin-bottom: 14px;
+      color: #e8c55a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 1px;
+    }
+
+    .detail-card ul { list-style: none; padding: 0; }
+
+    .detail-card li {
+      font-size: 0.84rem;
+      color: #c8a060;
+      padding: 6px 0;
+      padding-left: 22px;
+      position: relative;
+      line-height: 1.6;
+    }
+
+    .detail-card li::before {
+      content: '◆';
+      position: absolute;
+      left: 4px;
+      color: #8b6914;
+      font-size: 0.5rem;
+      top: 10px;
+    }
+
+    .detail-card li strong { color: #e8c55a; }
+
+    /* ===== 建议区 ===== */
+    .suggestions {
+      margin-top: 36px;
+      background: linear-gradient(135deg, rgba(40, 15, 15, 0.95), rgba(30, 10, 10, 0.98));
+      border: 1px solid rgba(200, 150, 58, 0.15);
+      border-radius: 8px;
+      padding: 26px;
+      box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .suggestions::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: linear-gradient(180deg, #c8963a, #6b4a1a);
+      border-radius: 8px 0 0 8px;
+    }
+
+    .suggestions h3 {
+      font-size: 1rem;
+      margin-bottom: 16px;
+      color: #e8c55a;
+      letter-spacing: 2px;
+    }
+
+    .suggestions ul { list-style: none; padding: 0; }
+
+    .suggestions li {
+      font-size: 0.84rem;
+      color: #c8a060;
+      padding: 7px 0;
+      padding-left: 28px;
+      position: relative;
+      line-height: 1.7;
+    }
+
+    .suggestions li::before {
+      content: '※';
+      position: absolute;
+      left: 6px;
+      color: #c8963a;
+      font-size: 0.8rem;
+    }
+
+    .suggestions li strong { color: #e8c55a; }
+
+    /* ===== 底部装饰 ===== */
+    .footer-ornament {
+      text-align: center;
+      margin-top: 40px;
+      padding-bottom: 20px;
+    }
+
+    .footer-ornament .line {
+      display: inline-block;
+      width: 120px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(200, 150, 58, 0.3), transparent);
+      vertical-align: middle;
+    }
+
+    .footer-ornament .text {
+      display: inline-block;
+      color: rgba(200, 150, 58, 0.3);
+      font-size: 0.75rem;
+      letter-spacing: 4px;
+      margin: 0 16px;
+      vertical-align: middle;
+    }
+
+    /* ===== 龙凤装饰 ===== */
+    .dragon-phoenix {
+      position: fixed;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.03;
+      font-size: 18rem;
+      color: #c8963a;
+      font-family: "Ma Shan Zheng", cursive;
+    }
+
+    .dragon-phoenix.left {
+      top: 10%;
+      left: -60px;
+      transform: rotate(-15deg);
+    }
+
+    .dragon-phoenix.right {
+      bottom: 10%;
+      right: -60px;
+      transform: rotate(15deg);
+    }
+
+    /* ===== 滚动条 ===== */
+    ::-webkit-scrollbar { height: 8px; width: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(30, 10, 10, 0.5); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(200, 150, 58, 0.3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(200, 150, 58, 0.5); }
+
+    @media (max-width: 768px) {
+      .container { padding: 16px 12px; }
+      .header h1 { font-size: 1.8rem; letter-spacing: 4px; }
+      .header::before { font-size: 3rem; }
+      .gantt-wrapper { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-bg"></div>
+  <div class="dragon-phoenix left">龍</div>
+  <div class="dragon-phoenix right">鳳</div>
+
+  <div class="container">
+    <div class="header">
+      <div class="header-ornament">
+        <div class="line"></div>
+        <span class="xi">囍</span>
+        <div class="line"></div>
+      </div>
+      <h1>龙凤呈祥 · 新婚行程</h1>
+      <div class="subtitle">百年好合 · 永结同心</div>
+      <div class="date-range">乙巳蛇年 · 腊月廿三至正月初一 · 公历2月10日—2月18日</div>
+      <div class="double-xi">
+        <span>龍</span>
+        <span>囍</span>
+        <span>鳳</span>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot bar-prep"></div>婚礼筹备</div>
+      <div class="legend-item"><div class="legend-dot bar-wedding"></div>婚礼大典</div>
+      <div class="legend-item"><div class="legend-dot bar-family"></div>家宴团聚</div>
+      <div class="legend-item"><div class="legend-dot bar-travel"></div>黄山之旅</div>
+      <div class="legend-item"><div class="legend-dot bar-newyear"></div>除夕守岁</div>
+      <div class="legend-item"><div class="legend-dot bar-return"></div>归程</div>
+    </div>
+
+    <div class="gantt-wrapper">
+      <table class="gantt-table">
+        <thead>
+          <tr>
+            <th class="task-header">事项</th>
+            <th class="day-header today-marker">
+              <div class="day-label">
+                <span class="lunar">廿三</span>
+                <span class="solar">2/10</span>
+                <span class="weekday">周一 · 今日</span>
+              </div>
+            </th>
+            <th class="day-header">
+              <div class="day-label">
+                <span class="lunar">廿四</span>
+                <span class="solar">2/11</span>
+                <span class="weekday">周二</span>
+              </div>
+            </th>
+            <th class="day-header">
+              <div class="day-label">
+                <span class="lunar">廿五</span>
+                <span class="solar">2/12</span>
+                <span class="weekday">周三</span>
+              </div>
+            </th>
+            <th class="day-header wedding-day">
+              <div class="day-label">
+                <span class="lunar">囍 廿六</span>
+                <span class="solar">2/13</span>
+                <span class="weekday">周四 · 大婚</span>
+              </div>
+            </th>
+            <th class="day-header">
+              <div class="day-label">
+                <span class="lunar">廿七</span>
+                <span class="solar">2/14</span>
+                <span class="weekday">周五</span>
+              </div>
+            </th>
+            <th class="day-header">
+              <div class="day-label">
+                <span class="lunar">廿八</span>
+                <span class="solar">2/15</span>
+                <span class="weekday">周六</span>
+              </div>
+            </th>
+            <th class="day-header">
+              <div class="day-label">
+                <span class="lunar">廿九</span>
+                <span class="solar">2/16</span>
+                <span class="weekday">周日</span>
+              </div>
+            </th>
+            <th class="day-header">
+              <div class="day-label">
+                <span class="lunar">除夕</span>
+                <span class="solar">2/17</span>
+                <span class="weekday">周一</span>
+              </div>
+            </th>
+            <th class="day-header">
+              <div class="day-label">
+                <span class="lunar">正月初一</span>
+                <span class="solar">2/18</span>
+                <span class="weekday">周二</span>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 婚礼筹备 -->
+          <tr class="section-row">
+            <td class="section-label" colspan="10">婚礼筹备</td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">📦</span>备齐伴手礼、茶具、布置物品
+            </td>
+            <td class="bar-cell today-marker"><div class="bar bar-prep bar-half-left" style="margin-left:30%">筹备中</div></td>
+            <td class="bar-cell"><div class="bar bar-prep bar-half-right"></div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🚗</span>物资运送至无为酒店
+              <span class="task-time">2/12 白天</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"><div class="bar bar-prep">搬运物资</div></td>
+            <td class="bar-cell wedding-day"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🍽</span>婚礼前夜酒席（双方父母出席）
+              <span class="task-time">2/12 晚</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"><div class="bar bar-family" style="margin-left:50%">前夜宴</div></td>
+            <td class="bar-cell wedding-day"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🏨</span>丈母娘 & 新娘入住无为酒店
+              <span class="task-time">2/12 晚</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"><div class="bar bar-family" style="margin-left:60%">入住</div></td>
+            <td class="bar-cell wedding-day"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+
+          <!-- 婚礼大典 -->
+          <tr class="section-row">
+            <td class="section-label" colspan="10">婚礼大典（腊月廿六 · 2/13）</td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🚐</span>父母接齐宾客送至宴会厅
+              <span class="task-time">早上</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"><div class="bar bar-wedding" style="margin-right:65%">接人</div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">💄</span>新人化妆
+              <span class="task-time">早起</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"><div class="bar bar-wedding" style="margin-right:60%">化妆</div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🍵</span>敬茶 · 改口费红包
+              <span class="task-time">~9:00</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"><div class="bar bar-wedding" style="margin-left:10%;margin-right:50%">敬茶 囍</div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🎀</span>三楼莲花厅布置 & 物资就位
+              <span class="task-time">~10:30</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"><div class="bar bar-wedding" style="margin-left:25%;margin-right:35%">布置</div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🎬</span>暖场动画 + 新人致辞
+              <span class="task-time">~11:30</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"><div class="bar bar-wedding" style="margin-left:40%;margin-right:25%">开场</div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🥂</span>正式开席
+              <span class="task-time">11:30 — 14:00</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"><div class="bar bar-wedding" style="margin-left:40%">喜宴 囍</div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🏡</span>岳父母随新人回农村老家
+              <span class="task-time">14:00后</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"><div class="bar bar-family" style="margin-left:60%">回老家</div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🌙</span>晚饭后岳父母返回无为酒店
+              <span class="task-time">2/13 晚</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"><div class="bar bar-family" style="margin-left:75%">返酒店</div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+
+          <!-- 婚后安排 -->
+          <tr class="section-row">
+            <td class="section-label" colspan="10">婚后安排</td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🍜</span>岳父母午餐（在我们这边）
+              <span class="task-time">2/14 中午</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"></td>
+            <td class="bar-cell"><div class="bar bar-family" style="margin-right:50%">午餐</div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🛍</span>下午逛街
+              <span class="task-time">2/14 下午</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"></td>
+            <td class="bar-cell"><div class="bar bar-family" style="margin-left:40%;margin-right:15%">逛街</div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🏨</span>岳父母返回无为酒店
+              <span class="task-time">2/14 晚</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"></td>
+            <td class="bar-cell"><div class="bar bar-family" style="margin-left:70%">返酒店</div></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+          </tr>
+
+          <!-- 黄山之旅 -->
+          <tr class="section-row">
+            <td class="section-label" colspan="10">黄山之旅 · 新春佳节</td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🏔</span>新人 + 双方父母 → 黄山
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"><div class="bar bar-travel bar-half-left">出发</div></td>
+            <td class="bar-cell"><div class="bar bar-travel">黄山游玩</div></td>
+            <td class="bar-cell"><div class="bar bar-travel bar-half-right">黄山游玩</div></td>
+            <td class="bar-cell"></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🧨</span>在黄山过除夕守岁
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"><div class="bar bar-newyear">除夕守岁</div></td>
+            <td class="bar-cell"></td>
+          </tr>
+
+          <!-- 归程 -->
+          <tr class="section-row">
+            <td class="section-label" colspan="10">归程</td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">🏠</span>新人 + 婆家 → 回无为老家
+              <span class="task-time">正月初一</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"><div class="bar bar-return">回老家</div></td>
+          </tr>
+          <tr>
+            <td class="task-cell">
+              <span class="task-icon">✈</span>岳父母 → 返回新疆
+              <span class="task-time">正月初一</span>
+            </td>
+            <td class="bar-cell today-marker"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell wedding-day"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"></td>
+            <td class="bar-cell"><div class="bar bar-return">返新疆</div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 关键日详情 -->
+    <div class="detail-section">
+      <div class="detail-card card-prep">
+        <h3>◆ 腊月廿五（2/12）· 筹备日</h3>
+        <ul>
+          <li>白天：将<strong>伴手礼、茶具、布置物品</strong>运至无为酒店</li>
+          <li>晚上：婚礼前夜酒席，<strong>双方父母</strong>出席</li>
+          <li>晚上：丈母娘 & 新娘<strong>入住无为酒店</strong></li>
+        </ul>
+      </div>
+      <div class="detail-card card-wedding">
+        <h3>◆ 腊月廿六（2/13）· 大婚之日</h3>
+        <ul>
+          <li><strong>早上</strong>：父母将宾客接齐，送至宴会厅</li>
+          <li><strong>早起</strong>：新人化妆</li>
+          <li><strong>~9:00</strong>：敬茶环节，双方父母给改口费红包</li>
+          <li><strong>~10:30</strong>：三楼莲花厅布置（瓜子、花生、酒水、饮料、水果）</li>
+          <li><strong>~11:30</strong>：暖场动画 → 新人致辞（约2分钟）→ 正式开席</li>
+          <li><strong>~14:00</strong>：酒席散场</li>
+          <li><strong>下午</strong>：岳父母随新人回农村老家</li>
+          <li><strong>晚上</strong>：晚饭后岳父母返回无为酒店</li>
+        </ul>
+      </div>
+      <div class="detail-card card-travel">
+        <h3>◆ 腊月廿八至除夕（2/15-17）· 黄山</h3>
+        <ul>
+          <li>新人 + 双方父母一同前往<strong>黄山</strong></li>
+          <li>在黄山度过<strong>三天</strong>，包含除夕夜守岁</li>
+          <li><strong>正月初一</strong>：新人 & 婆家回无为老家；岳父母返回新疆</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 建议 -->
+    <div class="suggestions">
+      <h3>※ 建议与提醒</h3>
+      <ul>
+        <li><strong>腊月廿四（2/11）</strong>目前是空闲日，建议用来做最后的物资清点、确认酒店布置细节、与司仪/摄影师对流程。</li>
+        <li><strong>化妆时间</strong>：婚礼当天如果9点敬茶，建议<strong>6:00-6:30</strong>就开始化妆，预留充足时间。</li>
+        <li><strong>父母接人</strong>：早上接人路线和车辆建议提前规划好，确认接几批人、几辆车、路线顺序。</li>
+        <li><strong>莲花厅布置</strong>：10:30开始布置到11:30开席只有1小时，建议提前安排人手，或前一天晚上先做部分布置。</li>
+        <li><strong>物资清单</strong>：建议列一份详细清单（瓜子、花生、酒水、饮料、水果、喜糖、红包、茶具等），逐项打勾确认。</li>
+        <li><strong>黄山住宿</strong>：春节期间黄山住宿紧张，如果还没订，请尽快预订。山上/山下酒店都要确认。</li>
+        <li><strong>岳父母返程</strong>：初一从黄山回新疆，路途遥远，建议提前确认机票/车票是否已购买。</li>
+        <li><strong>婚礼当天交通</strong>：散场后从酒店到农村老家的车辆安排，以及晚上岳父母返回酒店的接送，建议提前落实。</li>
+        <li><strong>暖场动画 & 致辞</strong>：建议提前准备好U盘备份，致辞稿也提前写好练习一下。</li>
+      </ul>
+    </div>
+
+    <div class="footer-ornament">
+      <span class="line"></span>
+      <span class="text">百年好合 · 永结同心</span>
+      <span class="line"></span>
+    </div>
+  </div>
+</body>
+</html>
