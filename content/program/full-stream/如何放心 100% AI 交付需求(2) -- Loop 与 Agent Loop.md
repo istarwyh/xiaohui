@@ -152,7 +152,7 @@ OS=$(uname -s | tr '[:upper:]' '[:lower:]'); ARCH=$(uname -m | sed -e 's/x86_64/
  不过复杂场景，AI 归根结底不能代替人做判断。这是人的核心竞争力所在。Supervisor 在简单场景下可以真正代替人，在复杂场景下我们依然需要是主角。
  
  比如下面是CC 在一个 Loop 中的场景，CC 自己给出了几个选项，并且认为选 A ，但是我明显不同意他妥协的做法--这个判断就是我的价值所在。
- <img src="https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260207165728445.jpg" style="max-height: 680px; width: auto; display: block; margin: 0 auto;" />
+ ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260207165728445.jpg)
 
 ## 基于测试的应用级别“强化学习”
 
@@ -180,7 +180,7 @@ E2E 测试运行（Reward Signal）
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260131193317955.png)
 
 - 使用 ralph-loop 持续自迭代，目前风险样本召回率 0 -> 86% ，没有人类手工参与
-<img src="https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260207195453950.jpg" style="max-height: 680px; width: auto; display: block; margin: 0 auto;" />
+![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260207195453950.jpg)
 
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260131193223988.png)
 
