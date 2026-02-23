@@ -47,6 +47,50 @@ aliases:
 
 <div class="section-divider"></div>
 
+<div class="section-header">
+  <span class="section-label">SELECTED WORKS</span>
+  <h2>精选文章</h2>
+</div>
+
+<div class="featured-list">
+  <a href="/program/full-stream/Full-Stream" class="featured-item">
+    <span class="featured-title">全流开发</span>
+    <span class="featured-desc">从需求到上线，AI 全流程参与的开发范式探索</span>
+    <span class="featured-arrow">→</span>
+  </a>
+  <a href="/program/bot/【万字长文】-最强-AI-Coding：Claude-Code-最佳实践" class="featured-item">
+    <span class="featured-title">最强 AI Coding：Claude Code 最佳实践</span>
+    <span class="featured-desc">万字长文，从零到一的实践指南</span>
+    <span class="featured-arrow">→</span>
+  </a>
+  <a href="/program/llm/如何快速创建领域Agent---OneAgent-+-MCPs-范式" class="featured-item">
+    <span class="featured-title">如何快速创建领域 Agent</span>
+    <span class="featured-desc">OneAgent + MCPs 范式，在生产环境中落地智能体</span>
+    <span class="featured-arrow">→</span>
+  </a>
+  <a href="/learning/wisdom/After-I-Saw-The-Truth" class="featured-item">
+    <span class="featured-title">看见真相之后</span>
+    <span class="featured-desc">关于认知、成长与选择的思考</span>
+    <span class="featured-arrow">→</span>
+  </a>
+  <a href="/program/llm/痛定思痛，AI-Agent-给我的教训" class="featured-item">
+    <span class="featured-title">痛定思痛，AI Agent 给我的教训</span>
+    <span class="featured-desc">在大厂落地 Agent 的踩坑与反思</span>
+    <span class="featured-arrow">→</span>
+  </a>
+  <a href="/program/full-stream/如何放心-100-percent-AI-交付需求(2)----Loop-与-Agent-Loop" class="featured-item">
+    <span class="featured-title">如何放心 100% AI 交付需求</span>
+    <span class="featured-desc">Loop 与 Agent Loop，端到端的质量保障</span>
+    <span class="featured-arrow">→</span>
+  </a>
+</div>
+
+<div class="browse-more">
+  <a href="/program" class="browse-link">技术文章 →</a>
+  <a href="/learning" class="browse-link">学习笔记 →</a>
+  <a href="/life" class="browse-link">生活思考 →</a>
+</div>
+
 <div class="closing-note">
   <blockquote>
     「先线下再线上、先 SOP 再 RPA、先 RPA 再 Agent」<br/>
@@ -307,6 +351,54 @@ body[data-slug="index"] .center > hr {
   color: var(--darkgray);
 }
 
+/* Featured Articles List */
+.featured-list {
+  margin-bottom: 2rem;
+}
+
+.featured-item {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--lightgray);
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.featured-item:hover {
+  background: var(--highlight);
+}
+
+.featured-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--dark);
+  flex-shrink: 0;
+  letter-spacing: -0.01em;
+}
+
+.featured-desc {
+  font-size: 0.9rem;
+  color: var(--gray);
+  flex-grow: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.featured-arrow {
+  font-size: 0.9rem;
+  color: var(--gray);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.featured-item:hover .featured-arrow {
+  transform: translateX(4px);
+  color: var(--dark);
+}
+
 /* Browse More */
 .browse-more {
   display: flex;
@@ -401,26 +493,13 @@ body[data-slug="index"] .center > hr {
     flex-direction: column;
     gap: 0.75rem;
   }
+
+  .featured-desc {
+    display: none;
+  }
 }
 </style>
 
 <script async src="https://d3kno6bpmj270m.cloudfront.net/widget/userdesk.js" data-userdesk="clsok8vng0001aihcgmmbxfos"></script>
 
 <script type="text/javascript"> (function(c,l,a,r,i,t,y){ c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)}; t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i; y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y); })(window, document, "clarity", "script", "l799n31rgg"); </script>
-
-<!--
-Card Feed Data (for quartz.layout.ts):
-
-Component.CardFeed({
-  cards: [
-    { title: "全流开发", slug: "program/full-stream/Full-Stream", imageUrl: "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&h=600&fit=crop&q=80" },
-    { title: "教育智慧", slug: "learning/wisdom/Education-Wisdom", imageUrl: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=800&h=600&fit=crop&q=80" },
-    { title: "团队效能", slug: "learning/Team-Efficiency", imageUrl: "https://images.unsplash.com/photo-1562813733-b31f71025d54?w=800&h=600&fit=crop&q=80" },
-    { title: "看见真相之后", slug: "learning/wisdom/After-I-Saw-The-Truth", imageUrl: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=600&fit=crop&q=80" },
-    { title: "赛博农耕说明", slug: "Farming-in-the-cyber-world", imageUrl: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=600&fit=crop&q=80" },
-    { title: "membership", slug: "membership", imageUrl: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop&q=80" },
-    { title: "【万字长文】 最强 AI Coding：Claude Code 最佳实践", slug: "program/bot/【万字长文】-最强-AI-Coding：Claude-Code-最佳实践", imageUrl: "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?w=800&h=600&fit=crop&q=80" },
-    { title: "Claude Code Skill 不过是一个文件夹？", slug: "program/bot/Claude-Code-Skill-不过是一个文件夹？", imageUrl: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&h=600&fit=crop&q=80" }
-  ]
-})
--->
