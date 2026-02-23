@@ -1,0 +1,25 @@
+.copy-page-button {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: 0.4rem;
+  padding: 0.2rem;
+  border: none;
+  background: none;
+  color: var(--gray);
+  opacity: 0.4;
+  transition: opacity 0.2s;
+  cursor: pointer;
+
+  & > svg {
+    fill: var(--gray);
+  }
+
+  &:hover {
+    opacity: 1;
+  }
+
+  &:focus {
+    outline: 0;
+  }
+}
