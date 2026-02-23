@@ -47,13 +47,21 @@ aliases:
 
 <div class="section-divider"></div>
 
+<div class="closing-note">
+  <blockquote>
+    「先线下再线上、先 SOP 再 RPA、先 RPA 再 Agent」<br/>
+    <span class="quote-source">—— 我在 AI Agent 实践中总结的顺口溜</span>
+  </blockquote>
+  <p class="closing-text">如果你对我的分享感兴趣，欢迎 <a href="/membership">加入私人成长会员</a>，我们可以更深入地交流。</p>
+</div>
+
 <div class="explore-section">
   <div class="explore-header">
     <div class="explore-title">
       <span class="section-label">EXPLORE</span>
-      <h2>自由探索</h2>
+      <h2>没找到想要的？</h2>
     </div>
-    <p class="explore-desc">输入关键词搜索文章，或浏览下方精选内容</p>
+    <p class="explore-desc">试试搜索，或使用左侧导航浏览全部内容</p>
   </div>
   <div class="search-inline">
     <button class="search-trigger" onclick="document.querySelector('.search-button')?.click()">
@@ -67,38 +75,17 @@ aliases:
   </div>
 </div>
 
-<div class="section-header">
-  <span class="section-label">SELECTED WORKS</span>
-  <h2>精选文章</h2>
-</div>
-
-<!-- This page uses the CardFeed component defined in quartz/components/CardFeed.tsx -->
-<!-- Card data is injected via the layout configuration in quartz.layout.ts -->
-
-<div id="card-feed-placeholder">
-  <!-- Cards will be rendered here by the CardFeed component -->
-</div>
-
-<div class="browse-more">
-  <a href="/program" class="browse-link">技术文章 →</a>
-  <a href="/learning" class="browse-link">学习笔记 →</a>
-  <a href="/life" class="browse-link">生活思考 →</a>
-</div>
-
-<div class="closing-note">
-  <blockquote>
-    「先线下再线上、先 SOP 再 RPA、先 RPA 再 Agent」<br/>
-    <span class="quote-source">—— 我在 AI Agent 实践中总结的顺口溜</span>
-  </blockquote>
-  <p class="closing-text">如果你对我的分享感兴趣，欢迎 <a href="/membership">加入私人成长会员</a>，我们可以更深入地交流。</p>
-</div>
-
 <script async src="https://d3kno6bpmj270m.cloudfront.net/widget/userdesk.js" data-userdesk="clsok8vng0001aihcgmmbxfos"></script>
 
 <script type="text/javascript"> (function(c,l,a,r,i,t,y){ c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)}; t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i; y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y); })(window, document, "clarity", "script", "l799n31rgg"); </script>
 
 <style>
 /* Brutalist / NYT-inspired Design */
+
+/* Hide the hr separator between content and page-footer on homepage */
+body[data-slug="index"] .center > hr {
+  display: none;
+}
 
 /* Manifesto */
 .manifesto {
