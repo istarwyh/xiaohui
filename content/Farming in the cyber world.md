@@ -1,9 +1,10 @@
-我是[晓灰](https://istarwyh.github.io/resume-it/)，一个[[Cyber Farmer|赛博农民]]。这也是我在阿里工作时的花名。
+我是[晓灰](https://istarwyh.github.io/resume-it/)，一个[[Cyber Farmer|赛博农民]]。这也是我从 2021 年北大毕业后，校招入职阿里，一直到蚂蚁作为 Agent 专家（P7）时的花名。
 
 ## 我做过什么
 
 ### 工作项目
 
+- 24 年 12月～至今，我负责蚂蚁保保险科技的[[如何打造可靠的Agent系统|通用智能体系统]]，同时支持支付宝内保险查查的[[如何让 AI Agent 实时个性化可视交互|页面 AIGC]] 与[[如何放心 100% AI 交付需求(3) -- 开发如同玩游戏|Verify 等业务]]
 - 24 年 12月～至今，我负责蚂蚁保保险科技的[[如何快速创建领域Agent - OneAgent + MCPs 范式|MCP相关工作]]
 - 24 年 6月～11月，我负责蚂蚁保风控 AI Agent 驱动的 [[Case Analysis AI Agent| 案件分析]] 工作
 - 23年 10 月～24年6月，我负责淘宝[[淘工厂客服知识库和问答相关的工作]]
@@ -12,14 +13,20 @@
 
 ### 开源项目
 
-- 一个雅思写作助手 [WritingHelper](https://marketplace.visualstudio.com/items?itemName=istarwyh.writinghelper), 目前 13000+下载
+- 一个雅思写作助手 [WritingHelper](https://marketplace.visualstudio.com/items?itemName=istarwyh.writinghelper), 目前 15000+下载
+- 一个帮助用户安装 MCP 的 MCP：[MCPAdvisor](https://github.com/istarwyh/mcpadvisor)，获得了2025 OceanBase AI 黑客松二等奖  
 - [[JUnit5 & Mockito|Junit5]] 扩展 junit5-extension，解决 JSON 参数化测试和任意测试类加载等问题
 
+### 个人荣誉
+- 作为队长，带领团队（2 人）获得2025 OceanBase AI 黑客松二等奖
+- 作为队长，带领团队（4 人）获得 2025 蚂蚁集团黑客松三等奖
+- 获得首届阿里&蚂蚁 ATA 个人 Agent 最佳实践奖
+- 获得”2025 蚂蚁集团年度优秀创作者“ 称号
+- 获得财保技术部 ”AI 年度之星“ 称号
 ## 我能给您带来什么
 
 - 语聊机器人、AI Agent 的专业经验
-- 财务后端开发的专业经验
-- Java 、[[Optimize Kinds of Resource Use#1.2.2. 数据库可以当操作系统|Flink]]、[[How-to-Choose-the-Suitable-Database|数据库]] （[[Hologres]](PostgreSQL变种)、[[MySQL FAQ|MySQL]]、[[Possible Problems with Sharding and Partitioning|TDDL]]、[[Redis源码架构阅读|Redis]]、 [[Inverted-Index-of-Lucene-and-B-Tree|HavenAsk3]](淘宝的推荐引擎) 、[[Practices-for-Processing-l0-Billion-Bill-data|TableStore]]）、[[Unit Level Test Theory、Tool、Discussion|测试]]（TDD） 方面、Java&React 全栈、[[Distributed System Problems|分布式系统]] 的**高质量**开发经验
+- Java 、[[Optimize Kinds of Resource Use#1.2.2. 数据库可以当操作系统|Flink]]、[[How-to-Choose-the-Suitable-Database|数据库]] （[[Hologres]](PostgreSQL变种)、[[MySQL FAQ|MySQL]]、[[Possible Problems with Sharding and Partitioning|TDDL]]、[[Redis源码架构阅读|Redis]]、 [[Inverted-Index-of-Lucene-and-B-Tree|HavenAsk3]] (淘宝的推荐引擎) 、[[Practices-for-Processing-l0-Billion-Bill-data|TableStore]]）、[[Unit Level Test Theory、Tool、Discussion|测试]]（TDD） 方面、Java&React 全栈、[[Distributed System Problems|分布式系统]] 、[[如何放心 100% AI 交付需求(3) -- 开发如同玩游戏|Harness Enginerring]]的**高质量**开发经验
 
 ## 欢迎联系我～
 
@@ -31,7 +38,7 @@
 - E-Mail: talk@xiaohui.cool
 - Telegram: xiaohui
 - Discord: xiaohui_wang
-
+联系请备注来自博客，非常感谢！
 ## 关于版权
 
 本博客大部分文字都是原创；部分文字和图片来自网络收集整理，版权归原作者所有。

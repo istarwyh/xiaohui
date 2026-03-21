@@ -81,7 +81,20 @@ Google 浏览器官方出品，可以自动点击浏览器页面、截图甚至�
 /plugin install chrome-devtools-mcp@chromedevtools-chrome-devtools-mcp
 ```
 
-OK, 先搞这几个，这些等于给 CC 买点装备。
+OK, 先搞这几个，这些等于给 CC 买点装备。之后确保进入 Loop 前有规则，有架构，而它们都没有问题。
+
+## 给 Agent 的代码规范
+
+我的 Claude.md 最后就保留了如下 Prompt：
+
+```
+
+```
+
+同时沉淀了大量的历史设计、技术文档以及最佳实践。
+
+## 确保架构设计没有问题
+对于重要的需求文档、架构文档、数据结构设计，需要反反复复让LLM. 反复确认，可能需要打开多个窗口、使用不同的模型（Claude Opus、GPT5.2 hign 等）十几轮优化、确认原文档没有问题。
 
 
 下面进入 Loop。
@@ -152,7 +165,7 @@ OS=$(uname -s | tr '[:upper:]' '[:lower:]'); ARCH=$(uname -m | sed -e 's/x86_64/
  不过复杂场景，AI 归根结底不能代替人做判断。这是人的核心竞争力所在。Supervisor 在简单场景下可以真正代替人，在复杂场景下我们依然需要是主角。
  
  比如下面是CC 在一个 Loop 中的场景，CC 自己给出了几个选项，并且认为选 A ，但是我明显不同意他妥协的做法--这个判断就是我的价值所在。
- ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260207165728445.jpg)
+ <img src="https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260207165728445.jpg" style="max-height: 680px; width: auto; display: block; margin: 0 auto;" />
 
 ## 基于测试的应用级别“强化学习”
 
@@ -180,7 +193,7 @@ E2E 测试运行（Reward Signal）
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260131193317955.png)
 
 - 使用 ralph-loop 持续自迭代，目前风险样本召回率 0 -> 86% ，没有人类手工参与
-![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260207195453950.jpg)
+<img src="https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260207195453950.jpg" style="max-height: 680px; width: auto; display: block; margin: 0 auto;" />
 
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260131193223988.png)
 
