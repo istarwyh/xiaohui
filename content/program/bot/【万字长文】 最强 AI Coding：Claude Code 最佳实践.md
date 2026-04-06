@@ -321,6 +321,7 @@ author:xiaohui
 ````
 
 ### 2.4 Skill
+
 [[Claude Code Skill 不过是一个文件夹？]]
 
 ## 3. 核心工作流程
