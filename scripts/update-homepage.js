@@ -38,10 +38,8 @@ function updateHomepageCardsInLayout(cards) {
 
   const match = layout.match(pattern)
   if (!match) {
-    throw new Error(
-      "Could not locate homepage CardFeed cards array in quartz.layout.ts. " +
-        "Expected a Component.CardFeed({ cards: [...] }) block.",
-    )
+    console.log("ℹ️  No CardFeed block found in quartz.layout.ts — skipping layout update.")
+    return
   }
 
   const nextLayout = layout.replace(pattern, `$1\n${cardsLiteral}\n        $3`)

@@ -4,7 +4,8 @@ import { QuartzComponent, QuartzComponentConstructor, QuartzComponentProps } fro
 interface CardItem {
   title: string
   slug: string
-  imageUrl: string
+  imageUrl?: string
+  gradient?: string
 }
 
 interface CardFeedOptions {
@@ -18,17 +19,24 @@ export default ((opts?: CardFeedOptions) => {
     return (
       <div class="card-feed">
         <div class="card-grid">
-          {cards.map((card) => (
-            <a
-              href={resolveRelative(fileData.slug!, card.slug as any)}
-              class="card"
-              style={`background-image: url('${card.imageUrl}')`}
-            >
-              <div class="card-overlay">
-                <h3 class="card-title">{card.title}</h3>
-              </div>
-            </a>
-          ))}
+          {cards.map((card) => {
+            const style = card.imageUrl
+              ? `background-image: url('${card.imageUrl}')`
+              : card.gradient
+                ? `background: ${card.gradient}`
+                : ""
+            return (
+              <a
+                href={resolveRelative(fileData.slug!, card.slug as any)}
+                class={`card ${!card.imageUrl ? "card-gradient" : ""}`}
+                style={style}
+              >
+                <div class="card-overlay">
+                  <h3 class="card-title">{card.title}</h3>
+                </div>
+              </a>
+            )
+          })}
         </div>
       </div>
     )
@@ -59,7 +67,7 @@ export default ((opts?: CardFeedOptions) => {
   display: flex;
   align-items: flex-end;
 
-  /* Masonry effect - random heights */
+  /* Masonry effect - varied heights */
   &:nth-child(3n + 1) {
     grid-row-end: span 2;
   }
@@ -107,6 +115,24 @@ export default ((opts?: CardFeedOptions) => {
   font-weight: 600;
   line-height: 1.4;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Gradient cards: title always visible, no dark overlay needed */
+.card-gradient .card-overlay {
+  background: none;
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+
+.card-gradient .card-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.card-gradient:hover .card-overlay {
+  background: rgba(0, 0, 0, 0.15);
 }
 
 /* Responsive design */
