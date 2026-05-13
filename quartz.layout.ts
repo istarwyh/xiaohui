@@ -9,8 +9,10 @@ export const sharedPageComponents: SharedLayout = {
   footer: Component.Footer({
     links: {
       关于我: "/Farming-in-the-cyber-world",
+      成长时间线: "/journey",
       GitHub: "https://github.com/istarwyh",
       赛博农耕: "/Cyber-Farmer",
+      成长会员: "/membership",
       AI加速我: "https://aispeeds.me",
     },
   }),
@@ -31,8 +33,14 @@ export const defaultContentPageLayout: PageLayout = {
       component: Component.ArticleTitle(),
       condition: (page) => page.fileData.slug !== "index",
     }),
-    Component.ContentMeta(),
-    Component.TagList(),
+    Component.ConditionalRender({
+      component: Component.ContentMeta(),
+      condition: (page) => page.fileData.slug !== "index",
+    }),
+    Component.ConditionalRender({
+      component: Component.TagList(),
+      condition: (page) => page.fileData.slug !== "index",
+    }),
   ],
   left: [
     Component.PageTitle(),
