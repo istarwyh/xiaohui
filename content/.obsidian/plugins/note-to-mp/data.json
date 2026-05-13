@@ -1,0 +1,22 @@
+{
+  "defaultStyle": "mweb-smartblue",
+  "defaultHighlight": "默认",
+  "showStyleUI": true,
+  "linkStyle": "inline",
+  "embedStyle": "quote",
+  "lineNumber": false,
+  "authKey": "",
+  "wxInfo": [],
+  "math": "latex",
+  "useCustomCss": false,
+  "baseCSS": "",
+  "watermark": "",
+  "useFigcaption": false,
+  "customCSSNote": "",
+  "excalidrawToPNG": true,
+  "expertSettingsNote": "",
+  "ignoreEmptyLine": false,
+  "isVip": false,
+  "expireat": null,
+  "dismissedAnnouncements": []
+}

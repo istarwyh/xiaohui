@@ -4,7 +4,10 @@ node_modules
 public
 prof
 tsconfig.tsbuildinfo
-.obsidian
+# Obsidian - track plugins/config, ignore volatile files
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
 .quartz-cache
 private/
 .replit

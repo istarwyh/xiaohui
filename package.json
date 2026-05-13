@@ -18,9 +18,8 @@
     "format": "npx prettier . --write",
     "test": "tsx ./quartz/util/path.test.ts && tsx ./quartz/depgraph.test.ts",
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1",
-    "sync-vnote": "./scripts/sync-vnote.sh",
     "update-homepage": "node ./scripts/update-homepage.js",
-    "sync": "npm run sync-vnote && npm run update-homepage && npx quartz sync",
+    "sync": "npm run update-homepage && npx quartz sync",
     "build": "npm run update-homepage && npx quartz build && cp -r extra-pages/* public/",
     "build:cf": "git fetch --unshallow || true && npm run build",
     "postinstall": "node ./scripts/check-git-deps.js"

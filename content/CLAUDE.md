@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A personal knowledge base and blog (Vnote) managed with Obsidian, published to [xiaohui.cool](https://xiaohui.cool) via [Quartz](https://github.com/jackyzha0/quartz). All content is Markdown — no build step, no tests, no application code.
+A personal knowledge base and blog managed with Obsidian, published to [xiaohui.cool](https://xiaohui.cool) via [Quartz](https://github.com/jackyzha0/quartz). This `content/` directory is the canonical Obsidian vault — edit directly here, no external sync needed. All content is Markdown — no build step, no tests, no application code.
 
 ## Repository Structure
 
