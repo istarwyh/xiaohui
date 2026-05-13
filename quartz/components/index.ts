@@ -27,6 +27,7 @@ import MatrixBackground from "./MatrixBackground"
 import MatrixDebug from "./MatrixDebug"
 import ReadingProgress from "./ReadingProgress"
 import CardFeed from "./CardFeed"
+import TerminalHome from "./TerminalHome"
 
 export {
   ArticleTitle,
@@ -58,4 +59,5 @@ export {
   MatrixDebug,
   ReadingProgress,
   CardFeed,
+  TerminalHome,
 }

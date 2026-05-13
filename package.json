@@ -22,7 +22,8 @@
     "sync": "npm run update-homepage && npx quartz sync",
     "build": "npm run update-homepage && npx quartz build && cp -r extra-pages/* public/",
     "build:cf": "git fetch --unshallow || true && npm run build",
-    "postinstall": "node ./scripts/check-git-deps.js"
+    "check:frontmatter": "node ./scripts/check-frontmatter.js --all",
+    "postinstall": "node ./scripts/check-git-deps.js && bash ./scripts/install-hooks.sh || true"
   },
   "engines": {
     "npm": ">=9.3.1",
@@ -114,7 +115,7 @@
     "@types/source-map-support": "^0.5.10",
     "@types/ws": "^8.18.1",
     "@types/yargs": "^17.0.35",
-    "esbuild": "^0.27.2",
+    "esbuild": "^0.28.0",
     "prettier": "^3.8.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

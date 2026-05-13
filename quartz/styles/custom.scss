@@ -1,15 +1,11 @@
 @use "./base.scss";
 
-// 黑客帝国数字流全局样式
-
 // 键盘导航和可访问性改进
-// 为所有可聚焦元素添加清晰的焦点指示器
 *:focus {
   outline: 2px solid #7cb342;
   outline-offset: 2px;
 }
 
-// 为交互式元素优化焦点样式
 a:focus,
 button:focus,
 input:focus,
@@ -20,7 +16,6 @@ select:focus {
   box-shadow: 0 0 0 4px rgba(154, 205, 50, 0.2);
 }
 
-// 暗色主题下的焦点样式
 [saved-theme="dark"] {
   *:focus {
     outline-color: #9acd32;
@@ -51,25 +46,8 @@ select:focus {
   }
 }
 
-// 减少动画支持 - 尊重用户偏好
+// 减少动画支持
 @media (prefers-reduced-motion: reduce) {
-  // 禁用所有动画
-  .matrix-bg,
-  .matrix-rain,
-  .matrix-bg::before,
-  .matrix-bg::after {
-    animation: none !important;
-    opacity: 0 !important;
-    display: none !important;
-  }
-
-  // 禁用打字机效果
-  .hero .typewriter {
-    animation: none !important;
-    border-right: none !important;
-  }
-
-  // 简化过渡效果
   * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
@@ -77,147 +55,10 @@ select:focus {
   }
 }
 
-/* 数字流背景容器 */
-.matrix-bg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-  background: #000;
-  overflow: hidden;
-  pointer-events: none;
-  // 性能优化
-  will-change: transform;
-  contain: layout style paint;
-}
-
-.matrix-bg::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0.9) 0%,
-    rgba(0, 15, 0, 0.8) 50%,
-    rgba(0, 0, 0, 0.9) 100%
-  );
-  z-index: 1;
-}
-
-.matrix-rain {
-  position: absolute;
-  top: -100px;
-  font-family: "Courier New", monospace;
-  font-size: 12px;
-  line-height: 12px;
-  animation: matrix-fall linear infinite;
-  white-space: nowrap;
-  pointer-events: none;
-  // 性能优化
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-  transform: translateZ(0);
-}
-
-.matrix-rain.bright {
-  color: #9acd32;
-  text-shadow: 0 0 3px #9acd32;
-  opacity: 0.9;
-}
-
-.matrix-rain.medium {
-  color: #7cb342;
-  text-shadow: 0 0 2px #7cb342;
-  opacity: 0.7;
-}
-
-.matrix-rain.dim {
-  color: #558b2f;
-  text-shadow: 0 0 1px #558b2f;
-  opacity: 0.5;
-}
-
-// 上下文相关内容的特殊样式
-.matrix-rain.contextual {
-  color: #ffeb3b !important;
-  text-shadow: 0 0 5px #ffeb3b;
-  opacity: 1;
-  font-weight: bold;
-  animation-duration: 4s !important; // 稍慢一些，让人有时间看清
-}
-
-// 代码片段的特殊样式
-.matrix-rain.code-snippet {
-  color: #00bcd4 !important;
-  text-shadow: 0 0 4px #00bcd4;
-  opacity: 0.95;
-  font-family: "Courier New", monospace;
-  font-size: 11px !important;
-}
-
-@keyframes matrix-fall {
-  0% {
-    transform: translateY(-100vh);
-    opacity: 1;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 0.8;
-  }
-  100% {
-    transform: translateY(100vh);
-    opacity: 0;
-  }
-}
-
-@keyframes matrix-flicker {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-@keyframes scan-line {
-  0% {
-    transform: translateY(-100vh);
-  }
-  100% {
-    transform: translateY(100vh);
-  }
-}
-
-// CRT 扫描线效果
-.matrix-bg::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(154, 205, 50, 0.8), transparent);
-  animation: scan-line 3s linear infinite;
-  z-index: 2;
-  opacity: 0.6;
-}
-
-// 暗色主题增强 - 只在暗色模式下应用数字流主题
+// 暗色主题增强 - 绿色终端风格
 [saved-theme="dark"] {
-  // 页面背景调整
   body {
     background: rgba(0, 0, 0, 0.95) !important;
-    // 添加微妙的噪点纹理
     background-image: radial-gradient(
       circle at 1px 1px,
       rgba(154, 205, 50, 0.15) 1px,
@@ -226,14 +67,12 @@ select:focus {
     background-size: 20px 20px;
   }
 
-  // 内容区域半透明背景
   .page > #quartz-body {
     background: rgba(0, 0, 0, 0.7);
     border-radius: 8px;
     backdrop-filter: blur(3px);
   }
 
-  // 侧边栏样式调整
   .sidebar {
     background: rgba(0, 0, 0, 0.8) !important;
     border: 1px solid rgba(154, 205, 50, 0.2);
@@ -241,7 +80,6 @@ select:focus {
     backdrop-filter: blur(5px);
   }
 
-  // 文章内容区域
   article {
     background: rgba(0, 0, 0, 0.8);
     border-radius: 8px;
@@ -250,7 +88,6 @@ select:focus {
     backdrop-filter: blur(3px);
   }
 
-  // 标题颜色调整
   h1,
   h2,
   h3,
@@ -261,7 +98,6 @@ select:focus {
     text-shadow: 0 0 6px rgba(154, 205, 50, 0.3);
   }
 
-  // 链接样式
   a {
     color: #7cb342 !important;
     transition: all 0.3s ease;
@@ -272,27 +108,23 @@ select:focus {
     }
   }
 
-  // 搜索框样式
   #search-container {
     background: rgba(0, 0, 0, 0.8);
     border: 1px solid rgba(154, 205, 50, 0.3);
     border-radius: 8px;
   }
 
-  // 代码块样式增强
   pre {
     background: rgba(0, 0, 0, 0.9) !important;
     border: 1px solid rgba(154, 205, 50, 0.3);
     box-shadow: 0 0 10px rgba(154, 205, 50, 0.1);
   }
 
-  // 表格样式
   table {
     background: rgba(0, 0, 0, 0.8);
     border: 1px solid rgba(154, 205, 50, 0.3);
   }
 
-  // 引用块样式
   blockquote {
     background: rgba(0, 15, 0, 0.3);
     border-left: 3px solid #7cb342;
@@ -302,28 +134,6 @@ select:focus {
 
 // 响应式设计
 @media (max-width: 768px) {
-  .matrix-rain {
-    font-size: 10px;
-    line-height: 10px;
-  }
-
-  // 移动端减少数字流密度和复杂度
-  .matrix-bg::after {
-    opacity: 0.3; // 降低扫描线强度
-  }
-
-  // 优化移动端性能
-  .matrix-rain {
-    // 移动设备上使用更简单的文本阴影
-    &.bright {
-      text-shadow: 0 0 2px #9acd32;
-    }
-    &.medium,
-    &.dim {
-      text-shadow: none;
-    }
-  }
-
   [saved-theme="dark"] {
     .sidebar {
       background: rgba(0, 0, 0, 0.9) !important;
@@ -333,243 +143,8 @@ select:focus {
       padding: 1rem;
     }
 
-    // 移动端简化背景效果
     body {
       background-image: none;
     }
-  }
-}
-
-// 超小屏幕进一步优化
-@media (max-width: 480px) {
-  .matrix-bg::after {
-    display: none; // 完全禁用扫描线
-  }
-
-  .matrix-rain {
-    font-size: 8px;
-    line-height: 8px;
-  }
-}
-
-// 首页特殊样式
-.hero {
-  position: relative;
-  z-index: 10;
-  background: rgba(0, 15, 0, 0.9);
-  border: 1px solid #7cb342;
-  border-radius: 8px;
-  padding: 2rem;
-  margin: 2rem 0;
-  text-align: center;
-  box-shadow: 0 0 15px rgba(154, 205, 50, 0.2);
-  backdrop-filter: blur(5px);
-
-  p {
-    color: #9acd32;
-    font-size: 1.2em;
-    text-shadow: 0 0 8px #9acd32;
-    margin: 0;
-    font-family: "Courier New", monospace;
-  }
-
-  // 打字机效果
-  .typewriter {
-    overflow: hidden;
-    border-right: 2px solid #9acd32;
-    white-space: nowrap;
-    animation:
-      typing 3s steps(20, end),
-      blink-caret 0.75s step-end infinite;
-  }
-}
-
-@keyframes typing {
-  from {
-    width: 0;
-  }
-  to {
-    width: 100%;
-  }
-}
-
-@keyframes blink-caret {
-  from,
-  to {
-    border-color: transparent;
-  }
-  50% {
-    border-color: #9acd32;
-  }
-}
-
-// 数字流调试面板
-.matrix-debug-panel {
-  position: fixed;
-  top: 80px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.95);
-  border: 1px solid #7cb342;
-  border-radius: 8px;
-  padding: 1rem;
-  z-index: 1000;
-  backdrop-filter: blur(5px);
-  min-width: 300px;
-  max-width: 400px;
-  max-height: 70vh;
-  overflow-y: auto;
-
-  h3,
-  h4 {
-    color: #9acd32 !important;
-    margin: 0 0 0.5rem 0;
-    font-size: 0.9rem;
-  }
-
-  h4 {
-    font-size: 0.8rem;
-    margin-top: 1rem;
-  }
-
-  .debug-section {
-    margin-bottom: 1rem;
-
-    > div {
-      color: #7cb342;
-      font-size: 0.8rem;
-      font-family: "Courier New", monospace;
-    }
-  }
-
-  .debug-list {
-    max-height: 100px;
-    overflow-y: auto;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 0.5rem;
-    border-radius: 4px;
-    border: 1px solid rgba(124, 179, 66, 0.3);
-
-    .debug-item {
-      display: inline-block;
-      background: rgba(124, 179, 66, 0.2);
-      color: #9acd32;
-      padding: 0.2rem 0.4rem;
-      margin: 0.1rem;
-      border-radius: 3px;
-      font-size: 0.7rem;
-    }
-  }
-
-  .debug-chars {
-    background: rgba(0, 0, 0, 0.5);
-    padding: 0.5rem;
-    border-radius: 4px;
-    border: 1px solid rgba(124, 179, 66, 0.3);
-    font-family: "Courier New", monospace;
-    font-size: 0.7rem;
-    line-height: 1.2;
-    max-height: 80px;
-    overflow-y: auto;
-    word-break: break-all;
-  }
-}
-
-// 数字流控制面板
-.matrix-control-panel {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.9);
-  border: 1px solid #7cb342;
-  border-radius: 8px;
-  padding: 1rem;
-  z-index: 1000;
-  backdrop-filter: blur(5px);
-  min-width: 200px;
-
-  h3 {
-    color: #9acd32 !important;
-    margin: 0 0 1rem 0;
-    font-size: 1rem;
-    text-align: center;
-  }
-
-  .control-group {
-    margin-bottom: 0.8rem;
-
-    label {
-      color: #9acd32;
-      font-size: 0.9rem;
-      display: block;
-      margin-bottom: 0.3rem;
-    }
-
-    select {
-      width: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      border: 1px solid #7cb342;
-      color: #9acd32;
-      padding: 0.3rem;
-      border-radius: 4px;
-
-      &:focus {
-        outline: none;
-        border-color: #9acd32;
-        box-shadow: 0 0 5px rgba(154, 205, 50, 0.3);
-      }
-    }
-
-    input[type="checkbox"] {
-      margin-right: 0.5rem;
-      accent-color: #7cb342;
-    }
-  }
-}
-
-// 控制面板切换按钮
-.matrix-toggle-btn {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid #7cb342;
-  color: #9acd32;
-  padding: 0.5rem;
-  border-radius: 50%;
-  cursor: pointer;
-  z-index: 1001;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: rgba(0, 15, 0, 0.9);
-    box-shadow: 0 0 10px rgba(154, 205, 50, 0.3);
-  }
-}
-
-.content-wrapper {
-  position: relative;
-  z-index: 10;
-  background: rgba(0, 0, 0, 0.85);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin: 1rem 0;
-  border: 1px solid rgba(154, 205, 50, 0.3);
-  backdrop-filter: blur(3px);
-
-  h2 {
-    color: #9acd32 !important;
-    text-shadow: 0 0 6px #9acd32;
-    border-bottom: 1px solid #7cb342;
-    padding-bottom: 0.5rem;
-  }
-
-  li {
-    color: #9acd32;
-    margin: 0.5rem 0;
   }
 }
