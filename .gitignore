@@ -8,7 +8,15 @@ tsconfig.tsbuildinfo
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
 .obsidian/cache
+content/.obsidian/workspace.json
+content/.obsidian/workspace-mobile.json
+content/.obsidian/cache
 .quartz-cache
+
+# Local browser automation and screenshot artifacts
+.playwright-mcp/
+/homepage-*.png
+/screenshot-*.png
 private/
 .replit
 replit.nix
