@@ -1,3 +1,15 @@
+---
+title: 从指令到意图：AI Agent 架构范式演进史
+description: 从作为通用文本处理 API 的 LLM 直接调用，到 Workflow 编排、Multi-Agent 系统，再到 OneAgent — 完整梳理 AI Agent 架构范式的演进史与各代际的核心抽象。
+tags:
+  - AI Agent
+  - 架构演进
+  - LLM
+  - Prompt Engineering
+  - Multi-Agent
+  - OneAgent
+---
+
 ## 引言
 
 人工智能（AI）的发展史，本质上是一部人机交互范式的变革史。

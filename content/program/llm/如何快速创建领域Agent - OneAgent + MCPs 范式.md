@@ -1,3 +1,15 @@
+---
+title: 如何快速创建领域 Agent — OneAgent + MCPs 范式
+description: Agent 开发范式演进史：从单一 LLM 调用、Workflow 编排到 Multi-Agent 系统，再到受 Manus 和 Claude Code 启发的 OneAgent + MCPs 范式 — 蚂蚁保 MCP 落地实践。
+tags:
+  - AI Agent
+  - OneAgent
+  - MCP
+  - LLM
+  - Manus
+  - Claude Code
+---
+
 > 本文已被[《阿里云开发者》](https://mp.weixin.qq.com/s/1klXy2fr1pspqRshUjg2dQ)转载，获得1万阅读，1300+转发
 
 类似 Manus 根据 to-do 交付业务需求其实是一种新的单领域 Agent 开发范式，让我们从最简单的 LLM 调用讲起：

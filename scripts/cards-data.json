@@ -26,18 +26,18 @@
       "imageUrl": "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=600&fit=crop&q=80"
     },
     {
-      "title": "CLAUDE",
-      "slug": "CLAUDE",
+      "title": "journey",
+      "slug": "journey",
       "imageUrl": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop&q=80"
     },
     {
-      "title": "Agent Teams 的原理与实践",
-      "slug": "program/bot/Agent-Teams-的原理与实践",
+      "title": "如何打造可靠的Agent系统",
+      "slug": "program/practices/如何打造可靠的Agent系统",
       "imageUrl": "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?w=800&h=600&fit=crop&q=80"
     },
     {
-      "title": "how to use termux on android",
-      "slug": "life/experience/how-to-use-termux-on-android",
+      "title": "从指令到意图：AI Agent 架构范式演进史",
+      "slug": "program/llm/从指令到意图：AI-Agent-架构范式演进史",
       "imageUrl": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&h=600&fit=crop&q=80"
     }
   ]

@@ -1,8 +1,9 @@
 const U200D = String.fromCharCode(8205)
-const UFE0Fg = /\uFE0F/g
+// strip both emoji-style (FE0F) and text-style (FE0E) variation selectors when no ZWJ sequence
+const VARIATION_SELECTORS = /[\uFE0E\uFE0F]/g
 
 export function getIconCode(char: string) {
-  return toCodePoint(char.indexOf(U200D) < 0 ? char.replace(UFE0Fg, "") : char)
+  return toCodePoint(char.indexOf(U200D) < 0 ? char.replace(VARIATION_SELECTORS, "") : char)
 }
 
 function toCodePoint(unicodeSurrogates: string) {

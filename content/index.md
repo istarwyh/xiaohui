@@ -3,6 +3,8 @@ title: 太阳总会升起
 aliases:
   - index
   - home
+description: 晓灰的数字花园 · AI Agent 与 MCP 实践者。蚂蚁 P7 工程师、百万 MAU「保险快查」Agent 负责人、MCPAdvisor 作者。写软件工程、Agent 架构、上下文工程、阅读思考与生活观察。
+socialDescription: 晓灰的数字花园 · AI Agent 与 MCP 实践者 · 关于 Agent 架构、上下文工程、工程实践与阅读思考。
 ---
 
 <!-- Homepage content is rendered by the TerminalHome component configured in quartz.layout.ts -->

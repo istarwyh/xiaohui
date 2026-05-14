@@ -1,3 +1,15 @@
+---
+title: 从 Claude Code 到 OneAgent：如何做好上下文工程
+description: OneAgent + MCPs 范式年度总结。从 Claude Code 的架构思想出发，用简单而不脆弱的 Loop 与四要素上下文工程，构建生产级 Agent 系统的方法论与实践。
+tags:
+  - AI Agent
+  - 上下文工程
+  - OneAgent
+  - Claude Code
+  - MCP
+  - LLM
+---
+
 # 前言
 
 今年 5 月份我们提出了受 Manus 和 Claude Code 启发的 [[如何快速创建领域Agent - OneAgent + MCPs 范式|OneAgent +MCPs]] 范式。这个范式也被评为了阿里& 蚂蚁 Top10 最佳 Agent 实践。
