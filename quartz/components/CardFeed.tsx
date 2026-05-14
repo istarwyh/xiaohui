@@ -1,4 +1,6 @@
-import { resolveRelative } from "../util/path"
+import { resolveRelative, slugifyFilePath } from "../util/path"
+import type { FilePath, FullSlug } from "../util/path"
+import type { QuartzPluginData } from "../plugins/vfile"
 import { QuartzComponent, QuartzComponentConstructor, QuartzComponentProps } from "./types"
 
 interface CardItem {
@@ -12,8 +14,25 @@ interface CardFeedOptions {
   cards: CardItem[]
 }
 
+function normalizePageId(slug: string): FullSlug {
+  return slugifyFilePath(slug as FilePath)
+}
+
+function findCardPageSlug(card: CardItem, allFiles: QuartzPluginData[]): FullSlug {
+  const normalizedSlug = normalizePageId(card.slug)
+  const page = allFiles.find((f) => f.slug === normalizedSlug)
+
+  if (!page?.slug) {
+    throw new Error(
+      `CardFeed card "${card.title}" points to a missing page: "${card.slug}" (normalized: "${normalizedSlug}")`,
+    )
+  }
+
+  return page.slug as FullSlug
+}
+
 export default ((opts?: CardFeedOptions) => {
-  const CardFeed: QuartzComponent = ({ fileData }: QuartzComponentProps) => {
+  const CardFeed: QuartzComponent = ({ fileData, allFiles }: QuartzComponentProps) => {
     const cards = opts?.cards ?? []
 
     return (
@@ -27,7 +46,7 @@ export default ((opts?: CardFeedOptions) => {
                 : ""
             return (
               <a
-                href={resolveRelative(fileData.slug!, card.slug as any)}
+                href={resolveRelative(fileData.slug!, findCardPageSlug(card, allFiles))}
                 class={`card ${!card.imageUrl ? "card-gradient" : ""}`}
                 style={style}
               >

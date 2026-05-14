@@ -120,6 +120,10 @@ describe("transforms", () => {
         ["test/special chars?.md", "test/special-chars"],
         ["test/special chars #3.md", "test/special-chars-3"],
         ["cool/what about r&d?.md", "cool/what-about-r-and-d"],
+        [
+          "program/llm/如何快速创建领域Agent - OneAgent + MCPs 范式.md",
+          "program/llm/如何快速创建领域Agent---OneAgent-+-MCPs-范式",
+        ],
       ],
       path.slugifyFilePath,
       path.isFilePath,

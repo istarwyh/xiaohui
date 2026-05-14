@@ -1,5 +1,7 @@
 import { QuartzComponent, QuartzComponentConstructor, QuartzComponentProps } from "./types"
-import { resolveRelative } from "../util/path"
+import { resolveRelative, slugifyFilePath } from "../util/path"
+import type { FilePath, FullSlug } from "../util/path"
+import type { QuartzPluginData } from "../plugins/vfile"
 import { byDateAndAlphabetical } from "./PageList"
 import { getDate } from "./Date"
 // @ts-ignore
@@ -24,6 +26,23 @@ interface FeaturedItem {
   slug: string
   title: string
   desc: string
+}
+
+function normalizePageId(slug: string): FullSlug {
+  return slugifyFilePath(slug as FilePath)
+}
+
+function findPageSlug(pageId: string, allFiles: QuartzPluginData[], label: string): FullSlug {
+  const normalizedSlug = normalizePageId(pageId)
+  const page = allFiles.find((f) => f.slug === normalizedSlug)
+
+  if (!page?.slug) {
+    throw new Error(
+      `TerminalHome ${label} points to a missing page: "${pageId}" (normalized: "${normalizedSlug}")`,
+    )
+  }
+
+  return page.slug as FullSlug
 }
 
 // 手选 pillar content：代表「晓灰 = AI Agent 实践者」的核心叙事
@@ -69,6 +88,14 @@ export default (() => {
       .sort(byDateAndAlphabetical(cfg))
       .slice(0, 4)
 
+    const aboutSlug = findPageSlug("Farming-in-the-cyber-world", allFiles, "about link")
+    const journeySlug = findPageSlug("journey", allFiles, "journey link")
+    const membershipSlug = findPageSlug("membership", allFiles, "membership link")
+    const featuredPages = featured.map((item) => ({
+      ...item,
+      pageSlug: findPageSlug(item.slug, allFiles, `featured link "${item.title}"`),
+    }))
+
     return (
       <div class="terminal-home">
         <div class="terminal-window">
@@ -95,9 +122,7 @@ export default (() => {
                 </p>
                 <p class="dim">
                   一个关于 AI Agent、工程实践与思考的数字花园 —{" "}
-                  <a href={resolveRelative(fileData.slug!, "Farming-in-the-cyber-world" as any)}>
-                    关于我
-                  </a>
+                  <a href={resolveRelative(fileData.slug!, aboutSlug)}>关于我</a>
                 </p>
               </div>
             </div>
@@ -112,7 +137,7 @@ export default (() => {
                 <p class="journey-pitch">
                   比作品集更重要的是成长路径：求学、工程、业务、Agent，以及每次认知升级。
                 </p>
-                <a href={resolveRelative(fileData.slug!, "journey" as any)} class="journey-cta">
+                <a href={resolveRelative(fileData.slug!, journeySlug)} class="journey-cta">
                   <span class="journey-marker">▸</span>
                   <span class="journey-link-text">查看晓灰的成长时间线</span>
                   <span class="journey-desc">timeline · experience map</span>
@@ -143,8 +168,8 @@ export default (() => {
                 <span class="prompt-cmd">cat ~/featured.md</span>
               </div>
               <div class="terminal-output featured-output">
-                {featured.map((f) => (
-                  <a href={resolveRelative(fileData.slug!, f.slug as any)} class="featured-item">
+                {featuredPages.map((f) => (
+                  <a href={resolveRelative(fileData.slug!, f.pageSlug)} class="featured-item">
                     <span class="featured-marker">▸</span>
                     <span class="featured-title">{f.title}</span>
                     <span class="featured-desc">{f.desc}</span>
@@ -201,10 +226,7 @@ export default (() => {
               </div>
               <div class="terminal-output membership-output">
                 <p class="membership-pitch">想更深入交流？1:1 咨询 · 私密社群 · 内推机会。</p>
-                <a
-                  href={resolveRelative(fileData.slug!, "membership" as any)}
-                  class="membership-cta"
-                >
+                <a href={resolveRelative(fileData.slug!, membershipSlug)} class="membership-cta">
                   <span class="membership-marker">▸</span>
                   <span class="membership-link-text">加入私人成长会员</span>
                   <span class="membership-price">$29 · 终身</span>
