@@ -35,15 +35,7 @@ function buildGitDateLookup(workdir: string): GitDateLookup {
   try {
     const text = execFileSync(
       "git",
-      [
-        "-C",
-        workdir,
-        "log",
-        "--reverse",
-        "--all",
-        "--name-status",
-        "--pretty=format:__C__%at",
-      ],
+      ["-C", workdir, "log", "--reverse", "--all", "--name-status", "--pretty=format:__C__%at"],
       { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 },
     )
     let curMs: number | undefined
@@ -120,7 +112,11 @@ const defaultOptions: Options = {
 // YYYY-MM-DD
 const iso8601DateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/
 
-function coerceDate(fp: string, d: any): Date {
+function coerceDate(fp: string, d: MaybeDate, fallback?: Date): Date {
+  if (d === undefined) {
+    return fallback ?? new Date()
+  }
+
   // check ISO8601 date-only format
   // we treat this one as local midnight as the normal
   // js date ctor treats YYYY-MM-DD as UTC midnight
@@ -130,7 +126,7 @@ function coerceDate(fp: string, d: any): Date {
 
   const dt = new Date(d)
   const invalidDate = isNaN(dt.getTime()) || dt.getTime() === 0
-  if (invalidDate && d !== undefined) {
+  if (invalidDate) {
     console.log(
       styleText(
         "yellow",
@@ -139,10 +135,10 @@ function coerceDate(fp: string, d: any): Date {
     )
   }
 
-  return invalidDate ? new Date() : dt
+  return invalidDate ? (fallback ?? new Date()) : dt
 }
 
-type MaybeDate = undefined | string | number
+type MaybeDate = undefined | string | number | Date
 export const CreatedModifiedDate: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
   const opts = { ...defaultOptions, ...userOpts }
   return {
@@ -187,8 +183,10 @@ export const CreatedModifiedDate: QuartzTransformerPlugin<Partial<Options>> = (u
               } else if (source === "git" && repo) {
                 const relativePath = path.relative(repositoryWorkdir, fullFp)
                 let modifiedFromGit = false
+                let gitModified: MaybeDate = undefined
                 try {
-                  modified ||= await repo.getFileLatestModifiedDateAsync(relativePath)
+                  gitModified = await repo.getFileLatestModifiedDateAsync(relativePath)
+                  modified ||= gitModified
                   modifiedFromGit = true
                 } catch {
                   // napi-rs simple-git couldn't find this path; fall back below
@@ -198,11 +196,16 @@ export const CreatedModifiedDate: QuartzTransformerPlugin<Partial<Options>> = (u
                 if (gitDates) {
                   firstMs = gitDates.getFirst(relativePath)
                   latestMs = gitDates.getLatest(relativePath)
-                  if (firstMs !== undefined) created ||= firstMs
+                  // In shallow deploy clones, the first add/copy/rename event may be missing.
+                  // Prefer any git-backed timestamp over filesystem birthtime, which is often
+                  // just the checkout time on CI/CD workers.
+                  created ||= firstMs ?? latestMs ?? gitModified
                   if (!modifiedFromGit && latestMs !== undefined) {
                     modified ||= latestMs
                     modifiedFromGit = true
                   }
+                } else {
+                  created ||= gitModified
                 }
                 if (!modifiedFromGit && firstMs === undefined && latestMs === undefined) {
                   console.log(
@@ -215,10 +218,11 @@ export const CreatedModifiedDate: QuartzTransformerPlugin<Partial<Options>> = (u
               }
             }
 
+            const createdDate = coerceDate(fp, created)
             file.data.dates = {
-              created: coerceDate(fp, created),
-              modified: coerceDate(fp, modified),
-              published: coerceDate(fp, published),
+              created: createdDate,
+              modified: coerceDate(fp, modified, createdDate),
+              published: coerceDate(fp, published, createdDate),
             }
           }
         },

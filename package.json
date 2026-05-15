@@ -20,8 +20,8 @@
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1",
     "update-homepage": "node ./scripts/update-homepage.js",
     "sync": "npm run update-homepage && npx quartz sync",
-    "build": "npm run update-homepage && npx quartz build && cp -r extra-pages/* public/",
-    "build:cf": "git fetch --unshallow || true && npm run build",
+    "build": "git fetch --unshallow || git fetch --all --tags --force --prune || true && npm run update-homepage && npx quartz build && cp -r extra-pages/* public/",
+    "build:cf": "npm run build",
     "check:frontmatter": "node ./scripts/check-frontmatter.js --all",
     "postinstall": "node ./scripts/check-git-deps.js && bash ./scripts/install-hooks.sh || true"
   },
