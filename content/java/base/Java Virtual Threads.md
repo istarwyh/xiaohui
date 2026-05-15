@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 [JEP](https://openjdk.org/jeps/444)
 In early versions of Java, Java's green threads all shared one OS thread (M:1 scheduling) and were eventually outperformed by platform threads, implemented as wrappers for OS threads (1:1 scheduling). Virtual threads employ M:N scheduling, where a large number (M) of virtual threads is scheduled to run on a smaller number (N) of OS threads. Since **virtual threads are implemented in the JDK** and are not tied to any particular OS thread, **they are invisible to the OS**, which is unaware of their existence. Virtual threads are always daemon threads.
 

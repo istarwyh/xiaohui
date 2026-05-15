@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-10-08T10:56:17+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 Learning requires focus. The reason is simple:
 
 学习需要专注，原因很简单：

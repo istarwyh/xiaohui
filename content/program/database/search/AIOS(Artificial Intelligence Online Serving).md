@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 ## 综述
 在阿里内部，Tisplus是一个搜索Paas产品，引擎内核是HA3,索引内核是Indexlib,索引构建依赖BuildService系统，数据处理依赖SARO平台。而这一张套被统称为[AIOS](https://developer.aliyun.com/article/650130)（Artificial Intelligence Online Serving）,智能引擎系统。
 

@@ -1,3 +1,9 @@
+---
+created: 2025-08-09T15:03:38+08:00
+modified: 2025-11-23T23:29:10+08:00
+published: 2025-08-09T15:03:38+08:00
+---
+
 ## 用手机提 PR
 
 上周我结合在手机上 AI Coding ，给 Nacos 的项目提了一个 PR： https://github.com/nacos-group/nacos-mcp-router/pull/37

@@ -1,5 +1,8 @@
 ---
 title: 晓灰的成长时间线
+created: 2026-05-14T01:35:48+08:00
+modified: 2026-05-14T01:35:48+08:00
+published: 2026-05-14T01:35:48+08:00
 description: 从求学、工程实践到 AI Agent 的成长过程、思考脉络与经验地图。
 tags:
   - about

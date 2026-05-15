@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2026-05-13T08:48:02+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 https://github.com/termux/termux-app#installation
 termux-setup-storage
 ssh github repository

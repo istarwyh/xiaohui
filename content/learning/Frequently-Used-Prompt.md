@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2026-01-07T09:15:59+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 #prompt
 
 - Official Guidance:https://github.com/guidance-ai/guidance

@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 # 1. 好用到飞起!VS Code插件DevUIHlper设计开发总攻略 (一）
 ## 1.1. 开发背景
 为了提升[DevUI组件](https://devui.design/home)对于使用者的易用性:

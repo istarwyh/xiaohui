@@ -1,5 +1,8 @@
 ---
 title: 从 Claude Code 到 OneAgent：如何做好上下文工程
+created: 2025-11-23T23:29:10+08:00
+modified: 2026-05-14T09:03:01+08:00
+published: 2025-11-23T23:29:10+08:00
 description: OneAgent + MCPs 范式年度总结。从 Claude Code 的架构思想出发，用简单而不脆弱的 Loop 与四要素上下文工程，构建生产级 Agent 系统的方法论与实践。
 tags:
   - AI Agent

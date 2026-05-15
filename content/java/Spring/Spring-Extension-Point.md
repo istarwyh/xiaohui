@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 [Spring的Bean生命周期和扩展点](https://mp.weixin.qq.com/s/sK1qbsOj0v0UrAyLy6-zMw) ：
 
 ![]([[]]https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/202312032330027.png)

@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2026-01-07T09:15:59+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 "Full-Stream" 是ThoughtWork 中国区CTO 徐昊仿照"Full-Stack"全栈造出来的一个词，用于表示业务开发的整个流程，按照徐昊的话来说，是知识工程中知识产生、消费、传递的一整个过程。Full-Stream 在我这里体现如下： [[full-stream.canvas|full-stream]]
 
 区别于岗位路线图：https://roadmap.sh

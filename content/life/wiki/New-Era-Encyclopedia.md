@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2026-01-24T11:27:45+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 #wiki
 
 - [手机电池为何越用越不耐用](https://mp.weixin.qq.com/s/hlgDAdMUGEM4J2hMKJwyhQ)

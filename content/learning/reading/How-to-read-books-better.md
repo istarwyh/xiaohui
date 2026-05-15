@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 ## 选择读什么书
 卡尔维诺认为，经典是我们常读常新的书[^readclassics]：
 >A classic is a book which with each regrading offers as much of a sense of discovery as the first reading.

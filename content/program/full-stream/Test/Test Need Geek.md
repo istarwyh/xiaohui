@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 ## 1. How to Get an Object Instance Limitlessly?
 ### 1.1. 利用Unsafe直接分配内存
 ```java

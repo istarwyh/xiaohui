@@ -22,6 +22,7 @@
     "sync": "npm run update-homepage && npx quartz sync",
     "build": "git fetch --unshallow || git fetch --all --tags --force --prune || true && npm run update-homepage && npx quartz build && cp -r extra-pages/* public/",
     "build:cf": "npm run build",
+    "backfill:dates": "node ./scripts/backfill-frontmatter-dates.js",
     "check:frontmatter": "node ./scripts/check-frontmatter.js --all",
     "postinstall": "node ./scripts/check-git-deps.js && bash ./scripts/install-hooks.sh || true"
   },

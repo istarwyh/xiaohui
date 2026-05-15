@@ -1,3 +1,9 @@
+---
+created: 2025-07-20T21:01:17+08:00
+modified: 2026-04-07T00:07:40+08:00
+published: 2025-07-20T21:01:17+08:00
+---
+
 Claude Code 是目前最强的AI Coding Agent，没有加之一，应该也没有人反对吧：）如果还没用上 Claude Code（CC）,直接看 https://aispeeds.me/#get-started
 
 ## 📋 目录

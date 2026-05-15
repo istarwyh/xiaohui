@@ -1,3 +1,9 @@
+---
+created: 2026-04-07T00:07:40+08:00
+modified: 2026-05-13T08:48:02+08:00
+published: 2026-04-07T00:07:40+08:00
+---
+
 在之前的[【万字长文】最强 AI Coding：Claude Code 最佳实践](https://mp.weixin.qq.com/s/xxx)中，我们提到了通过 Git Worktree 和 subAgent 实现多 Claude 并发干活。但这些方案本质上还是"各干各的"——要么靠人来协调，要么 subAgent 只能单向汇报给 hostAgent。
 
 现在，Claude Code 推出了实验性的 **Agent Teams** 功能，终于把"多 Agent 协作"这件事做成了一个完整的框架：有 Team Lead、有 Teammates、有共享任务列表、有消息通信机制。简单来说就是——Claude 终于能**组队开黑**了。

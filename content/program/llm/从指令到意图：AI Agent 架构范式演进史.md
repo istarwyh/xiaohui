@@ -1,5 +1,8 @@
 ---
 title: 从指令到意图：AI Agent 架构范式演进史
+created: 2025-09-15T00:20:19+08:00
+modified: 2026-05-14T09:03:01+08:00
+published: 2025-09-15T00:20:19+08:00
 description: 从作为通用文本处理 API 的 LLM 直接调用，到 Workflow 编排、Multi-Agent 系统，再到 OneAgent — 完整梳理 AI Agent 架构范式的演进史与各代际的核心抽象。
 tags:
   - AI Agent

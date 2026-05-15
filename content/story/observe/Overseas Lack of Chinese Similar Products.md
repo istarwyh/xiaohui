@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 尝试让LLM帮忙找一下海外缺少的中国产品，没找到..
 
 | Chinese Product | Overseas Similar(may be absent) | Field                   | Differences(list)                                                                                          |

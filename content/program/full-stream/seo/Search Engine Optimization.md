@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-04-06T16:49:58+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 - Visit [Google Search Console](https://search.google.com/search-console) and register your site.
   - DNS 设置中的 `TXT` 在 dydanot 上设置了不行，换了 CNAME 才可以...
 - Google Indexing Script: https://github.com/goenning/google-indexing-script

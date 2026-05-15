@@ -1,5 +1,8 @@
 ---
 title: AI-Native 产品团队：零协调成本的开发范式
+created: 2026-05-08T22:59:45+08:00
+modified: 2026-05-08T22:59:45+08:00
+published: 2026-05-08T22:59:45+08:00
 ---
 
 Naval Ravikant 描述了一种 AI-native 产品公司的运作方式，读完觉得这几乎是 [[Full Stream]] 理念在组织层面的终极形态。

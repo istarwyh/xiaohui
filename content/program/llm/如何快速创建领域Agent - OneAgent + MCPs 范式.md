@@ -1,5 +1,8 @@
 ---
 title: 如何快速创建领域 Agent — OneAgent + MCPs 范式
+created: 2025-06-15T16:02:47+08:00
+modified: 2026-05-14T09:03:01+08:00
+published: 2025-06-15T16:02:47+08:00
 description: Agent 开发范式演进史：从单一 LLM 调用、Workflow 编排到 Multi-Agent 系统，再到受 Manus 和 Claude Code 启发的 OneAgent + MCPs 范式 — 蚂蚁保 MCP 落地实践。
 permalink: program/llm/如何快速创建领域Agent - OneAgent + MCPs 范式
 tags:

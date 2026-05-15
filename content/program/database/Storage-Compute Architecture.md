@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 [技术揭秘：从双11看实时数仓Hologres高可用设计与实践](https://developer.aliyun.com/article/829794https://developer.aliyun.com/article/829794)
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/202308192240287.png)
 

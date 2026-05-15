@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 
 不同的分页查询批次存在重复数据.
 MySQL在执行排序操作时，主要[这样选择排序算法](https://github.com/mysql/mysql-server/blob/trunk/sql/filesort.cc)：

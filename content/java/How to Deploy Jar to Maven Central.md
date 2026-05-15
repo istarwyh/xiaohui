@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 我们想要把自己的开源库发布到Maven的中央仓库是可以的，但是不能直接上传，需要有中转站类似[central.sonatype.org](https://central.sonatype.org/)，它会在检查核实了该依赖没有问题后，定期自动同步到Maven的中央仓库。上传到 [central.sonatype.org](https://central.sonatype.org/) 还有两种方式：
 1. Publishing via the Central Portal
 2. Publishing via OSSRH

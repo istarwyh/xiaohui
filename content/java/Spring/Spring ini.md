@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 ## 1. J2EE/Jakarta EE与Spring
 ### 1.1. J2EE概述
 现名为`Java EE`，Java 平台企业版（Java Platform Enterprise Edition）,是一种利用Java平台来简化企业解决方案的开发、部署和管理相关的复杂问题的体系结构.之前称为Java 2 Platform Enterprise Edition (`J2EE`)，2018年因为Java被收购的原因更名为 `Jakarta EE`,这里仍采用经典称呼`J2EE`.

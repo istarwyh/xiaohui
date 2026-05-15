@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2026-05-13T22:15:41+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 ## vectorDB 直观接触
 简单的向量数据库可以参见: https://vectordb.com/ ：
 ```python

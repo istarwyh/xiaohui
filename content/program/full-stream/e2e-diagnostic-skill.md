@@ -1,5 +1,6 @@
 ---
 title: E2E 测试诊断与科学迭代 Skill
+modified: 2026-04-07T00:07:40+08:00
 description: 教会 AI 如何从失败的 E2E 测试中自动推导改进策略
 date: 2026-01-31
 status: skill
