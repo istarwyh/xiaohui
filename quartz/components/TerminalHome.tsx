@@ -7,21 +7,6 @@ import { getDate } from "./Date"
 // @ts-ignore
 import script from "./scripts/terminalHome.inline"
 
-interface CategoryItem {
-  name: string
-  slug: string
-  desc: string
-}
-
-const categories: CategoryItem[] = [
-  { name: "program/", slug: "program/", desc: "软件工程 · 架构 · AI" },
-  { name: "learning/", slug: "learning/", desc: "阅读 · 思考 · 智慧" },
-  { name: "life/", slug: "life/", desc: "生活经验 · 工具" },
-  { name: "java/", slug: "java/", desc: "Java 技术笔记" },
-  { name: "society/", slug: "society/", desc: "社会观察" },
-  { name: "story/", slug: "story/", desc: "叙事随笔" },
-]
-
 interface FeaturedItem {
   slug: string
   title: string
@@ -173,23 +158,6 @@ export default (() => {
                     <span class="featured-marker">▸</span>
                     <span class="featured-title">{f.title}</span>
                     <span class="featured-desc">{f.desc}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            {/* ls ~/blog */}
-            <div class="terminal-block">
-              <div class="terminal-prompt">
-                <span class="prompt-symbol">{">"}</span>
-                <span class="prompt-cmd">ls ~/blog</span>
-              </div>
-              <div class="terminal-output ls-output">
-                {categories.map((cat) => (
-                  <a href={resolveRelative(fileData.slug!, cat.slug as any)} class="ls-item">
-                    <span class="ls-perm">drwxr-x</span>
-                    <span class="ls-name">{cat.name}</span>
-                    <span class="ls-desc">{cat.desc}</span>
                   </a>
                 ))}
               </div>
@@ -440,52 +408,6 @@ export default (() => {
 .featured-desc {
   color: #777;
   font-size: 0.78rem;
-}
-
-/* ls section */
-.ls-output {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.ls-item {
-  display: flex;
-  align-items: baseline;
-  gap: 1rem;
-  text-decoration: none !important;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.ls-item:hover {
-  background: rgba(154, 205, 50, 0.08);
-}
-
-.ls-perm {
-  color: #666;
-  font-size: 0.8rem;
-  flex-shrink: 0;
-  width: 5.5em;
-}
-
-.ls-name {
-  color: #64b5f6;
-  font-size: 0.9rem;
-  font-weight: 600;
-  flex-shrink: 0;
-  min-width: 8em;
-}
-
-.ls-item:hover .ls-name {
-  color: #90caf9;
-  text-shadow: 0 0 6px rgba(100, 181, 246, 0.3);
-}
-
-.ls-desc {
-  color: #777;
-  font-size: 0.8rem;
 }
 
 /* recent section */
@@ -775,14 +697,6 @@ export default (() => {
     padding: 1rem;
   }
 
-  .ls-perm {
-    display: none;
-  }
-
-  .ls-name {
-    min-width: auto;
-  }
-
   .recent-item {
     flex-direction: column;
     gap: 0.1rem;
@@ -824,9 +738,6 @@ export default (() => {
     border-radius: 6px;
   }
 
-  .ls-desc {
-    display: none;
-  }
 }
 
 /* light mode adjustments */
@@ -853,18 +764,6 @@ export default (() => {
   color: #888;
 }
 
-:root[saved-theme="light"] .ls-perm {
-  color: #aaa;
-}
-
-:root[saved-theme="light"] .ls-name {
-  color: #1976d2;
-}
-
-:root[saved-theme="light"] .ls-desc {
-  color: #888;
-}
-
 :root[saved-theme="light"] .recent-date {
   color: #999;
 }
@@ -878,12 +777,6 @@ export default (() => {
   text-shadow: none;
 }
 
-:root[saved-theme="light"] .ls-item:hover .ls-name {
-  color: #1565c0;
-  text-shadow: none;
-}
-
-:root[saved-theme="light"] .ls-item:hover,
 :root[saved-theme="light"] .recent-item:hover {
   background: rgba(0, 0, 0, 0.04);
 }
