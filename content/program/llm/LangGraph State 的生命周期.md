@@ -801,10 +801,41 @@ checkpoint_1 (用户说"你好") → checkpoint_2 (Agent回复) → checkpoint_3
 
 ### Step 3: 数据流图可视化
 
-```
+```mermaid
+flowchart TD
+  thread["thread_abc123"]
 
-thread_abc123 │ ├── ckpt_001 (初始空状态) │ └── writes: 无│ └── blobs: 空│ ├── ckpt_002 (问候完成) │ ├── writes: │ │ ├── task: handle_greeting → channel: messages ("你好") │ │ └── task: generate_response → channel: messages ("您好！...") │ │ │ └── blobs: │ ├── channel: messages (合并后 2 条消息) │ └── channel: user_context (基础会话信息) │ ├── ckpt_003 (推荐请求处理中) │ ├── writes: │ │ ├── task: retrieve_context → channel: user_context (意图+年龄) │ │ ├── task: retrieve_context → channel: extracted_entities (实体列表) │ │ ├── task: search_products → channel: search_results (产品数据) │ │ ├── task: search_products → channel: tool_calls (工具调用记录) │ │ └── task: generate_response → channel: messages (推荐回复) │ │ │ └── blobs: │ ├── channel: messages (合并后 4 条消息) │ ├── channel: user_context (更新后的用户信息) │ └── channel: search_results (产品列表) │ └── ckpt_004 (最终回复完成) ├── writes: │ └── task: finalize_response → channel: messages (格式化回复) │ └── blobs: ├── channel: messages (完整对话历史) ├── channel: user_context (完整用户画像) └── channel: search_results (推荐产品快照)
+  thread --> ckpt001["ckpt_001<br/>初始空状态"]
+  ckpt001 --> writes001["writes<br/>无"]
+  writes001 --> blobs001["blobs<br/>空"]
 
+  blobs001 --> ckpt002["ckpt_002<br/>问候完成"]
+  ckpt002 --> writes002["checkpoint_writes"]
+  writes002 --> greeting["handle_greeting<br/>messages: 你好"]
+  writes002 --> response002["generate_response<br/>messages: 您好！..."]
+  greeting --> merge002["按 channel 合并"]
+  response002 --> merge002
+  merge002 --> blobs002["checkpoint_blobs<br/>messages: 合并后 2 条消息<br/>user_context: 基础会话信息"]
+
+  blobs002 --> ckpt003["ckpt_003<br/>推荐请求处理中"]
+  ckpt003 --> writes003["checkpoint_writes"]
+  writes003 --> context["retrieve_context<br/>user_context: 意图 + 年龄"]
+  writes003 --> entities["retrieve_context<br/>extracted_entities: 实体列表"]
+  writes003 --> products["search_products<br/>search_results: 产品数据"]
+  writes003 --> toolCalls["search_products<br/>tool_calls: 工具调用记录"]
+  writes003 --> response003["generate_response<br/>messages: 推荐回复"]
+  context --> merge003["按 channel 合并"]
+  entities --> merge003
+  products --> merge003
+  toolCalls --> merge003
+  response003 --> merge003
+  merge003 --> blobs003["checkpoint_blobs<br/>messages: 合并后 4 条消息<br/>user_context: 更新后的用户信息<br/>search_results: 产品列表"]
+
+  blobs003 --> ckpt004["ckpt_004<br/>最终回复完成"]
+  ckpt004 --> writes004["checkpoint_writes"]
+  writes004 --> finalResponse["finalize_response<br/>messages: 格式化回复"]
+  finalResponse --> merge004["按 channel 合并"]
+  merge004 --> blobs004["checkpoint_blobs<br/>messages: 完整对话历史<br/>user_context: 完整用户画像<br/>search_results: 推荐产品快照"]
 ```
 
 ---
@@ -813,14 +844,24 @@ thread_abc123 │ ├── ckpt_001 (初始空状态) │ └── writes: 无
 
 以 **ckpt_003** 为例，展示 `messages` channel 是如何合并的：
 
-```
+```mermaid
+flowchart LR
+  subgraph writes["checkpoint_writes 原始写入（按时间序）"]
+    human["ckpt_002<br/>handle_greeting<br/>[HumanMessage: 你好]"]
+    greeting["ckpt_002<br/>generate_response<br/>[AIMessage: 您好！]"]
+    context["ckpt_003<br/>retrieve_context<br/>未写 messages"]
+    products["ckpt_003<br/>search_products<br/>未写 messages"]
+    recommendation["ckpt_003<br/>generate_response<br/>[AIMessage: 为您推荐...]"]
+  end
 
-checkpoint_writes 中的原始写入 (按时间序): ├── ckpt_002: generate_response 写入 → [AIMessage("您好！")] ├── ckpt_003: retrieve_context 未写 messages ├── ckpt_003: search_products 未写 messages └── ckpt_003: generate_response 写入 → [AIMessage("为您推荐...")]
+  human --> reducer["messages reducer<br/>列表类型 = 拼接"]
+  greeting --> reducer
+  context -. 跳过 .-> reducer
+  products -. 跳过 .-> reducer
+  recommendation --> reducer
 
-合并算法 (列表类型 = 拼接): messages = messages_ckpt_002 + messages_ckpt_003_generate = [Human("你好"), AI("您好！")] + [AI("为您推荐...")] = [Human("你好"), AI("您好！"), AI("为您推荐...")]
-
-最终存入 checkpoint_blobs: └── messages: [3条消息的完整列表]
-
+  reducer --> merged["合并结果<br/>[Human: 你好]<br/>[AI: 您好！]<br/>[AI: 为您推荐...]"]
+  merged --> blobs["checkpoint_blobs<br/>channel: messages<br/>value: 3 条消息的完整列表"]
 ```
 
 
