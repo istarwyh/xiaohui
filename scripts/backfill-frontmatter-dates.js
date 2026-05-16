@@ -6,6 +6,7 @@ import path from "node:path"
 import matter from "gray-matter"
 
 const CONTENT_DIR = "content"
+const FALLBACK_DATE = "2026-01-01"
 const IGNORED_FILE_NAMES = new Set(["CLAUDE.md"])
 const IGNORED_DIR_NAMES = new Set(["private", "templates"])
 const DATE_ALIASES = {
@@ -157,10 +158,9 @@ function main() {
       continue
     }
 
-    const dates = gitDatesFor(file)
-    if (!dates) {
+    const dates = gitDatesFor(file) ?? { created: FALLBACK_DATE, modified: FALLBACK_DATE }
+    if (dates.created === FALLBACK_DATE) {
       skipped.noGit += 1
-      continue
     }
 
     const fields = plannedFields(data, dates)
@@ -179,7 +179,7 @@ function main() {
   const action = write ? "Updated" : "Would update"
   console.log(`${action} ${changes.filter((c) => c.fields).length} file(s).`)
   console.log(`Skipped existing dates: ${skipped.existing}`)
-  console.log(`Skipped no git history: ${skipped.noGit}`)
+  console.log(`Used ${FALLBACK_DATE} fallback (no git history): ${skipped.noGit}`)
   console.log(`Skipped parse errors: ${skipped.parseError}`)
 
   for (const change of changes.slice(0, 20)) {

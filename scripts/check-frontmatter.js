@@ -16,7 +16,12 @@ import fs from "node:fs"
 import path from "node:path"
 import matter from "gray-matter"
 
-const DATE_FIELDS = ["created", "modified", "published", "date", "lastmod", "updated"]
+const DATE_FIELDS = ["created", "modified", "published", "date", "lastmod", "updated", "last-modified"]
+// Required field groups: each group must have at least one alias present.
+const REQUIRED_GROUPS = {
+  created: ["created", "date"],
+  modified: ["modified", "lastmod", "updated", "last-modified"],
+}
 // Accept full ISO-8601 datetimes or date-only.
 const ISO_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/
 
@@ -54,6 +59,12 @@ function checkFile(file) {
   } catch (e) {
     errors.push(`frontmatter parse error: ${String(e).split("\n")[0]}`)
     return errors
+  }
+  const hasValue = (k) => fm[k] !== undefined && fm[k] !== null && fm[k] !== ""
+  for (const [group, aliases] of Object.entries(REQUIRED_GROUPS)) {
+    if (!aliases.some(hasValue)) {
+      errors.push(`missing required "${group}" field (any of: ${aliases.join(", ")})`)
+    }
   }
   for (const key of DATE_FIELDS) {
     const v = fm[key]
