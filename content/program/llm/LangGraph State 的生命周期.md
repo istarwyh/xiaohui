@@ -92,22 +92,22 @@ INNER JOIN checkpoint_blobs bl
       │               │               │
       ↓               ↓               ↓
 ┌─────────────────────────────────────────────┐
-│  checkpoint_writes 表                        │
-│  记录每个 task 的写入操作（细粒度）            │
+│  checkpoint_writes 表                       │
+│  记录每个 task 的写入操作（细粒度）              │
 └─────────────────────────────────────────────┘
                       │
                       │ 合并所有 task 的写入
                       ↓
 ┌─────────────────────────────────────────────┐
 │  checkpoint_blobs 表                         │
-│  存储最终合并后的完整状态（粗粒度）             │
+│  存储最终合并后的完整状态（粗粒度）               │
 └─────────────────────────────────────────────┘
                       │
                       │ 元数据索引
                       ↓
 ┌─────────────────────────────────────────────┐
-│  checkpoints 表                              │
-│  存储 checkpoint 元数据（链条/分支）           │
+│  checkpoints 表                             │
+│  存储 checkpoint 元数据（链条/分支）            │
 └─────────────────────────────────────────────┘
 ```
 
@@ -126,7 +126,7 @@ INNER JOIN checkpoint_blobs bl
        │ ② 更新 (新 checkpoint)          │
        ↓                                 ↑
 ┌───────────────────────────────────────────────────────┐
-│                   数据库存储                             │
+│                   数据库存储                            │
 │                                                        │
 │  checkpoint_writes  ──合并──→  checkpoint_blobs         │
 │  (每个 node 的写入)           (最终完整状态)              │
@@ -136,7 +136,7 @@ INNER JOIN checkpoint_blobs bl
 │                             checkpoints                │
 │                           (链条 / 分支)                 │
 │                                                        │
-│                   ③ 回滚 = 新建分支                      │
+│                   ③ 回滚 = 新建分支                     │
 └───────────────────────────────────────────────────────┘
 ```
 
@@ -879,9 +879,9 @@ graph.update_state(
 
 #### 回滚后的 checkpoints 表（形成分支）
 
-| checkpoint_id | parent_checkpoint_id | 说明                |
-| ------------- | -------------------- | ------------------- |
-| ckpt_001      | NULL                 | 初始                |
+| checkpoint_id | parent_checkpoint_id | 说明              |
+| ------------- | -------------------- | -----------------|
+| ckpt_001      | NULL                 | 初始              |
 | ckpt_002      | ckpt_001             | 问候完成 ← 回滚目标 |
 | ckpt_003      | ckpt_002             | 旧分支（含推荐）    |
 | ckpt_004      | ckpt_002             | 新分支（从此继续）  |
@@ -897,7 +897,7 @@ ckpt_001 → ckpt_002 ┤
 从 ckpt_002 **复制**所有 blob 数据：
 
 | thread_id     | checkpoint_id | channel      | blob_data 来源  |
-| ------------- | ------------- | ------------ | --------------- |
+| ------------- | ------------- | ------------ | ---------------|
 | thread_abc123 | ckpt_004      | messages     | 复制自 ckpt_002 |
 | thread_abc123 | ckpt_004      | user_context | 复制自 ckpt_002 |
 
@@ -959,9 +959,9 @@ WHERE thread_id = 'thread_abc123'
 ┌─────────────────┬─────────────────────────────────────────┐
 │ thread_id       │ "thread_abc123"                         │
 │ checkpoint_id   │ "ckpt_003"                              │
-│ parent_id       │ "ckpt_002" ← 指向前一个                 │
-│ checkpoint_ns   │ "" (主图) / "subgraph" (子图)          │
-│ ns_hash         │ "d41d8cd..." ← 关联 writes 和 blobs     │
+│ parent_id       │ "ckpt_002" ← 指向前一个                   │
+│ checkpoint_ns   │ "" (主图) / "subgraph" (子图)            │
+│ ns_hash         │ "d41d8cd..." ← 关联 writes 和 blobs      │
 │ gmt_create      │ 2026-04-07 10:00:30                     │
 └─────────────────┴─────────────────────────────────────────┘
 ```
@@ -972,11 +972,11 @@ WHERE thread_id = 'thread_abc123'
 ┌─────────────────┬─────────────────────────────────────────┐
 │ thread_id       │ "thread_abc123"                         │
 │ checkpoint_id   │ "ckpt_003"                              │
-│ task_id         │ "search_products" ← node 名称           │
-│ idx             │ 0 / 1 / 2... ← 同一 task 的第 N 次写入  │
+│ task_id         │ "search_products" ← node 名称            │
+│ idx             │ 0 / 1 / 2... ← 同一 task 的第 N 次写入    │
 │ channel         │ "search_results" ← State 字段名          │
-│ blob_data       │ <二进制: 产品列表数据>                   │
-│ task_path       │ "()" / "('subgraph',)" ← 子图路径       │
+│ blob_data       │ <二进制: 产品列表数据>                     │
+│ task_path       │ "()" / "('subgraph',)" ← 子图路径        │
 └─────────────────┴─────────────────────────────────────────┘
 ```
 
@@ -985,9 +985,9 @@ WHERE thread_id = 'thread_abc123'
 ```
 ┌─────────────────┬─────────────────────────────────────────┐
 │ thread_id       │ "thread_abc123"                         │
-│ ns_hash         │ "d41d8cd..." ← 来自 checkpoints 表    │
+│ ns_hash         │ "d41d8cd..." ← 来自 checkpoints 表       │
 │ channel         │ "messages" ← State 字段名                │
-│ version         │ 0 / 1 / 2... ← 同一 checkpoint 的版本    │
-│ blob_data       │ <二进制: 合并后的完整消息列表>            │
+│ version         │ 0 / 1 / 2... ← 同一 checkpoint 的版本     │
+│ blob_data       │ <二进制: 合并后的完整消息列表>              │
 └─────────────────┴─────────────────────────────────────────┘
 ```
