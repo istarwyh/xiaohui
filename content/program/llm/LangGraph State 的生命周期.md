@@ -711,7 +711,7 @@ serialized = serializer.dumps_typed(state_field)
 state_field = serializer.loads_typed(('msgpack', binary_data))
 # → {"age": 30, "name": "张三"}
 
----
+```
 
 ## 完整字段级数据流图示例
 
@@ -821,9 +821,8 @@ checkpoint_writes 中的原始写入 (按时间序): ├── ckpt_002: generat
 
 最终存入 checkpoint_blobs: └── messages: [3条消息的完整列表]
 
-````
+```
 
----
 
 ### Step 5: 回滚场景示例
 
@@ -835,7 +834,7 @@ graph.update_state(
     thread_id="thread_abc123",
     checkpoint_id="ckpt_002"
 )
-````
+```
 
 #### 回滚后的 checkpoints 表（形成分支）
 
