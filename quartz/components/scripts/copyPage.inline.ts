@@ -37,3 +37,5 @@ document.addEventListener("nav", () => {
   window.addCleanup(() => button.removeEventListener("click", onClick))
   titleEl.appendChild(button)
 })
+
+export {}

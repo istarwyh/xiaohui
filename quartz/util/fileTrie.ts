@@ -1,13 +1,12 @@
-import { ContentDetails } from "../plugins/emitters/contentIndex"
 import { FullSlug, joinSegments } from "./path"
 
-interface FileTrieData {
+export interface FileTrieData {
   slug: string
   title: string
   filePath: string
 }
 
-export class FileTrieNode<T extends FileTrieData = ContentDetails> {
+export class FileTrieNode<T extends FileTrieData = FileTrieData> {
   isFolder: boolean
   children: Array<FileTrieNode<T>>
 

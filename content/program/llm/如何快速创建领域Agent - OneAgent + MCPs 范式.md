@@ -125,6 +125,7 @@ MCP 最近的爆火，除了万物互联的理想、生态逐渐成熟，期望 
 
 OneAgent + MCPs 范式将是每个闭环领域内的一种Agent 智能落地实践。在各个领域或组织都涌现出自己的 Agent 之后，Agent 与 Agent 更大维度上的交流合作也会随之发生(A2A, Agent2Agent 协议)。当然 OneAgent 套 OneAgent 共同完成任务的情况也会自然出现：
 
+
 ```mermaid
 graph LR
 
@@ -189,6 +190,7 @@ style Tool3 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:8
 style Tool4 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:88
 
 ```
+
 
 而这些具有一定自主能力的会形成一个 Agent Society。到那时Agent 就是我们同事的一份子。
 
@@ -466,7 +468,7 @@ OneAgent + MCPs 范式旨在通过强大的基础Agent 结合 MCP 派生领域 A
 
 虽然还没有实现通用的业务需求打工Agent, 但是我们已经在用Cline配合公司内部 V3模型深度使用 AI Coding ，很多胶水代码、CRUD 代码尽量交给 AI 来做，我负责维护输出"vibe":) 希望后面每个业务场景都可以借助OneAgent + MCPs 实现AI Coding。
 
-```
+
 
 ## 参考
 
@@ -479,4 +481,3 @@ OneAgent + MCPs 范式旨在通过强大的基础Agent 结合 MCP 派生领域 A
 - 内部文档：[[痛定思痛，AI Agent 给我的教训]]
 - [Greg Benson 教授关于分层多智能体架构的分析](https://github.com/SnapLogic/agent-continuations?tab=readme-ov-file)
 - [A2A (Agent2Agent) 协议](https://google-a2a.github.io/A2A/specification/#723-taskartifactupdateevent-object)
-```

@@ -212,9 +212,15 @@ export default (() => {
                   placeholder="search notes..."
                   autocomplete="off"
                   aria-label="Search notes"
+                  aria-controls="terminal-search-results"
+                  aria-expanded="false"
                 />
               </label>
-              <div class="terminal-search-results" aria-live="polite"></div>
+              <div
+                id="terminal-search-results"
+                class="terminal-search-results"
+                aria-live="polite"
+              ></div>
             </div>
           </div>
         </div>

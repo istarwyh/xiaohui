@@ -269,7 +269,7 @@ export class ContentAnalyzer {
     })
 
     // 根据编程语言添加特定字符
-    const languageChars = {
+    const languageChars: Record<string, string> = {
       javascript: "function(){}const let var async await Promise.then().catch()console.log",
       typescript: "interface type extends implements as any unknown void never",
       python: "def class import from if elif else for while try except finally",
@@ -286,7 +286,7 @@ export class ContentAnalyzer {
     }
 
     // 根据主题添加相关字符
-    const topicChars = {
+    const topicChars: Record<string, string> = {
       algorithm: "sort search tree graph dp bfs dfs binary heap stack queue",
       frontend: "component props state hook effect render dom css html",
       backend: "server api endpoint middleware database cache session",
@@ -317,7 +317,7 @@ export class ContentAnalyzer {
     words.push(...context.techKeywords)
 
     // 根据编程语言添加常用词汇
-    const languageWords = {
+    const languageWords: Record<string, string[]> = {
       javascript: ["function", "const", "let", "var", "async", "await", "Promise", "console.log"],
       typescript: ["interface", "type", "extends", "implements", "as", "any", "unknown"],
       python: ["def", "class", "import", "from", "if", "elif", "else", "for", "while"],

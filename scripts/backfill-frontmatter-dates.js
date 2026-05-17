@@ -48,11 +48,9 @@ function walkMarkdown(dir, out = []) {
 
 function gitDatesFor(file) {
   try {
-    const output = execFileSync(
-      "git",
-      ["log", "--follow", "--format=%aI", "--", file],
-      { encoding: "utf8" },
-    )
+    const output = execFileSync("git", ["log", "--follow", "--format=%aI", "--", file], {
+      encoding: "utf8",
+    })
       .trim()
       .split("\n")
       .filter(Boolean)
@@ -188,7 +186,9 @@ function main() {
       continue
     }
 
-    console.log(`- ${change.file}: ${change.fields.map(([key, value]) => `${key}=${value}`).join(", ")}`)
+    console.log(
+      `- ${change.file}: ${change.fields.map(([key, value]) => `${key}=${value}`).join(", ")}`,
+    )
   }
 
   if (!write && changes.some((c) => c.fields)) {

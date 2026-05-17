@@ -8,20 +8,28 @@ function setupTerminalSearch() {
 
   if (!terminalInput || !terminalResults || !searchBar || !searchLayout || !searchSpace)
     return false
+  if (searchLayout.dataset.ready !== "true") return false
   if (!searchLayout.querySelector(".results-container")) return false
   if (terminalInput.dataset.searchReady === "true") return true
 
   terminalInput.dataset.searchReady = "true"
+  terminalInput.setAttribute("aria-expanded", "false")
   searchLayout.classList.add("terminal-search-layout")
 
   const mountTerminalResults = () => terminalResults.appendChild(searchLayout)
-  const mountModalResults = () => searchSpace.appendChild(searchLayout)
+  const mountModalResults = () => {
+    searchSpace.appendChild(searchLayout)
+    terminalResults.classList.remove("active")
+    terminalInput.setAttribute("aria-expanded", "false")
+  }
 
   const syncSearch = () => {
     mountTerminalResults()
     searchBar.value = terminalInput.value
     searchBar.dispatchEvent(new Event("input", { bubbles: true }))
-    terminalResults.classList.toggle("active", terminalInput.value.trim() !== "")
+    const hasQuery = terminalInput.value.trim() !== ""
+    terminalResults.classList.toggle("active", hasQuery)
+    terminalInput.setAttribute("aria-expanded", String(hasQuery))
   }
 
   const resultCards = () => [
@@ -58,6 +66,7 @@ function setupTerminalSearch() {
     }
 
     if (event.key === "Escape") {
+      event.preventDefault()
       terminalInput.value = ""
       syncSearch()
     }
@@ -66,7 +75,6 @@ function setupTerminalSearch() {
   const onSearchShortcut = (event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
       mountModalResults()
-      terminalResults.classList.remove("active")
     }
   }
 
@@ -85,10 +93,36 @@ function setupTerminalSearch() {
   return true
 }
 
-let attempts = 0
-const interval = window.setInterval(() => {
-  attempts += 1
-  if (setupTerminalSearch() || attempts > 100) {
-    window.clearInterval(interval)
+let cancelPendingSetup: (() => void) | undefined
+
+function startTerminalSearchSetup() {
+  cancelPendingSetup?.()
+  if (!document.querySelector(".terminal-search-input")) return
+
+  let stopped = false
+  let attempts = 0
+  let interval: number | undefined
+
+  const stop = () => {
+    if (stopped) return
+    stopped = true
+    if (interval !== undefined) window.clearInterval(interval)
+    window.removeEventListener("quartz:search-ready", onSearchReady)
+    if (cancelPendingSetup === stop) cancelPendingSetup = undefined
   }
-}, 50)
+
+  const trySetup = () => {
+    attempts += 1
+    if (setupTerminalSearch() || attempts >= 600) stop()
+  }
+
+  const onSearchReady = () => trySetup()
+
+  window.addEventListener("quartz:search-ready", onSearchReady)
+  interval = window.setInterval(trySetup, 100)
+  cancelPendingSetup = stop
+  window.addCleanup(stop)
+  trySetup()
+}
+
+document.addEventListener("nav", startTerminalSearchSetup)

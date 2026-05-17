@@ -1,6 +1,6 @@
 // 内容分析器（内联版本）
 class ContentAnalyzer {
-  private currentContext = {
+  currentContext = {
     codeSnippets: [] as string[],
     techKeywords: [] as string[],
     programmingLanguage: "general",
@@ -101,7 +101,7 @@ class ContentAnalyzer {
       }
     }
 
-    const languagePatterns = {
+    const languagePatterns: Record<string, RegExp> = {
       javascript: /function\s*\(|const\s+\w+\s*=|console\.log/,
       python: /def\s+\w+\(|import\s+\w+|print\(/,
       java: /public\s+class|System\.out\.println/,
@@ -121,7 +121,7 @@ class ContentAnalyzer {
     const content = document.body.textContent || ""
     const fullText = title + " " + content
 
-    const topicPatterns = {
+    const topicPatterns: Record<string, RegExp> = {
       algorithm: /算法|algorithm|leetcode|数据结构/i,
       frontend: /前端|frontend|react|vue|css|html/i,
       backend: /后端|backend|server|api|database/i,
@@ -141,7 +141,7 @@ class ContentAnalyzer {
     words.push(...this.currentContext.codeSnippets)
     words.push(...this.currentContext.techKeywords)
 
-    const languageWords = {
+    const languageWords: Record<string, string[]> = {
       javascript: ["function", "const", "let", "async", "await", "Promise"],
       python: ["def", "class", "import", "if", "for", "while"],
       java: ["public", "private", "static", "void", "class"],

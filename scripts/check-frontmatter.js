@@ -16,7 +16,15 @@ import fs from "node:fs"
 import path from "node:path"
 import matter from "gray-matter"
 
-const DATE_FIELDS = ["created", "modified", "published", "date", "lastmod", "updated", "last-modified"]
+const DATE_FIELDS = [
+  "created",
+  "modified",
+  "published",
+  "date",
+  "lastmod",
+  "updated",
+  "last-modified",
+]
 // Required field groups: each group must have at least one alias present.
 const REQUIRED_GROUPS = {
   created: ["created", "date"],

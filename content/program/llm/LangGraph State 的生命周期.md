@@ -530,7 +530,7 @@ SELECT thread_id, version, blob_data
 FROM (
   SELECT thread_id, version, blob_data,
          ROW_NUMBER() OVER (PARTITION BY thread_id ORDER BY version DESC) AS rn
-  FROM insx_ods.ods_checkpoint_blobs_db_alphaprove_delta
+  FROM test_ods.ods_checkpoint_blobs_db_delta
   WHERE thread_id IN ({thread_id_list})
     AND checkpoint_ns = ''
     AND channel = 'files'

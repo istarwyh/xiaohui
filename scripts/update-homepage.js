@@ -33,8 +33,7 @@ function updateHomepageCardsInLayout(cards) {
   const layout = fs.readFileSync(layoutPath, "utf8")
   const cardsLiteral = cardsToTsObjectLiteral(cards)
 
-  const pattern =
-    /(Component\.CardFeed\(\{[\s\S]*?cards:\s*\[)([\s\S]*?)(\]\s*,[\s\S]*?\}\)\s*,)/m
+  const pattern = /(Component\.CardFeed\(\{[\s\S]*?cards:\s*\[)([\s\S]*?)(\]\s*,[\s\S]*?\}\)\s*,)/m
 
   const match = layout.match(pattern)
   if (!match) {
@@ -114,13 +113,14 @@ const unsplashPhotos = [
 export function sluggify(s) {
   return s
     .split("/")
-    .map((segment) =>
-      segment
-        .replace(/\s/g, "-")        // Spaces to hyphens
-        .replace(/&/g, "-and-")     // & to -and-
-        .replace(/%/g, "-percent")  // % to -percent
-        .replace(/\?/g, "")         // Remove ?
-        .replace(/#/g, "")          // Remove #
+    .map(
+      (segment) =>
+        segment
+          .replace(/\s/g, "-") // Spaces to hyphens
+          .replace(/&/g, "-and-") // & to -and-
+          .replace(/%/g, "-percent") // % to -percent
+          .replace(/\?/g, "") // Remove ?
+          .replace(/#/g, ""), // Remove #
     )
     .join("/")
 }
@@ -257,9 +257,7 @@ ${cardsData}
     fs.writeFileSync(indexPath, newContent)
   } else {
     console.log("ℹ️  Skipped updating content/index.md (manual homepage detected)")
-    console.log(
-      "   To allow auto-updates, add the marker to index.md: " + INDEX_AUTOGEN_MARKER,
-    )
+    console.log("   To allow auto-updates, add the marker to index.md: " + INDEX_AUTOGEN_MARKER)
     console.log("   Or set FORCE_UPDATE_INDEX=1 to overwrite once")
   }
 

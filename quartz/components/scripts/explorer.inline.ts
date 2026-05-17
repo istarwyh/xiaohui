@@ -1,16 +1,19 @@
-import { FileTrieNode } from "../../util/fileTrie"
+import { FileTrieNode, FileTrieData } from "../../util/fileTrie"
 import { FullSlug, resolveRelative, simplifySlug } from "../../util/path"
 import { ContentDetails } from "../../plugins/emitters/contentIndex"
 
 type MaybeHTMLElement = HTMLElement | undefined
 
+type ExplorerNodeData = ContentDetails & FileTrieData
+type ExplorerNode = FileTrieNode<ExplorerNodeData>
+
 interface ParsedOptions {
   folderClickBehavior: "collapse" | "link"
   folderDefaultState: "collapsed" | "open"
   useSavedState: boolean
-  sortFn: (a: FileTrieNode, b: FileTrieNode) => number
-  filterFn: (node: FileTrieNode) => boolean
-  mapFn: (node: FileTrieNode) => void
+  sortFn: (a: ExplorerNode, b: ExplorerNode) => number
+  filterFn: (node: ExplorerNode) => boolean
+  mapFn: (node: ExplorerNode) => void
   order: "sort" | "filter" | "map"[]
 }
 
@@ -79,7 +82,7 @@ function toggleFolder(evt: MouseEvent) {
   localStorage.setItem("fileTree", stringifiedFileTree)
 }
 
-function createFileNode(currentSlug: FullSlug, node: FileTrieNode): HTMLLIElement {
+function createFileNode(currentSlug: FullSlug, node: ExplorerNode): HTMLLIElement {
   const template = document.getElementById("template-file") as HTMLTemplateElement
   const clone = template.content.cloneNode(true) as DocumentFragment
   const li = clone.querySelector("li") as HTMLLIElement
@@ -97,7 +100,7 @@ function createFileNode(currentSlug: FullSlug, node: FileTrieNode): HTMLLIElemen
 
 function createFolderNode(
   currentSlug: FullSlug,
-  node: FileTrieNode,
+  node: ExplorerNode,
   opts: ParsedOptions,
 ): HTMLLIElement {
   const template = document.getElementById("template-folder") as HTMLTemplateElement
@@ -173,8 +176,11 @@ async function setupExplorer(currentSlug: FullSlug) {
     )
 
     const data = await fetchData
-    const entries = [...Object.entries(data)] as [FullSlug, ContentDetails][]
-    const trie = FileTrieNode.fromEntries(entries)
+    const entries: [FullSlug, ExplorerNodeData][] = Object.entries(data).map(([slug, details]) => [
+      slug as FullSlug,
+      { ...(details as ContentDetails), slug, filePath: slug },
+    ])
+    const trie = FileTrieNode.fromEntries<ExplorerNodeData>(entries)
 
     // Apply functions in order
     for (const fn of opts.order) {

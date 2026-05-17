@@ -37,14 +37,8 @@ describe("sluggify", () => {
 
   describe("path handling", () => {
     test("processes each path segment independently", () => {
-      assert.strictEqual(
-        sluggify("folder name/file name"),
-        "folder-name/file-name"
-      )
-      assert.strictEqual(
-        sluggify("path/to/my file"),
-        "path/to/my-file"
-      )
+      assert.strictEqual(sluggify("folder name/file name"), "folder-name/file-name")
+      assert.strictEqual(sluggify("path/to/my file"), "path/to/my-file")
     })
 
     test("preserves forward slashes", () => {
@@ -55,14 +49,8 @@ describe("sluggify", () => {
 
   describe("combined transformations", () => {
     test("handles multiple special characters", () => {
-      assert.strictEqual(
-        sluggify("What's up? 100% & ready!"),
-        "What's-up-100-percent--and--ready!"
-      )
-      assert.strictEqual(
-        sluggify("path/Q&A #1 - 50%"),
-        "path/Q-and-A-1---50-percent"
-      )
+      assert.strictEqual(sluggify("What's up? 100% & ready!"), "What's-up-100-percent--and--ready!")
+      assert.strictEqual(sluggify("path/Q&A #1 - 50%"), "path/Q-and-A-1---50-percent")
     })
   })
 
@@ -79,14 +67,8 @@ describe("sluggify", () => {
     })
 
     test("handles mixed Chinese and English with spaces", () => {
-      assert.strictEqual(
-        sluggify("中文 English 混合"),
-        "中文-English-混合"
-      )
-      assert.strictEqual(
-        sluggify("【标题】 Content"),
-        "【标题】-Content"
-      )
+      assert.strictEqual(sluggify("中文 English 混合"), "中文-English-混合")
+      assert.strictEqual(sluggify("【标题】 Content"), "【标题】-Content")
     })
   })
 
@@ -94,22 +76,19 @@ describe("sluggify", () => {
     test("handles actual blog post paths", () => {
       assert.strictEqual(
         sluggify("program/bot/【万字长文】 最强 AI Coding：Claude Code 最佳实践"),
-        "program/bot/【万字长文】-最强-AI-Coding：Claude-Code-最佳实践"
+        "program/bot/【万字长文】-最强-AI-Coding：Claude-Code-最佳实践",
       )
       assert.strictEqual(
         sluggify("program/llm/【年度总结】从Claude Code到 OneAgent：最佳Agent 构建实践全解析"),
-        "program/llm/【年度总结】从Claude-Code到-OneAgent：最佳Agent-构建实践全解析"
+        "program/llm/【年度总结】从Claude-Code到-OneAgent：最佳Agent-构建实践全解析",
       )
-      assert.strictEqual(
-        sluggify("life/wisdom/Truth"),
-        "life/wisdom/Truth"
-      )
+      assert.strictEqual(sluggify("life/wisdom/Truth"), "life/wisdom/Truth")
     })
 
     test("handles paths with multiple special characters", () => {
       assert.strictEqual(
         sluggify("guide/Q&A #1 - 100% Complete?"),
-        "guide/Q-and-A-1---100-percent-Complete"
+        "guide/Q-and-A-1---100-percent-Complete",
       )
     })
   })

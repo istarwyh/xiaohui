@@ -1,4 +1,5 @@
 import FlexSearch from "flexsearch"
+import type { DocumentSearchResults, DocumentValue } from "flexsearch"
 import { ContentDetails } from "../../plugins/emitters/contentIndex"
 import { registerEscapeHandler, removeAllChildren } from "./util"
 import { FullSlug, normalizeRelativeURLs, resolveRelative } from "../../util/path"
@@ -9,6 +10,7 @@ interface Item {
   title: string
   content: string
   tags: string[]
+  [key: string]: DocumentValue | DocumentValue[]
 }
 
 // Can be expanded with things like "term" in the future
@@ -17,7 +19,6 @@ let searchType: SearchType = "basic"
 let currentSearchTerm: string = ""
 const encoder = (str: string) => str.toLowerCase().split(/([^a-z]|[^\x00-\x7F])/)
 let index = new FlexSearch.Document<Item>({
-  charset: "latin:extra",
   encode: encoder,
   document: {
     id: "id",
@@ -397,7 +398,7 @@ async function setupSearch(searchElement: Element, currentSlug: FullSlug, data: 
     searchLayout.classList.toggle("display-results", currentSearchTerm !== "")
     searchType = currentSearchTerm.startsWith("#") ? "tags" : "basic"
 
-    let searchResults: FlexSearch.SimpleDocumentSearchResultSetUnit[]
+    let searchResults: DocumentSearchResults<Item> = []
     if (searchType === "tags") {
       currentSearchTerm = currentSearchTerm.substring(1).trim()
       const separatorIndex = currentSearchTerm.indexOf(" ")
@@ -410,7 +411,7 @@ async function setupSearch(searchElement: Element, currentSlug: FullSlug, data: 
           // return at least 10000 documents, so it is enough to filter them by tag (implemented in flexsearch)
           limit: Math.max(numSearchResults, 10000),
           index: ["title", "content"],
-          tag: tag,
+          tag: { tags: tag },
         })
         for (let searchResult of searchResults) {
           searchResult.result = searchResult.result.slice(0, numSearchResults)
@@ -449,15 +450,19 @@ async function setupSearch(searchElement: Element, currentSlug: FullSlug, data: 
     await displayResults(finalResults)
   }
 
+  const onSearchButtonClick = () => showSearch("basic")
+
   document.addEventListener("keydown", shortcutHandler)
   window.addCleanup(() => document.removeEventListener("keydown", shortcutHandler))
-  searchButton.addEventListener("click", () => showSearch("basic"))
-  window.addCleanup(() => searchButton.removeEventListener("click", () => showSearch("basic")))
+  searchButton.addEventListener("click", onSearchButtonClick)
+  window.addCleanup(() => searchButton.removeEventListener("click", onSearchButtonClick))
   searchBar.addEventListener("input", onType)
   window.addCleanup(() => searchBar.removeEventListener("input", onType))
 
   registerEscapeHandler(container, hideSearch)
   await fillDocument(data)
+  searchLayout.dataset.ready = "true"
+  window.dispatchEvent(new Event("quartz:search-ready"))
 }
 
 /**

@@ -4,19 +4,19 @@
  */
 
 document.addEventListener("nav", () => {
-  const progressBar = document.querySelector(
-    ".reading-progress-bar",
-  ) as HTMLElement | null
-  const progressContainer = document.querySelector(
-    ".reading-progress",
-  ) as HTMLElement | null
+  const progressBar = document.querySelector(".reading-progress-bar") as HTMLElement | null
+  const progressContainer = document.querySelector(".reading-progress") as HTMLElement | null
 
   if (!progressBar || !progressContainer) return
+
+  // 闭包中再次引用变量，让 TS 能保持窄化后的非空类型
+  const bar = progressBar
+  const container = progressContainer
 
   // 检查是否禁用了动画
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
   if (prefersReducedMotion) {
-    progressContainer.style.display = "none"
+    container.style.display = "none"
     return
   }
 
@@ -30,15 +30,15 @@ document.addEventListener("nav", () => {
     const scrollableHeight = documentHeight - windowHeight
 
     if (scrollableHeight <= 0) {
-      progressBar.style.width = "100%"
-      progressContainer.setAttribute("aria-valuenow", "100")
+      bar.style.width = "100%"
+      container.setAttribute("aria-valuenow", "100")
       return
     }
 
     // 计算进度百分比
     const progress = Math.min((scrollTop / scrollableHeight) * 100, 100)
-    progressBar.style.width = `${progress}%`
-    progressContainer.setAttribute("aria-valuenow", progress.toFixed(0))
+    bar.style.width = `${progress}%`
+    container.setAttribute("aria-valuenow", progress.toFixed(0))
   }
 
   // 节流函数

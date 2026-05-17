@@ -44,6 +44,7 @@ UNSPLASH_ACCESS_KEY=your_actual_api_key_here
 ```
 
 **If you don't set the API key:**
+
 - The site will still work perfectly
 - The `update-homepage.js` script uses curated, pre-selected Unsplash photo IDs
 - You'll see a warning message during build (this is normal and safe to ignore)

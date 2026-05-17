@@ -45,8 +45,7 @@ export default (() => {
     const tags: string[] = Array.isArray(fileData.frontmatter?.tags)
       ? (fileData.frontmatter!.tags as string[])
       : []
-    const author =
-      (fileData.frontmatter as any)?.author ?? (cfg as any).author ?? cfg.pageTitle
+    const author = (fileData.frontmatter as any)?.author ?? (cfg as any).author ?? cfg.pageTitle
     const dates = fileData.dates
     const isArticle = !isHome && !is404 && !!fileData.frontmatter
     const ogType = isArticle ? "article" : "website"
@@ -131,8 +130,16 @@ export default (() => {
         )}
         <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossOrigin="anonymous" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="theme-color" content={cfg.theme.colors.lightMode.light} media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content={cfg.theme.colors.darkMode.light} media="(prefers-color-scheme: dark)" />
+        <meta
+          name="theme-color"
+          content={cfg.theme.colors.lightMode.light}
+          media="(prefers-color-scheme: light)"
+        />
+        <meta
+          name="theme-color"
+          content={cfg.theme.colors.darkMode.light}
+          media="(prefers-color-scheme: dark)"
+        />
 
         {!is404 && <link rel="canonical" href={canonicalUrl} />}
         {!is404 && cfg.locale && (
@@ -158,11 +165,8 @@ export default (() => {
         {isArticle && dates?.modified && (
           <meta property="article:modified_time" content={dates.modified.toISOString()} />
         )}
-        {isArticle && (
-          <meta property="article:author" content={author} />
-        )}
-        {isArticle &&
-          tags.map((t) => <meta property="article:tag" content={t} key={`tag-${t}`} />)}
+        {isArticle && <meta property="article:author" content={author} />}
+        {isArticle && tags.map((t) => <meta property="article:tag" content={t} key={`tag-${t}`} />)}
 
         <meta name="author" content={author} />
         {tags.length > 0 && <meta name="keywords" content={tags.join(", ")} />}

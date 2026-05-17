@@ -17,9 +17,15 @@ const config: QuartzConfig = {
     },
     locale: "zh-CN",
     baseUrl: "xiaohui.cool",
-    ignorePatterns: ["private", "templates", ".obsidian", "*.canvas", "claude-code-*.html", "CLAUDE.md"],
+    ignorePatterns: [
+      "private",
+      "templates",
+      ".obsidian",
+      "*.canvas",
+      "claude-code-*.html",
+      "CLAUDE.md",
+    ],
     defaultDateType: "created",
-    generateSocialImages: true,
     theme: {
       fontOrigin: "googleFonts",
       cdnCaching: true,

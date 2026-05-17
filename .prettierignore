@@ -1,3 +1,16 @@
 public
 node_modules
 .quartz-cache
+
+# Obsidian vault internals (plugins, themes, cache) — third party, do not format
+**/.obsidian/
+
+# Content authored by humans — formatting follows author intent, not Prettier
+content/**/*.md
+content/**/*.html
+
+# Extra published pages (handcrafted HTML)
+extra-pages/
+
+# Generated data files
+scripts/cards-data.json
