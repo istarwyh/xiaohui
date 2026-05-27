@@ -32,7 +32,9 @@ const getOpts = ({ target }: Event): { url: URL; scroll?: boolean } | undefined 
   if ("routerIgnore" in a.dataset) return
   const { href } = a
   if (!isLocalUrl(href)) return
-  return { url: new URL(href), scroll: "routerNoscroll" in a.dataset ? false : undefined }
+  const url = new URL(href)
+  if (url.pathname.replace(/\/$/, "") === "/membership") return
+  return { url, scroll: "routerNoscroll" in a.dataset ? false : undefined }
 }
 
 function notifyNav(url: FullSlug) {
