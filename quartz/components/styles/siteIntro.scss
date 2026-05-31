@@ -1,0 +1,10 @@
+.site-intro {
+  margin-top: -0.25rem;
+
+  & > p {
+    font-size: 0.82rem;
+    line-height: 1.45rem;
+    margin: 0;
+    opacity: 0.72;
+  }
+}

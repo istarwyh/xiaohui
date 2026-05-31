@@ -28,6 +28,9 @@ import MatrixDebug from "./MatrixDebug"
 import ReadingProgress from "./ReadingProgress"
 import CardFeed from "./CardFeed"
 import TerminalHome from "./TerminalHome"
+import ExploreHint from "./ExploreHint"
+import SiteIntro from "./SiteIntro"
+import QuoteExhibit from "./QuoteExhibit"
 
 export {
   ArticleTitle,
@@ -60,4 +63,7 @@ export {
   ReadingProgress,
   CardFeed,
   TerminalHome,
+  ExploreHint,
+  SiteIntro,
+  QuoteExhibit,
 }

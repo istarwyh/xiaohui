@@ -44,6 +44,7 @@ export const defaultContentPageLayout: PageLayout = {
   ],
   left: [
     Component.PageTitle(),
+    Component.SiteIntro(),
     Component.MobileOnly(Component.Spacer()),
     Component.Flex({
       components: [
@@ -55,11 +56,23 @@ export const defaultContentPageLayout: PageLayout = {
         { Component: Component.ReaderMode() },
       ],
     }),
-    Component.Explorer(),
+    Component.ConditionalRender({
+      component: Component.QuoteExhibit(),
+      condition: (page) => page.fileData.slug === "index",
+    }),
   ],
   right: [
-    Component.Graph(),
-    Component.DesktopOnly(Component.TableOfContents()),
+    Component.Graph({
+      localGraph: {
+        depth: 2,
+        scale: 1,
+        repelForce: 0.7,
+        linkDistance: 40,
+        fontSize: 0.7,
+        focusOnHover: true,
+      },
+    }),
+    Component.ExploreHint(),
     Component.Backlinks(),
   ],
 }
@@ -69,6 +82,7 @@ export const defaultListPageLayout: PageLayout = {
   beforeBody: [Component.Breadcrumbs(), Component.ArticleTitle(), Component.ContentMeta()],
   left: [
     Component.PageTitle(),
+    Component.SiteIntro(),
     Component.MobileOnly(Component.Spacer()),
     Component.Flex({
       components: [
@@ -79,7 +93,6 @@ export const defaultListPageLayout: PageLayout = {
         { Component: Component.Darkmode() },
       ],
     }),
-    Component.Explorer(),
   ],
   right: [],
 }
