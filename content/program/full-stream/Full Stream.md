@@ -200,6 +200,7 @@ git: https://learngitbranching.js.org/ [[Frequently Git Command]] https://github
 
 - bytebase:https://www.bytebase.com/zh
 - 数据库、服务器二合一：https://github.com/clockworklabs/SpacetimeDB
+- dbx：轻量级跨平台数据库桌面客户端，支持 40+ 种数据库，集成 AI 助手、MCP Server、CLI 和 Docker 自托管：https://github.com/t8y2/dbx
 
 ### i18n
 
@@ -322,6 +323,10 @@ AI 自动 review:https://github.com/Gijela/CR-Mentor
 [[Search Engine Optimization]] ReplyGuy: 帮你推广产品的AI回复工具
 
 - 你的关键词、截图、描述、评分、评论、下载量、应用可靠性等都相辅相成，所以构建一个惊人的解决方案并清晰、吸引地展示它几乎是至关重要的基础。
+
+### 内容创作
+
+- [textream](https://github.com/f/textream)：免费开源的 macOS 提词器，无需注册、可离线使用，支持逐词跟踪、自动滚动和声控三种模式，适用于直播、主持、播客等场景。
 
 ## Practices
 

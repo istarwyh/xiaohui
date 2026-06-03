@@ -97,6 +97,18 @@ Tell the user:
 
 > This strengthens the portfolio layer. I'll update `[profile/project page]`; if it also marks a growth turning point, I'll add a short link in `journey.md`.
 
+## Tool/resource recommendations — Full Stream organizing principle
+
+When the input is a tool, service, or resource recommendation, classify it by the Full Stream development lifecycle phase before choosing a target. Each tool belongs to a specific phase:
+
+- **Requirements Analysis / Modeling / Prototype / Task Breakdown / Test / Coding / Test&Review / Releasing / Operation**
+
+The canonical target for most development tools is `content/program/full-stream/Full Stream.md`, which already has phase-organized subsections (e.g., `DataBase` → `数据库管理工具`, `Operation` → `内容创作`).
+
+Place the tool under the most specific phase subsection that matches its primary use case. A database client goes under Coding → DataBase; a teleprompter goes under Operation → 内容创作; a CI/CD tool goes under Releasing.
+
+Only create a separate page (e.g., in `store/`) when the tool category doesn't fit any existing Full Stream phase.
+
 ## Multi-option plans
 
 If the input touches multiple layers, prefer a multi-layer plan:
