@@ -1,78 +1,65 @@
 # Writing Rules
 
-## File format
+## 核心原则：吸收是化学反应，不是搬运
 
-- Use Markdown.
-- Use YAML frontmatter when creating new articles.
-- Use Obsidian `[[wikilink]]` syntax for cross-references.
-- Wrap English technical terms in backticks.
+每次 absorb 是新输入与已有内容的化学反应。你不是归档员，你是帮助作者**内化**的思考伙伴。
 
-## YAML frontmatter
+1. **消化**：理解输入的核心洞见，用作者的语气重新表达，而不是原封不动粘贴。
+2. **关联**：搜索已有内容，找到可以连接、呼应、对比的观点，用 `[[wikilink]]` 编织成网。
+3. **重组**：如果新旧内容放在一起能产生更深的结构，就打散原有组织，重新编排——合并、拆分、重构都可以。
+4. **升华**：加入个人视角和判断。最终产物应该比原始输入更有深度，让读者感觉这是作者自己想出来的东西，而不是"引用了一段话"。
 
-For new articles:
+不一定每次都要产出独立文章。吸收可以是对已有内容的再梳理——新旧材料发生化学反应后，原有笔记被改写、重组、升级。
 
-```yaml
----
-title: 文章标题
----
-```
+## 写作风格
 
-## Writing style
+- 用作者的语气和判断，不是用第三人称转述。
+- 简洁有力，有比喻和意象。
+- 平衡客观推理与主观洞见。
+- 以中文为主，英文术语用反引号包裹。
 
-- Concise yet thoughtful.
-- Use imagery and metaphor when useful.
-- Naturally integrate personal perspective into narratives.
-- Balance objective reasoning with subjective insight.
-- Primarily Chinese with English technical terms in backticks.
+## 文件格式
 
-## When merging
+- 使用 Markdown，新建文章时包含 YAML frontmatter (`title`)。
+- 使用 Obsidian `[[wikilink]]` 做交叉引用。
+- 英文技术术语用反引号包裹。
 
-- Find the natural insertion point in the existing article.
-- Add a transition sentence if needed.
-- Add `[[wikilinks]]` to related articles when the new content references them.
-- Do not break the existing article's flow.
+## 合入已有文章时
 
-## When creating new articles
+- 找到最佳插入点，但**不要只是追加**——考虑新内容是否改变了原有段落的逻辑，是否需要重排。
+- 添加过渡句让新旧内容自然衔接。
+- 为新的连接点添加 `[[wikilinks]]`。
+- 如果新内容让原文的某段变得多余或矛盾，可以修改或删除。
 
-- Give the file a descriptive name.
-- Use English with hyphens for technical topics when appropriate.
-- Use Chinese names for life/society/personal essays when appropriate.
-- Add links to related existing articles.
-- If useful, add a `Related` section at the bottom.
+## 新建文章时
 
-## When updating `journey.md`
+- 给文件一个有意义的名称。
+- 技术主题优先用英文加连字符命名，生活/社会/随笔用中文命名。
+- 链接到相关已有文章。
+- 如有必要，在文末加 `Related` 小节。
 
-- Keep entries selective and high-signal.
-- Do not add every small event.
-- Place the entry under the correct year or life stage.
-- Prefer a short paragraph or 1-3 bullets per milestone.
-- Link to the detailed article using `[[wikilink]]` when available.
+## 更新 `journey.md` 时
 
-Each milestone should answer, explicitly or implicitly:
+- 保持条目精选、高信号，不要每条都加。
+- 放在正确的年份或人生阶段下。
+- 优先使用简短段落或 1-3 条要点。
+- 用 `[[wikilink]]` 链接到深度文章。
 
-- What happened?
-- Why did it matter?
-- What capability, responsibility, identity, or belief changed?
-- Where can readers see the deeper record?
+每条里程碑应直接或间接回答：
 
-Recommended shape:
+- 发生了什么？
+- 为什么重要？
+- 能力、责任、身份或信念发生了什么变化？
+- 读者在哪里可以看到更深层的记录？
+
+推荐形式：
 
 ```md
 - [事件/角色/项目]：这件事让我从 [旧阶段] 进入 [新阶段]，开始真正关注 [能力/判断/方向]。相关记录：[[文章名]]
 ```
 
-If the input is just an award, connect it to the direction it validates rather than listing it mechanically.
+## 更新 portfolio/profile 页面时
 
-If the input is a project, distinguish between:
-
-- the project result (portfolio layer),
-- the lessons/methods (knowledge layer),
-- the capability upgrade (journey layer).
-
-## When updating portfolio/profile surfaces
-
-- Use concrete proof: metrics, role, responsibility, shipped artifact, award name, public link.
-- Avoid over-selling.
-- Keep the tone credible and specific.
-- If the same event also matters to growth, add only a concise pointer in `journey.md`.
-- Portfolio/profile pages prove "what I can do"; `journey.md` explains "why I became this person"; normal articles preserve "what I know".
+- 使用具体证据：指标、角色、责任、交付物、奖项名称、公开链接。
+- 避免过度推销，用事实说话。
+- 如果同一事件也对成长有意义，在 `journey.md` 中只加简短指针。

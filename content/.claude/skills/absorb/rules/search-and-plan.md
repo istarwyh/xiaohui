@@ -20,15 +20,19 @@ For personal experiences, also extract:
 - **Capability or belief change**: What changed after this experience?
 - **Evidence/link**: Is there a related article, project, award, screenshot, or external proof?
 
-## Step 2: Search existing content
+## Step 2: Search existing content — look for connections, not just slots
 
-Before making any placement decision, search the existing blog.
+Before making any placement decision, search the existing blog. But don't just look for "where this fits" — look for:
+
+1. **Direct overlap**: Articles that discuss the same topic.
+2. **Adjacent ideas**: Articles that touch related themes and could be enriched by this input.
+3. **Contrasting views**: Articles that take a different angle — tension creates depth.
+4. **Structural opportunities**: Places where existing content could be reorganized alongside the new input to form a better structure.
 
 Use:
 
 1. keyword search across Markdown files,
-2. QMD semantic search with intent,
-3. relevant directory browsing and article skimming.
+2. relevant directory browsing and article skimming.
 
 Do not create a new article before searching for related content.
 
@@ -66,7 +70,9 @@ Before making changes, present the plan and wait for confirmation.
 
 **Target**: [file path or directory]
 
-**Action**: [merge / create new article / create new directory + article / update journey index / update profile surface]
+**Action**: [merge / create new article / create new directory + article / update journey index / update profile surface / reorganize existing content]
+
+**化学反应**: [新输入与哪些已有内容产生了连接？会如何重组或改写？]
 
 **Journey update**: [none / add under year X with this concise milestone]
 

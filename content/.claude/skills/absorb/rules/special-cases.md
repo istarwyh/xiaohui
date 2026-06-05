@@ -26,7 +26,8 @@ If the input is rough or incomplete, suggest `whiteboard/` as a staging area rat
 
 - Do not create a new article without searching existing related content first.
 - Do not merge content into an unrelated article just to avoid creating a new file.
-- Do not change the user's original content significantly; adapt style and format, but preserve the user's ideas.
+- Do not paste the input verbatim — always digest and re-express in the author's voice.
+- Do not treat absorb as filing — it's a chemical reaction between new input and existing content. Always look for connections, contrasts, and reorganization opportunities.
 - Do not add `[[wikilinks]]` to articles that do not exist unless the user wants to create them.
 - Do not proceed without presenting the absorption plan first.
 - Do not turn `journey.md` into a resume or changelog.
