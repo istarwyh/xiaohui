@@ -119,10 +119,13 @@ tags:
 - 带队获得 2025 蚂蚁集团黑客松三等奖
 - 获得首届阿里&蚂蚁 ATA 个人 Agent 最佳实践奖
 - 获得 2025 蚂蚁集团年度优秀创作者
+- 2025 年 8 月 28 日，在阿里集团奇点学堂分享 `AI Coding` 工具与实战案例，主打 `Claude Code` 最佳实践。[AI Speeds](https://aispeeds.me) 最早也是为了分享 `Claude Code` 最佳实践而诞生。相关记录：[[【万字长文】 最强 AI Coding：Claude Code 最佳实践]]
+- 2025 年 12 月 23 日，面向钱塘征信同事分享 C 端 `AIGC` 实践、`Agent` 上下文工程与应用架构。这次分享把真实业务里的 `Agent` 实践进一步沉淀成可迁移的方法论。相关记录：[[Harness Engineering: C 端 AIGC 实时生成系统]]、[[【年度总结】从Claude Code到 OneAgent：如何做好上下文工程]]
 
 代表文章：
 
 - [[如何快速创建领域Agent - OneAgent + MCPs 范式]]
+- [[【万字长文】 最强 AI Coding：Claude Code 最佳实践]]
 - [[【年度总结】从Claude Code到 OneAgent：如何做好上下文工程]]
 - [[如何打造可靠的Agent系统]]
 - [[Agent Teams 的原理与实践]]
@@ -140,7 +143,9 @@ tags:
 
 关键经历：
 
-- 受周建华邀约，在平安健康险团队进行首次外部技术分享（Harness Engineering），两小时分享反响热烈。这是我第一次在公司外扩大技术影响，帮助外部团队解决 AI 工程与 AI 转型问题。相关记录：[[Harness Engineering: C 端 AIGC 实时生成系统]]
+- 2026 年 3 月，面向蚂蚁保产品团队分享 `Claude Code` 进阶课程；随后受奕安对接邀请，面向蚂蚁保 `BI` 团队分享 `Claude Code` 入门与进阶课程。这让我把自己在 `AI Coding`、上下文工程和 `Claude Code` 使用中的经验，进一步沉淀成面向产品与 `BI` 同学的超级个体方法论。相关记录：[[【万字长文】 最强 AI Coding：Claude Code 最佳实践]]、[AI Speeds](https://aispeeds.me)
+- 2026 年 3–6 月，`Harness Engineering` 从项目实践走向连续技术传播：受聪安、行见、Kris、经香、心令对接或邀请，先后面向阿里国际 Accio 团队、蚂蚁集团平台体验技术部智能工程技术团队、阿里集团 ATH 事业群心流团队分享 `Harness` 提效与工程化实践；4 月在蚂蚁集团“技术夜校”做 `Harness` 开放麦专场，分享 1 小时并回答问题半个多小时；6 月 11 日将于高德大群直播分享。这让我意识到，`Harness Engineering` 不只是保险场景里的项目经验，而是一套可以迁移到更多智能工程团队的工作方法。相关记录：[[如何放心 100% AI 交付需求(3) -- 为 AI 打造可持续迭代的环境]]
+- 受周建华邀约，在平安健康险团队进行首次外部技术分享（`Harness Engineering`），两小时分享反响热烈。这是我第一次在公司外扩大技术影响，帮助外部团队解决 `AI` 工程与 `AI` 转型问题。相关记录：[[Harness Engineering: C 端 AIGC 实时生成系统]]
 
 当前标签：
 
