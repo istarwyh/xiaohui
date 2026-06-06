@@ -106,6 +106,10 @@ const config: QuartzConfig = {
         rssLimit: 20,
         rssFullHtml: true,
       }),
+      Plugin.AgentIndex({
+        siteDescription:
+          "晓灰的公开数字花园，聚焦 AI Agent、MCP、软件工程、学习、社会观察与个人思考。",
+      }),
       Plugin.Assets(),
       Plugin.Static(),
       Plugin.NotFoundPage(),

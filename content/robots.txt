@@ -1,5 +1,12 @@
 User-Agent: *
 Allow: /
+
+# Agent / LLM discovery entrypoints
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /agent/
+Allow: /static/contentIndex.json
+
 Disallow: /whiteboard/
 Disallow: /tags/
 Disallow: /*?*
