@@ -114,6 +114,7 @@ tags:
 
 关键经历：
 
+- 2025 年 1 月 21 日，因给 `AgentUniverse` 开源项目提交 [#202 PR](https://github.com/agentuniverse-ai/agentUniverse/pull/202)，获得蚂蚁开源轻训营-最佳贡献奖。这是我从使用 `Agent` 框架走向参与 `Agent` 开源生态的一次早期证明。相关记录：[[Case Analysis AI Agent]]、[[如何快速创建领域Agent - OneAgent + MCPs 范式]]
 - 负责蚂蚁保保险科技 MCP 相关工作
 - 开发 MCPAdvisor，获得 2025 OceanBase AI 黑客松二等奖
 - 带队获得 2025 蚂蚁集团黑客松三等奖
