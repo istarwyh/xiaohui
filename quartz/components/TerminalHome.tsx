@@ -17,17 +17,23 @@ function normalizePageId(slug: string): FullSlug {
   return slugifyFilePath(slug as FilePath)
 }
 
-function findPageSlug(pageId: string, allFiles: QuartzPluginData[], label: string): FullSlug {
+function findOptionalPageSlug(pageId: string, allFiles: QuartzPluginData[]): FullSlug | undefined {
   const normalizedSlug = normalizePageId(pageId)
   const page = allFiles.find((f) => f.slug === normalizedSlug)
+  return page?.slug as FullSlug | undefined
+}
 
-  if (!page?.slug) {
+function findPageSlug(pageId: string, allFiles: QuartzPluginData[], label: string): FullSlug {
+  const slug = findOptionalPageSlug(pageId, allFiles)
+
+  if (!slug) {
+    const normalizedSlug = normalizePageId(pageId)
     throw new Error(
       `TerminalHome ${label} points to a missing page: "${pageId}" (normalized: "${normalizedSlug}")`,
     )
   }
 
-  return page.slug as FullSlug
+  return slug
 }
 
 // 手选 pillar content：代表「晓灰 = AI Agent 实践者」的核心叙事
@@ -73,9 +79,14 @@ export default (() => {
       .sort(byDateAndAlphabetical(cfg))
       .slice(0, 4)
 
-    const aboutSlug = findPageSlug("Farming-in-the-cyber-world", allFiles, "about link")
-    const journeySlug = findPageSlug("journey", allFiles, "journey link")
-    const membershipSlug = findPageSlug("membership", allFiles, "membership link")
+    const aboutSlug = findOptionalPageSlug("Farming-in-the-cyber-world", allFiles)
+    const journeySlug = findOptionalPageSlug("journey", allFiles)
+    const membershipSlug = findOptionalPageSlug("membership", allFiles)
+
+    if (!aboutSlug || !journeySlug || !membershipSlug) {
+      return <></>
+    }
+
     const featuredPages = featured.map((item) => ({
       ...item,
       pageSlug: findPageSlug(item.slug, allFiles, `featured link "${item.title}"`),
