@@ -35,6 +35,28 @@ published: 2024-11-17T20:57:23+08:00
 
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260607171121230.png)
 
+### 部分证明材料
+
+OceanBase `AI` 黑客松二等奖领奖照片：
+
+![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260607220950044.jpg)
+
+蚂蚁集团黑客松三等奖奖杯：
+
+![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260607220540923.jpg)
+
+财保 ACE「AI 先锋」领奖合照：
+
+![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260607220831934.jpg)
+
+平安健康险 `Harness Engineering` 分享现场：
+
+![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260607221053330.jpg)
+
+分享后的听众反馈：
+
+![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260607231208677.png)
+
 - 围绕 `Harness Engineering` 提效与工程化实践，面向阿里国际 Accio 团队、蚂蚁集团平台体验技术部智能工程技术团队、阿里集团 ATH 事业群心流团队、平安健康险团队进行技术分享，并在蚂蚁集团“技术夜校”完成 `Harness` 开放麦专场；另受邀将于高德大群直播分享
 - 在阿里集团奇点学堂分享 `AI Coding` 工具与实战案例，面向财富与保险事业群 HR 团队、蚂蚁保产品团队、蚂蚁保 `BI` 团队分享 `Claude Code` 工作提效、入门与进阶课程，并建设 [AI Speeds](https://aispeeds.me) 分享 `Claude Code` 最佳实践与超级个体方法
 - 面向钱塘征信团队分享 C 端 `AIGC` 实践、`Agent` 上下文工程与应用架构
