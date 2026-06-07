@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 ## 1. Redis的逆袭
 Redis最早的需求和Tair诞生的背景类似，当时是antirez这个人想要自己的网站支持用户浏览实时更新的访客记录列表，然后发现查Mysql这种数据库太慢，而市面上居然只有Mysql这种持久化数据库，所以他选择自己写一个内存里面的列表，于是2009年Redis诞生了，同年Tair也诞生了。
 >Redis is an open source (BSD licensed), in-memory **data structure store,** used as a database, cache, and message broker. Redis provides data structures such as **strings, hashes, lists, sets, sorted sets** with range queries, **bitmaps, hyperloglogs, geospatial indexes,** and **streams.** Redis has built-in replication, Lua scripting, LRU eviction, transactions, and different levels of on-disk persistence, and provides high availability via Redis Sentinel and automatic partitioning with Redis Cluster.

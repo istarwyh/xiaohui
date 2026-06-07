@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-10-08T10:56:17+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 公众号标题不能放Emoji 源于[一个Javascript 报错](https://mp.weixin.qq.com/s/LH2PtRWsHHrVMhJekLDLOA),以下Emoji 可以规避掉这个报错：face-smiling: 🤣🫠
 
 face-affectionp: 🥰🤩🥲

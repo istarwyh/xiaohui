@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 - 项目脚手架：[COLA](https://github.com/alibaba/COLA)
 - 代码风格：Google-Style-formatter
  - Java 版本切换：sdkman

@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 ## 1. Current Research Hotspots
 ### 1.1. Trusted Computing
 With Trusted Computing ( TC ), the computer will consistently behave in expected ways in order to improve the security of computer system, and those behaviors will be enforced by computer hardware and software. 

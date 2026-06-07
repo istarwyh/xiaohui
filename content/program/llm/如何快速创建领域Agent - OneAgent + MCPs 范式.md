@@ -1,3 +1,19 @@
+---
+title: 如何快速创建领域 Agent — OneAgent + MCPs 范式
+created: 2025-06-15T16:02:47+08:00
+modified: 2026-05-14T09:03:01+08:00
+published: 2025-06-15T16:02:47+08:00
+description: Agent 开发范式演进史：从单一 LLM 调用、Workflow 编排到 Multi-Agent 系统，再到受 Manus 和 Claude Code 启发的 OneAgent + MCPs 范式 — 蚂蚁保 MCP 落地实践。
+permalink: program/llm/如何快速创建领域Agent - OneAgent + MCPs 范式
+tags:
+  - AI Agent
+  - OneAgent
+  - MCP
+  - LLM
+  - Manus
+  - Claude Code
+---
+
 > 本文已被[《阿里云开发者》](https://mp.weixin.qq.com/s/1klXy2fr1pspqRshUjg2dQ)转载，获得1万阅读，1300+转发
 
 类似 Manus 根据 to-do 交付业务需求其实是一种新的单领域 Agent 开发范式，让我们从最简单的 LLM 调用讲起：
@@ -109,6 +125,7 @@ MCP 最近的爆火，除了万物互联的理想、生态逐渐成熟，期望 
 
 OneAgent + MCPs 范式将是每个闭环领域内的一种Agent 智能落地实践。在各个领域或组织都涌现出自己的 Agent 之后，Agent 与 Agent 更大维度上的交流合作也会随之发生(A2A, Agent2Agent 协议)。当然 OneAgent 套 OneAgent 共同完成任务的情况也会自然出现：
 
+
 ```mermaid
 graph LR
 
@@ -173,6 +190,7 @@ style Tool3 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:8
 style Tool4 fill:#e0f2f1,stroke:#555,stroke-width:2px,rx:8,ry:88
 
 ```
+
 
 而这些具有一定自主能力的会形成一个 Agent Society。到那时Agent 就是我们同事的一份子。
 
@@ -450,7 +468,7 @@ OneAgent + MCPs 范式旨在通过强大的基础Agent 结合 MCP 派生领域 A
 
 虽然还没有实现通用的业务需求打工Agent, 但是我们已经在用Cline配合公司内部 V3模型深度使用 AI Coding ，很多胶水代码、CRUD 代码尽量交给 AI 来做，我负责维护输出"vibe":) 希望后面每个业务场景都可以借助OneAgent + MCPs 实现AI Coding。
 
-```
+
 
 ## 参考
 
@@ -463,4 +481,3 @@ OneAgent + MCPs 范式旨在通过强大的基础Agent 结合 MCP 派生领域 A
 - 内部文档：[[痛定思痛，AI Agent 给我的教训]]
 - [Greg Benson 教授关于分层多智能体架构的分析](https://github.com/SnapLogic/agent-continuations?tab=readme-ov-file)
 - [A2A (Agent2Agent) 协议](https://google-a2a.github.io/A2A/specification/#723-taskartifactupdateevent-object)
-```

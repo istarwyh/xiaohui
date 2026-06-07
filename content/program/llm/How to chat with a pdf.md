@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 ## 1. 现有案例
 - [chatDoc](https://chatdoc.com/chatdoc/#/chat/8fc7c110-8afe-45a5-9c6a-6446be454554)
 - https://www.chatpdf.com

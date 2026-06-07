@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/202312232131357.png)
 
 2000年的时候电子游戏厅还是电子鸦片，但是现在已经不是了，代之的是网络游戏。

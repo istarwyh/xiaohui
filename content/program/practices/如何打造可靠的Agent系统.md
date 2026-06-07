@@ -1,3 +1,18 @@
+---
+title: 如何打造可靠的 Agent 系统
+created: 2025-10-19T19:03:57+08:00
+modified: 2026-05-14T09:03:01+08:00
+published: 2025-10-19T19:03:57+08:00
+description: 从 OneAgent + MCPs 范式出发，深入 Python 技术栈下的 Agent Runtime 架构 — 多请求并发、多轮对话、用户画像、Checkpointer、容量规划与性能调优的工程实践。
+tags:
+  - AI Agent
+  - Agent Runtime
+  - LangGraph
+  - Python
+  - 工程实践
+  - 性能调优
+---
+
 ## 目录
 
 0. 前言与适用范围

@@ -9,17 +9,23 @@ import * as Plugin from "./quartz/plugins"
 const config: QuartzConfig = {
   configuration: {
     pageTitle: "🌥️ 晓灰",
-    pageTitleSuffix: " - 个人知识库",
+    pageTitleSuffix: " | AI Agent · MCP 实践者",
     enableSPA: true,
     enablePopovers: true,
     analytics: {
       provider: "plausible",
     },
     locale: "zh-CN",
-    baseUrl: "https://xiaohui.cool",
-    ignorePatterns: ["private", "templates", ".obsidian", "*.canvas", "claude-code-*.html"],
+    baseUrl: "xiaohui.cool",
+    ignorePatterns: [
+      "private",
+      "templates",
+      ".obsidian",
+      "*.canvas",
+      "claude-code-*.html",
+      "CLAUDE.md",
+    ],
     defaultDateType: "created",
-    generateSocialImages: true,
     theme: {
       fontOrigin: "googleFonts",
       cdnCaching: true,
@@ -99,6 +105,10 @@ const config: QuartzConfig = {
         enableRSS: true,
         rssLimit: 20,
         rssFullHtml: true,
+      }),
+      Plugin.AgentIndex({
+        siteDescription:
+          "晓灰的公开数字花园，聚焦 AI Agent、MCP、软件工程、学习、社会观察与个人思考。",
       }),
       Plugin.Assets(),
       Plugin.Static(),

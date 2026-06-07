@@ -8,6 +8,9 @@ import { toHtml } from "hast-util-to-html"
 import { write } from "./helpers"
 import { i18n } from "../../i18n"
 import DepGraph from "../../depgraph"
+import { BuildCtx } from "../../util/ctx"
+import { StaticResources } from "../../util/resources"
+import { ProcessedContent } from "../vfile"
 
 export type ContentIndex = Map<FullSlug, ContentDetails>
 export type ContentDetails = {
@@ -93,7 +96,11 @@ export const ContentIndex: QuartzEmitterPlugin<Partial<Options>> = (opts) => {
   opts = { ...defaultOptions, ...opts }
   return {
     name: "ContentIndex",
-    async getDependencyGraph(ctx, content, _resources) {
+    async getDependencyGraph(
+      ctx: BuildCtx,
+      content: ProcessedContent[],
+      _resources: StaticResources,
+    ) {
       const graph = new DepGraph<FilePath>()
 
       for (const [_tree, file] of content) {

@@ -18,12 +18,13 @@
     "format": "npx prettier . --write",
     "test": "tsx ./quartz/util/path.test.ts && tsx ./quartz/depgraph.test.ts",
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1",
-    "sync-vnote": "./scripts/sync-vnote.sh",
     "update-homepage": "node ./scripts/update-homepage.js",
-    "sync": "npm run sync-vnote && npm run update-homepage && npx quartz sync",
-    "build": "npm run update-homepage && npx quartz build && cp -r extra-pages/* public/",
-    "build:cf": "git fetch --unshallow || true && npm run build",
-    "postinstall": "node ./scripts/check-git-deps.js"
+    "sync": "npm run update-homepage && npx quartz sync",
+    "build": "git fetch --unshallow || git fetch --all --tags --force --prune || true && npm run update-homepage && npx quartz build && cp -r extra-pages/* public/",
+    "build:cf": "npm run build",
+    "backfill:dates": "node ./scripts/backfill-frontmatter-dates.js",
+    "check:frontmatter": "node ./scripts/check-frontmatter.js --all",
+    "postinstall": "node ./scripts/check-git-deps.js && bash ./scripts/install-hooks.sh || true"
   },
   "engines": {
     "npm": ">=9.3.1",
@@ -115,7 +116,7 @@
     "@types/source-map-support": "^0.5.10",
     "@types/ws": "^8.18.1",
     "@types/yargs": "^17.0.35",
-    "esbuild": "^0.27.2",
+    "esbuild": "^0.28.0",
     "prettier": "^3.8.3",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3"

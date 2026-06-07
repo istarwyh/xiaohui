@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2024-11-17T20:57:23+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 See wiki: https://en.wikipedia.org/wiki/Write-ahead_logging
 
 [>](https://medium.com/@atri_iiita/what-is-wal-write-ahead-log-965bc6057a19)The concept of Write-Ahead Log (WAL) is not limited to PostgreSQL but is also used in other database systems. Here are some examples of where WAL or similar log-based mechanisms are employed:

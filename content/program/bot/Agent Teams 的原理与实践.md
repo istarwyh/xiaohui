@@ -1,3 +1,9 @@
+---
+created: 2026-04-07T00:07:40+08:00
+modified: 2026-05-13T08:48:02+08:00
+published: 2026-04-07T00:07:40+08:00
+---
+
 在之前的[【万字长文】最强 AI Coding：Claude Code 最佳实践](https://mp.weixin.qq.com/s/xxx)中，我们提到了通过 Git Worktree 和 subAgent 实现多 Claude 并发干活。但这些方案本质上还是"各干各的"——要么靠人来协调，要么 subAgent 只能单向汇报给 hostAgent。
 
 现在，Claude Code 推出了实验性的 **Agent Teams** 功能，终于把"多 Agent 协作"这件事做成了一个完整的框架：有 Team Lead、有 Teammates、有共享任务列表、有消息通信机制。简单来说就是——Claude 终于能**组队开黑**了。
@@ -645,7 +651,7 @@ Lead 拆解为：
 这个例子来自真实场景——就是你正在读的这篇文章。文章初稿完成后，还有大量的打磨工作：检查内容质量、配图、调研竞品补充深度、思考更宏观的叙事角度。这些工作彼此独立，天然适合并行。
 
 ```
-你：文章初稿写好了，在 docs/Vnote/program/bot/ 目录下。
+你：文章初稿写好了，在 content/program/bot/ 目录下。
     请用 agent team 帮我做以下事情：
     1. 校对文章，检查事实性错误、逻辑断裂、表述不清的地方
     2. 为文章中的关键概念配图（架构图、流程图）

@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 >Please provide a clear and accessible explanation of how master-slave synchronization using Redo Log can improve data management and storage, with relevant real-world examples. And what is the difference, advantages and disadvantages between binlog master-salve data synchronization and redo log master-salve data synchronization?
 >
 >Please also include relevant resources or tips for further learning on this topic, such as reputable sources and recommended reading.

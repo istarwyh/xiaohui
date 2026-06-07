@@ -1,3 +1,9 @@
+---
+created: 2025-01-05T21:42:42+08:00
+modified: 2025-06-15T16:02:47+08:00
+published: 2025-01-05T21:42:42+08:00
+---
+
 ## 前言
 
 这篇文章主要是痛定思痛 AI 产品如何能够更好的真正上生产。基于 AI Agent （理想中结合LLM和自主完成复杂任务）打造 LLM 应用是现在炙手可热的技术潮流，之前[[Case Analysis AI Agent]] 也打造了一个案件分析的智能体。这个智能体虽然会判断选择哪些方向进行案件调查，但是因为核心只从三个方向判断索赔案件的欺诈风险: 投保人的健康、财务和投保行为，被认为没有充分利用AI Agent的推理能力，只是一个 SOP（Standard Operating Procedure，标准作业程序）的汇总总结。一般认为，比如 Athropic 在 [building-effective-agents](https://www.anthropic.com/research/building-effective-agents) 中的说法，这种做法因为更接近预定代码路径编排LLM 和工具，其实是工作流（**Workflows**）而不是 Agents。所以后面我在赔付率异动分析中探索了LLM 根据领域专家知识决定分析方向的能力，但是效果很差！事情是这样的... 首先声明，受限于企业内部安全政策，demo 阶段使用过 GPT-4o,综合效果确实好于Qwen系列。不过后续正式开发没有测试 Claude 和 OpenAI 的模型，主要使用自部署的 Qwen-72b-Instruct 和 Qwen-14b-Instruct。

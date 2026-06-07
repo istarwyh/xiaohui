@@ -1,3 +1,9 @@
+---
+created: 2025-04-05T21:19:01+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2025-04-05T21:19:01+08:00
+---
+
 ## 行业现状与发展
 
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/202312282017882.jpg)

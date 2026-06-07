@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 #resource 
 Trancy —— 沉浸式 AI 语言学习工具链接：https://www.trancy.org/zh-cn 
 

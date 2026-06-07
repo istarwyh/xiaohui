@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 ## 1.1. Why Do We Learn Linux?
 1. 使用标准C/C++编写运行在 Linux上的应用程序
 2. 编写部署在Linux上的应用程序,如Python,Java Web服务程序

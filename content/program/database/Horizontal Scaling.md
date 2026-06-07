@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 Horizontal scaling, also known as scaling out, is a method of increasing the capacity of a system by adding more machines or nodes to the system. In horizontal scaling, additional machines are added to the system in order to share the workload and increase the system's capacity to handle more traffic or data.
 
 For example, if a website is experiencing heavy traffic and is struggling to handle the load, horizontal scaling can be used to add more servers to the system. Each server handles a portion of the traffic, which allows the system to handle more overall traffic.

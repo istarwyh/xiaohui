@@ -1,5 +1,6 @@
-import { Root as HTMLRoot } from "hast"
+import { Root as HTMLRoot, Element } from "hast"
 import { toString } from "hast-util-to-string"
+import { visit, SKIP } from "unist-util-visit"
 import { QuartzTransformerPlugin } from "../types"
 import { escapeHTML } from "../../util/escape"
 
@@ -29,7 +30,18 @@ export const Description: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
         () => {
           return async (tree: HTMLRoot, file) => {
             let frontMatterDescription = file.data.frontmatter?.description
-            let text = escapeHTML(toString(tree))
+            // Exclude <script> and <style> content from extracted text to avoid
+            // tracking snippets bleeding into the meta description.
+            const visibleTree: HTMLRoot = JSON.parse(JSON.stringify(tree))
+            visit(visibleTree, "element", (node: Element, index, parent: any) => {
+              if (node.tagName === "script" || node.tagName === "style") {
+                if (parent && typeof index === "number") {
+                  parent.children.splice(index, 1)
+                  return [SKIP, index]
+                }
+              }
+            })
+            let text = escapeHTML(toString(visibleTree))
 
             if (opts.replaceExternalLinks) {
               frontMatterDescription = frontMatterDescription?.replace(

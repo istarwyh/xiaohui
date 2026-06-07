@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 
 ## 1. 尾田的心声
 ![](https://gitee.com/istarwyh/images/raw/master/vnote/程序员练级之路/生活/open/对海贼王的批评/对海贼王的批评.md/ca9870f1f7a5d64a_Ahf6TVF3bt.jpg)

@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 由配置VS Code引发的思考:产品设计,LSP,DAP,VSCRD
 
 >对于C/C++的配置, [一位](https://blog.csdn.net/bat67/article/details/76095813) 全面一些,[一位](https://www.cnblogs.com/TAMING/p/8560253.html)排版好一些.对于Java[这位](https://www.cnblogs.com/zhaoshizi/p/9524421.html)不错。

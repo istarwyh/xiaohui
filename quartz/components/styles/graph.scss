@@ -10,7 +10,7 @@
     border-radius: 5px;
     border: 1px solid var(--lightgray);
     box-sizing: border-box;
-    height: 250px;
+    height: 360px;
     margin: 0.5em 0;
     position: relative;
     overflow: hidden;
@@ -69,5 +69,16 @@
         width: 90%;
       }
     }
+  }
+}
+
+body[data-slug="index"] .graph > .graph-outer {
+  height: 420px;
+}
+
+@media all and not ($desktop) {
+  .graph > .graph-outer,
+  body[data-slug="index"] .graph > .graph-outer {
+    height: 300px;
   }
 }

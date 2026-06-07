@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-10-08T10:56:17+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 ## Anthropic Mega-Prompt
 
 最近 Anthropic 官方推出了一个[Prompt生成器](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/prompt-generator)，能够将你输入的一句很简单、不完善不规范的提示语“翻译”成为一段优秀的提示语。其核心逻辑其实依靠的也是一条超级prompt，或者英文叫mega-prompt。

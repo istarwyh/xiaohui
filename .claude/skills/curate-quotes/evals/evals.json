@@ -1,0 +1,23 @@
+{
+  "skill_name": "curate-quotes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我想把首页左侧做成金句展览，但还没有确定主题。请先读一下项目里的文章，给我 3 个适合策展的主题候选，并说明每个主题可能对应哪些文章。",
+      "expected_output": "The assistant should use the skill, scan local markdown articles, propose 3 theme candidates with reader question, curator thesis, and likely article clusters, without inventing quotes yet.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "请围绕『AI Agent 如何建立交付信任』做一期金句策展，要求 3-5 条，必须来自不同文章的原文，并且每条都能点回原文章。",
+      "expected_output": "The assistant should extract only verified source quotes from local project articles, provide source title/path/link/line metadata, arrange quotes into a coherent exhibition arc, and avoid fabricated text.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "我已经确认主题和金句了。请把这期策展输出成后续首页组件可以读取的结构化数据，但先不要改首页 UI。",
+      "expected_output": "The assistant should ask or infer a data destination, write maintainable JSON or TypeScript data with theme, slug, curator note, quote metadata, source excerpts, and article links, while not modifying rendering code.",
+      "files": []
+    }
+  ]
+}

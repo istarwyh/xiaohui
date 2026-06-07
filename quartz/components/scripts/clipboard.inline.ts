@@ -35,3 +35,5 @@ document.addEventListener("nav", () => {
     }
   }
 })
+
+export {}

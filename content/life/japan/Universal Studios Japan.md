@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
   
 【官方】大阪环球影城指南：  
 https://www.usj.co.jp/tridiondata/usj/zh/cn/files/documents/usj-pdf-studio-guide-cn.pdf

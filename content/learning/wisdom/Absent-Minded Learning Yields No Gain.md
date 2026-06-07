@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 #ScottYoung
 We can only keep a few things in mind at any one time. George Miller initially pegged the number at seven, plus or minus two items. But more recent work has suggested the number is closer to four things.
 

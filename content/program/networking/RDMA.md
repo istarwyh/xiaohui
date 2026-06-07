@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 `Remote Direct Memory Access` (`RDMA`) is a networking technology that allows direct access to the memory of another computer without involving the remote computer's operating system or CPU. This direct access results in lower latency and higher throughput, as it bypasses the traditional protocol stack, reducing the amount of processing overhead.
 
 RDMA was developed to address the increasing need for efficient and high-performance data transfer in modern computing environments, particularly in high-performance computing (HPC), data centers, and cloud computing. RDMA supports various transport protocols, including InfiniBand, RoCE (RDMA over Converged Ethernet), and iWARP (Internet Wide Area RDMA Protocol).

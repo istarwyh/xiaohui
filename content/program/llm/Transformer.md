@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-15T00:27:54+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 https://mp.weixin.qq.com/s/FtLxZPzPyt2Ccv9KHZHOGA Attention is all you need
 
 GPT是首先将海量文本数据转换为统一的 token表示，然后送给Transformer模型进行预训练，最后根据下游任务进行“下一个token 的预测”。而Sora则是首先将海量视频数据转换为统一的patch表示，然后送给Diffusion Transformer模型进行预训练，最后根据下游任务进行“下一个Patch的预测”。

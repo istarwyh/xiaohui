@@ -1,4 +1,7 @@
 ---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-11-30T21:27:53+08:00
+published: 2024-11-17T20:57:23+08:00
 reference: Deci, E. L., & Ryan, R. M. (2012). Self-Determination Theory. In P. A. M. Van Lange, A. W. Kruglanski, & E. T. Higgins, Handbook of Theories of Social Psychology (pp. 416–437). SAGE Publications Ltd.
 ---
 

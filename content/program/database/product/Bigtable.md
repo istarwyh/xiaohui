@@ -1,3 +1,9 @@
+---
+created: 2024-11-17T20:57:23+08:00
+modified: 2025-09-18T09:27:31+08:00
+published: 2024-11-17T20:57:23+08:00
+---
+
 Google Cloud Bigtable is a NoSQL wide-column database. The wide-column data model is a type of columnar storage, but it's not quite the same as traditional column storage databases.[^BigtableWiki]
 
 In a traditional column storage database, data is stored by column rather than by row. This can be beneficial for analytical queries that aggregate values in a column because the database can read the column data in a continuous disk scan.
