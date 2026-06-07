@@ -1,3 +1,8 @@
+---
+created: 2026-05-15
+modified: 2026-05-15
+---
+
 # Brand Layers
 
 Use this model for every absorption decision. A single input may belong to multiple layers.

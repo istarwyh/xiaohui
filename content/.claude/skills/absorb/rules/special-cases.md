@@ -1,3 +1,8 @@
+---
+created: 2026-05-15
+modified: 2026-06-05
+---
+
 # Special Cases and Guardrails
 
 ## URL input

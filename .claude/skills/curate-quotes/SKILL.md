@@ -110,18 +110,23 @@ Use this structure for the first proposal:
 # 金句策展提案：{theme}
 
 ## 策展命题
+
 {1-2 sentences explaining what these articles collectively answer.}
 
 ## 目标读者
+
 {Who this is for and what curiosity it serves.}
 
 ## 展览动线
+
 1. {role}: {why this position comes first}
 2. {role}: {why this position follows}
-...
+   ...
 
 ## 入选金句
+
 ### 1. {role label}
+
 > {quote}
 
 - 来源：[{article_title}]({article_href_or_path})
@@ -130,9 +135,11 @@ Use this structure for the first proposal:
 - 策展理由：{one concise reason}
 
 ## 备用候选
+
 - {quote summary} — `{article_path}` — {why it was not selected}
 
 ## 需要作者确认
+
 - {theme wording, quote count, ordering, data destination, or unresolved source-link issues}
 ```
 

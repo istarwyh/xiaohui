@@ -1,3 +1,8 @@
+---
+created: 2026-05-08
+modified: 2026-05-13
+---
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.

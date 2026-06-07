@@ -1,3 +1,8 @@
+---
+created: 2026-05-15
+modified: 2026-06-03
+---
+
 # Placement Options
 
 After searching existing content, choose one or more options.

@@ -1,3 +1,8 @@
+---
+created: 2026-05-15
+modified: 2026-05-15
+---
+
 # Farming vs Journey Boundary
 
 `content/Farming in the cyber world.md` and `content/journey.md` may reference the same facts, but they serve different reader intents.
