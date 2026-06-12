@@ -52,6 +52,7 @@ Do not create a new article before searching for related content.
 - `life/` — Personal life, experiences, insurance, wisdom, wiki knowledge.
 - `aboutme/` — Personal profile and resume.
 - `show/` — Presentation templates, interview docs, public articles.
+- `invest/` — Investment operation journal: stocks, funds, position tracking, review.
 - `whiteboard/` — Scratch notes and working drafts.
 
 ## Special index pages
