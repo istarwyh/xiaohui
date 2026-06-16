@@ -10,9 +10,10 @@ mkdir -p "$HOOK_DIR"
 
 # ---------------------------------------------------------------------------
 # pre-commit: fast checks that run on each commit
-#   1. Frontmatter validation for staged markdown (content/)
-#   2. TypeScript type-check (only when .ts/.tsx are staged)
-#   3. Prettier --check on staged code files (ts/tsx/scss/json/js/mjs)
+#   1. Frontmatter date autofill for staged markdown (content/)
+#   2. Frontmatter validation for staged markdown (content/)
+#   3. TypeScript type-check (only when .ts/.tsx are staged)
+#   4. Prettier --check on staged code files (ts/tsx/scss/json/js/mjs)
 # ---------------------------------------------------------------------------
 cat > "$HOOK_DIR/pre-commit" <<'HOOK'
 #!/usr/bin/env bash
@@ -22,20 +23,23 @@ set -e
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-# 1. Frontmatter validation
+# 1. Frontmatter date autofill
+node "$ROOT/scripts/fill-staged-frontmatter-dates.js"
+
+# 2. Frontmatter validation
 node "$ROOT/scripts/check-frontmatter.js"
 
 # Snapshot staged files once
 STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
 
-# 2. TypeScript type-check
+# 3. TypeScript type-check
 TS_STAGED=$(printf '%s\n' "$STAGED" | grep -E '\.(ts|tsx)$' || true)
 if [ -n "$TS_STAGED" ]; then
   echo "→ tsc --noEmit"
   npx --no-install tsc --noEmit
 fi
 
-# 3. Prettier --check on staged code files
+# 4. Prettier --check on staged code files
 PRETTIER_STAGED=$(printf '%s\n' "$STAGED" | grep -E '\.(ts|tsx|scss|json|js|mjs)$' || true)
 if [ -n "$PRETTIER_STAGED" ]; then
   echo "→ prettier --check (staged)"

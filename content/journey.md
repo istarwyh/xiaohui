@@ -121,13 +121,13 @@ tags:
 - 获得首届阿里&蚂蚁 ATA 个人 Agent 最佳实践奖
 - 获得 2025 蚂蚁集团年度优秀创作者
 - 2025 年 8 月 28 日，在阿里集团奇点学堂分享 `AI Coding` 工具与实战案例，主打 `Claude Code` 最佳实践。[AI Speeds](https://aispeeds.me) 最早也是为了分享 `Claude Code` 最佳实践而诞生。相关记录：[[【万字长文】 最强 AI Coding：Claude Code 最佳实践]]
-- 2025 年 12 月 23 日，面向钱塘征信同事分享 C 端 `AIGC` 实践、`Agent` 上下文工程与应用架构。这次分享把真实业务里的 `Agent` 实践进一步沉淀成可迁移的方法论。相关记录：[[Harness Engineering - C 端 AIGC 实时生成系统]]、[[【年度总结】从Claude Code到 OneAgent：如何做好上下文工程]]
+- 2025 年 12 月 23 日，面向钱塘征信同事分享 C 端 `AIGC` 实践、`Agent` 上下文工程与应用架构。这次分享把真实业务里的 `Agent` 实践进一步沉淀成可迁移的方法论。相关记录：[[Harness Engineering - C 端 AIGC 实时生成系统]]、[[从Claude Code到 OneAgent：如何做好上下文工程]]
 
 代表文章：
 
 - [[如何快速创建领域Agent - OneAgent + MCPs 范式]]
 - [[【万字长文】 最强 AI Coding：Claude Code 最佳实践]]
-- [[【年度总结】从Claude Code到 OneAgent：如何做好上下文工程]]
+- [[从Claude Code到 OneAgent：如何做好上下文工程]]
 - [[如何打造可靠的Agent系统]]
 - [[Agent Teams 的原理与实践]]
 
@@ -167,7 +167,7 @@ tags:
 | 领域 | 深度 | 经验说明 | 代表内容 |
 | --- | --- | --- | --- |
 | AI Agent / MCP | █████████░ | 从客服问答、案件分析到百万 MAU 保险快查 Agent 应用 | [[如何快速创建领域Agent - OneAgent + MCPs 范式]] |
-| 上下文工程 | ████████░░ | 关注 Agent 记忆、工具、任务状态、压缩与可观察性 | [[【年度总结】从Claude Code到 OneAgent：如何做好上下文工程]] |
+| 上下文工程 | ████████░░ | 关注 Agent 记忆、工具、任务状态、压缩与可观察性 | [[从Claude Code到 OneAgent：如何做好上下文工程]] |
 | Java / 全栈工程 | █████████░ | 从后端业务系统到 React 全栈与工程质量实践 | [[Unit Level Test Theory、Tool、Discussion]] |
 | 分布式系统 | ███████░░░ | 复杂链路、数据一致性、资源建模与系统稳定性 | [[Distributed System Problems]] |
 | 数据库 / 数据系统 | ███████░░░ | MySQL、Redis、Hologres、TDDL、TableStore、HavenAsk 等工程经验 | [[How-to-Choose-the-Suitable-Database]] |
