@@ -1,10 +1,14 @@
 User-Agent: *
+Content-Signal: search=yes,ai-input=yes,ai-train=no
 Allow: /
 
 # Agent / LLM discovery entrypoints
 Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /agent/
+Allow: /agent/manifest.json
+Allow: /agent/search-index.json
+Allow: /agent/pages/
 Allow: /static/contentIndex.json
 
 Disallow: /whiteboard/

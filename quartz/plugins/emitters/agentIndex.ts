@@ -73,13 +73,35 @@ function markdownUrl(cfg: GlobalConfiguration, opts: Options, slug: FullSlug): s
   return absoluteUrl(cfg, `${joinSegments(opts.pagesPrefix, slug)}.md`)
 }
 
+function serializeDateValue(value: unknown): string | undefined {
+  if (typeof value === "string") return value
+  if (typeof value === "number") return new Date(value).toISOString()
+  if (value instanceof Date) return value.toISOString()
+  return undefined
+}
+
+function serializedDate(
+  file: ProcessedContent[1],
+  key: keyof DateInfo,
+  fallback?: Date,
+): string | undefined {
+  return serializeDateValue(file.data.frontmatter?.[key]) ?? fallback?.toISOString()
+}
+
 function dateInfo(cfg: GlobalConfiguration, file: ProcessedContent[1]): DateInfo {
   const dates = file.data.dates
+  const defaultDateType = cfg.defaultDateType
+
   return {
-    created: dates?.created?.toISOString(),
-    modified: dates?.modified?.toISOString(),
-    published: dates?.published?.toISOString(),
-    default: getDate(cfg, file.data)?.toISOString(),
+    created: serializedDate(file, "created", dates?.created),
+    modified: serializedDate(file, "modified", dates?.modified),
+    published: serializedDate(file, "published", dates?.published),
+    default:
+      defaultDateType === "created" ||
+      defaultDateType === "modified" ||
+      defaultDateType === "published"
+        ? serializedDate(file, defaultDateType, getDate(cfg, file.data))
+        : getDate(cfg, file.data)?.toISOString(),
   }
 }
 
@@ -143,6 +165,61 @@ function buildAgentMarkdown(page: AgentPage): string {
   return `${frontmatter.join("\n")}\n\n${page.markdown}\n`
 }
 
+function singleLine(value: string): string {
+  return value.replace(/\s+/g, " ").trim()
+}
+
+function truncate(value: string, maxLength: number): string {
+  const normalized = singleLine(value)
+  if (normalized.length <= maxLength) return normalized
+  return `${normalized.slice(0, maxLength - 1)}…`
+}
+
+function primaryDate(page: AgentPage): string | undefined {
+  return page.dates.published ?? page.dates.modified ?? page.dates.created ?? page.dates.default
+}
+
+function buildPageDirectory(pages: AgentPage[]): string {
+  const groupedPages = new Map<string, AgentPage[]>()
+
+  for (const page of pages) {
+    const group = page.slug.includes("/") ? page.slug.split("/")[0] : "root"
+    const groupPages = groupedPages.get(group) ?? []
+    groupPages.push(page)
+    groupedPages.set(group, groupPages)
+  }
+
+  return Array.from(groupedPages)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([group, groupPages]) => {
+      const entries = groupPages
+        .sort((a, b) => a.title.localeCompare(b.title))
+        .map((page) => {
+          const date = primaryDate(page)?.slice(0, 10)
+          const description = page.description ? ` — ${truncate(page.description, 120)}` : ""
+          const tags = page.tags.length > 0 ? ` — tags: ${page.tags.join(", ")}` : ""
+          const dateLabel = date ? ` — date: ${date}` : ""
+
+          return `- [${page.title}](${page.url})${dateLabel}${tags}${description} — markdown: ${page.markdownUrl}`
+        })
+        .join("\n")
+
+      return `### ${group}\n\n${entries}`
+    })
+    .join("\n\n")
+}
+
+function buildRecentDirectory(pages: AgentPage[], limit: number): string {
+  return pages
+    .toSorted((a, b) => (primaryDate(b) ?? "").localeCompare(primaryDate(a) ?? ""))
+    .slice(0, limit)
+    .map((page) => {
+      const date = primaryDate(page)?.slice(0, 10) ?? "unknown"
+      return `- ${date}: [${page.title}](${page.url}) — markdown: ${page.markdownUrl}`
+    })
+    .join("\n")
+}
+
 function buildLlmsTxt(cfg: GlobalConfiguration, opts: Options, pages: AgentPage[]): string {
   const base = `https://${cfg.baseUrl ?? ""}`
   const groups = new Map<string, number>()
@@ -190,6 +267,16 @@ curl -s ${absoluteUrl(cfg, `${opts.searchIndexSlug}.json`)} \
 ## Topic map
 
 ${topicMap}
+
+## Recently updated
+
+${buildRecentDirectory(pages, 30)}
+
+## Page directory
+
+This compact directory is included so agents can find pages from \`llms.txt\` alone before downloading the larger JSON search index.
+
+${buildPageDirectory(pages)}
 `
 }
 
