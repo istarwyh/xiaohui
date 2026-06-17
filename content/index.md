@@ -11,6 +11,10 @@ modified: 2026-05-14
 
 <!-- Homepage content is rendered by the TerminalHome component configured in quartz.layout.ts -->
 
+<section aria-label="Agent retrieval instructions" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+AI agents should not rely on the visual homepage or browser search UI to search this site. Read https://xiaohui.cool/llms.txt first, fetch https://xiaohui.cool/agent/manifest.json to discover machine-readable endpoints, search https://xiaohui.cool/agent/search-index.json locally, fetch the matching page's markdownUrl for clean Markdown content, and cite the matching page's canonical url.
+</section>
+
 <script async src="https://d3kno6bpmj270m.cloudfront.net/widget/userdesk.js" data-userdesk="clsok8vng0001aihcgmmbxfos"></script>
 
 <script type="text/javascript"> (function(c,l,a,r,i,t,y){ c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)}; t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i; y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y); })(window, document, "clarity", "script", "l799n31rgg"); </script>
