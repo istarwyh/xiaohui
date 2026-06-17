@@ -8,9 +8,13 @@ Agent 框架层出不穷，到底哪个值得长期投入？
 
 LangGraph 讲 `Checkpoint`，OpenAI 讲 `Thread` 和 `Run`，A2A 讲 `Task`，AG-UI 讲 `Event`，Deep Agents 又引入 `Todo`、`Subagent` 和 `Virtual Filesystem`。名字越来越多，API 越来越像一套套独立世界观。
 
-*框架名词在变，但底层问题始终围绕任务、上下文、事件、状态和产物展开。* 但如果把这些名词往下拆，会发现它们其实都在回答同一个底层问题：
+*框架名词在变，但底层问题始终围绕任务、上下文、步骤、事件、状态和产物展开。* 如果把这些名词往下拆，会发现它们其实都在回答同一个底层问题：
 
 **一个 Agent 任务，如何被启动、携带上下文、持续观测、中断恢复，以足够低的使用成本完成执行，并最终产生产物？**
+
+换成协议视角，这个问题可以说得更直接：
+
+**一个生产级 Agent Protocol 应该包括什么？为什么这些协议对象会比具体框架 API 更稳定？**
 
 我不想每换一个 Agent 框架，就重新学习一套对象体系。我更关心的是，那些跨框架反复出现的稳定边界是什么。
 
@@ -19,7 +23,9 @@ LangGraph 讲 `Checkpoint`，OpenAI 讲 `Thread` 和 `Run`，A2A 讲 `Task`，AG
 ![](https://oss-ata.alibaba.com/article/2026/06/6e3510df-fb04-472f-b8e5-a95b1ba1f8ca.png)
 
 
-本文的目标不是介绍某一个框架怎么用，而是以 **Agent Protocol** 为主线，把 Agent Runtime 拆成一组可协议化的对象和操作。
+本文的目标不是介绍某一个框架怎么用，而是以 **Agent Protocol** 为主线，把 Agent Runtime 拆成一组可协议化的对象、操作和状态机。
+
+这里先把边界说清楚：本文所说的 Agent Protocol 不是某一个具体标准，不等于 A2A、AG-UI、LangChain Agent Protocol 或任意单一规范；它指的是 Agent Runtime 对外暴露的一组稳定对象、生命周期操作和状态迁移。具体协议标准和框架 API 是证据，不是本文主线。
 
 这篇文章也承接了我前面几篇 Agent 实践文章。
 
@@ -37,7 +43,7 @@ LangGraph 讲 `Checkpoint`，OpenAI 讲 `Thread` 和 `Run`，A2A 讲 `Task`，AG
 我认为：
 
 1. **Agent Runtime 的核心不是模型调用，而是任务生命周期管理**
-2. **Thread / Run / Event / Artifact / Checkpoint 会成为跨框架的稳定对象**
+2. **Thread / Run / Step / Event / Artifact / Checkpoint 会成为跨框架的稳定对象**
 3. **执行模型不会统一：Runtime Loop 承载方式和编排协议会长期分层演进**
 4. **真正区分玩具 Agent 和生产 Agent 的，是状态持久化、中断恢复、可观测性和可评测性**
 5. **值得看的不是某个框架 API，而是协议边界和 Runtime 抽象**
@@ -55,9 +61,23 @@ LangGraph 讲 `Checkpoint`，OpenAI 讲 `Thread` 和 `Run`，A2A 讲 `Task`，AG
 
 这 6 个对象，是理解 Agent Runtime Protocol 的入口。
 
-## 1. 从协议边界看 Agent Runtime
+围绕这 6 个对象，生产级 Agent Protocol 至少还要表达 `stream / interrupt / resume / cancel / retry` 这些生命周期操作。后文所有框架对比、Runtime 分析和 Harness 讨论，都应回扣到这组对象与操作：它们分别解决任务创建、上下文携带、步骤执行、事件观察、中断恢复、产物沉淀和评测审计的问题。
 
-### 1.1 Runtime Protocol：外部世界如何理解一个 Agent
+## 1. 先定义 Agent Protocol 的边界
+
+### 1.1 三层概念：标准、对象、Runtime 能力
+
+讨论 Agent Protocol 时，最容易把三层东西混在一起：
+
+| 层级 | 例子 | 解决的问题 |
+|------|------|------------|
+| **具体协议标准** | A2A、AG-UI、LangChain Agent Protocol、AITP、ACP | 不同系统如何通信，如何描述任务、消息、事件和产物 |
+| **通用协议对象** | Thread、Run、Step、Event、Artifact、Checkpoint | 外部世界如何稳定理解一次 Agent 任务 |
+| **Runtime 实现能力** | 状态持久化、中断恢复、可恢复流、权限控制、可观测性 | Runtime 内部如何兑现这些对象和状态机 |
+
+本文重点讨论第二层：通用协议对象。具体协议标准和框架实现只作为证据，用来说明这些对象正在跨系统收敛。
+
+### 1.2 Runtime Protocol：外部世界如何理解一个 Agent
 
 Agent Runtime Protocol 是 Agent Runtime 暴露给外部世界的契约。它回答的不是"模型如何思考"，而是：
 
@@ -73,7 +93,7 @@ Agent Runtime Protocol 是 Agent Runtime 暴露给外部世界的契约。它回
 
 因此，讨论 Agent Runtime 时不应该只讨论内部编排，也要讨论它被什么协议对象驱动，以及它向外承诺什么状态机。换句话说：**Runtime 是内部能力，Protocol 是外部可依赖的边界**。
 
-### 1.2 Runtime：模型调用之外的执行系统
+### 1.3 Runtime：模型调用之外的执行系统
 
 Agent Runtime 是 Agent 的执行环境，负责：接收输入 → 调用 LLM → 执行工具 → 管理状态 → 产出结果。
 
@@ -89,7 +109,7 @@ Agent Runtime 是 Agent 的执行环境，负责：接收输入 → 调用 LLM �
 
 这也是为什么 Responses API 不是完整 Runtime，而 OpenAI Agents SDK 是更高层 Runtime：前者主要给你模型和工具调用能力，后者开始接管循环、工具执行、Handoff、Session、Guardrail、Tracing 等运行时职责。
 
-### 1.3 最小生命周期：一个 Agent 任务到底经历了什么
+### 1.4 最小生命周期：一个 Agent 任务到底经历了什么
 
 
 不管采用哪种框架，生产级 Agent Runtime 都绕不开同一个生命周期：
@@ -112,7 +132,21 @@ Agent Runtime 是 Agent 的执行环境，负责：接收输入 → 调用 LLM �
 
 后文的八个维度，本质上就是解释这些对象如何被 Runtime 实现。
 
-### 1.4 现有协议已经在向同一组对象收敛
+为了避免后文变成框架名词堆叠，全文可以按这条任务生命周期阅读：
+
+| 生命周期阶段 | 主要协议对象 | 后文对应部分 |
+|--------------|--------------|--------------|
+| **创建任务** | Agent / Thread / Run | 执行模型、Runtime Loop |
+| **携带上下文** | Thread / Message / Workspace | 状态管理、Workspace / Sandbox |
+| **执行步骤** | Step / Tool Call / Subagent task | 执行模型、工具协议、多 Agent 协作 |
+| **观察事件** | Event / Trace / State Snapshot | 流式输出、可观测性 |
+| **中断恢复** | Checkpoint / Interrupt / Resume | 状态管理、中断恢复、错误恢复 |
+| **产生产物** | Artifact / Workspace file | 状态管理、流式输出、Harness |
+| **评测审计** | Step / Event / Artifact / Trace | 可观测性与可评测性 |
+
+### 1.5 现有协议已经在向同一组对象收敛
+
+下面这张表不是为了横向堆框架名词，而是作为证据：不同标准和框架正在围绕 Thread、Run、Step、Event、Artifact、Checkpoint 这些对象收敛。
 
 | 协议/规范 | 核心对象 | 主要关注点 | 对 Runtime 的启发 |
 |-----------|----------|------------|-------------------|
@@ -128,7 +162,9 @@ Agent Runtime 是 Agent 的执行环境，负责：接收输入 → 调用 LLM �
 
 这些标准并没有完全收敛，但它们已经共同指向一个事实：Agent Protocol 的中心不再是单次 chat completion，而是 **长生命周期、可观测、可评测、可恢复、可协作的任务对象**。
 
-### 1.5 本文覆盖哪些框架
+### 1.6 本文使用哪些框架作为证据
+
+后文会多次出现框架对比表。它们不是主线，而是证据：用来观察不同实现如何落到同一组协议对象上。
 
 | 框架 | 全称 | 核心定位 | 版本基准 |
 |------|------|---------|---------|
@@ -140,9 +176,9 @@ Agent Runtime 是 Agent 的执行环境，负责：接收输入 → 调用 LLM �
 
 ---
 
-## Part 1：Agent 如何跑起来
+## Part 1：创建任务与执行步骤：Agent 如何跑起来
 
-这一部分回答“一个 Agent Run 如何从请求变成执行”。先看 Runtime Loop 被谁承载，再看 loop 内部哪些动作会被提升为协议状态。
+这一部分对应任务生命周期里的“创建任务”和“执行步骤”：一个外部请求如何变成 Run，Run 又如何被拆成 Step、Tool Call、Subagent task 和状态事件。先看 Runtime Loop 被谁承载，再看 loop 内部哪些动作会被提升为协议状态。
 
 ### 2. 执行模型 (Execution Model)
 
@@ -184,13 +220,23 @@ Graph、Code、Managed 属于第一层，回答 loop 的承载容器；ReAct、P
 ![](https://oss-ata.alibaba.com/article/2026/06/1672190e-541e-48c3-9e26-769efa95cfd0.png)
 
 
-这里还有 Runtime 和 Framework 之间的层：**Agent Harness**。LangChain 官方把 Deep Agents SDK 归为 harness：它基于 LangGraph runtime 封装高层电池包，把 planning、todo、subagents、filesystem、context management、HITL、streaming、memory、permissions 组合成一个开箱即用的复杂任务 Agent。
+这里还有 Runtime 和 Framework 之间的层：**Agent Harness**。它不是主线之外的新概念，而是 Protocol/Runtime 能力产品化后的应用层。LangChain 官方把 Deep Agents SDK 归为 harness：它基于 LangGraph runtime 封装高层电池包，把 planning、todo、subagents、filesystem、context management、HITL、streaming、memory、permissions 组合成一个开箱即用的复杂任务 Agent。
 
 Harness 的价值是**易用性**：它把原本需要开发者自己组装的 Runtime 能力，预先打包成一套默认可用的工作方式。Deep Agents 的优势就在这里——你不需要从零设计 todo list、subagent task、virtual filesystem、backend 和 permission model，就能获得一个接近 Claude Code 使用体验的长任务 Agent。
 
 Claude Agent SDK 走的是另一种路线：它直接复用 Claude Code 二进制能力，因此可以获得成熟的代码 Agent 体验、文件操作、权限模型和工具链集成；对应的限制是，它的执行环境、工具边界、可移植性和可观测性会更强地绑定到 Claude Code 的产品形态。
 
 这也解释了我在 [[从Claude Code到 OneAgent：如何做好上下文工程]] 里为什么把规划工具、子智能体、虚拟文件系统和长 Prompt 放在同一组能力里讨论：它们不是零散技巧，而是 Harness 把 Runtime 能力产品化后的默认工作方式。到了协议视角，这些能力会进一步被拆成 Todo / Subagent task / Workspace / Skill / Event 等可观察对象。
+
+换成本文的六对象主线，可以这样对应：
+
+| Harness 体验对象 | 回扣到的协议对象 | 说明 |
+|------------------|------------------|------|
+| **Todo / Plan** | Step / Event | 把长任务进度变成可观察、可恢复的步骤 |
+| **Subagent task** | Run / Step / Artifact | 把委派任务变成可追踪的子执行和结果 |
+| **Virtual filesystem / Workspace** | Artifact / Checkpoint | 把中间结果、文件和最终产物沉淀到可恢复状态 |
+| **Skill** | Tool / Artifact / Metadata | 把可复用能力包变成 Runtime 可发现的能力 |
+| **Permission / HITL** | Interrupt / Resume / Event | 把高风险动作放入中断恢复状态机 |
 
 易用性也会带来约束。封装越强，默认路径越清晰，框架替你做的决策也越多。**因此使用这些成熟框架的时候，手里有源码能够覆写乃至重写很有必要，不然复杂的业务场景很难被都满足。相比强绑定二进制产品形态的路线，生产环境我更推荐使用 Deep Agents，原因也在于此。**
 
@@ -321,9 +367,9 @@ Workspace 和普通上下文不同：
 
 ---
 
-## Part 2：Agent 如何活得久
+## Part 2：保存状态、中断恢复与重试：Agent 如何活得久
 
-这一部分回答“Run 执行到一半时如何保存、暂停和恢复”。状态管理是基础，中断恢复和错误恢复都是它向外延伸出来的生产能力。
+这一部分对应任务生命周期里的“携带上下文”“中断恢复”和“失败重试”：Run 执行到一半时哪些状态必须保存，暂停后如何继续，失败后如何保留已有进度。状态管理是基础，中断恢复和错误恢复都是它向外延伸出来的生产能力。
 
 ### 3. 状态管理：生产级 Agent 的分水岭
 
@@ -601,9 +647,9 @@ Checkpoint 回滚是生产环境的明确缺口。长任务执行到后半段失
 
 ---
 
-## Part 3：Agent 如何连接外部世界
+## Part 3：连接工具与观察事件：Agent 如何连接外部世界
 
-这一部分回答“Runtime 如何调用外部能力，并把执行进展暴露给外部系统”。工具协议处理输入侧能力接入，流式事件处理输出侧进展同步。
+这一部分对应任务生命周期里的“执行外部动作”和“观察事件”：Runtime 如何调用外部能力，并把执行进展暴露给外部系统。工具协议处理输入侧能力接入，流式事件处理输出侧进展同步。
 
 ### 6. 工具协议：最可能先标准化的一层
 
@@ -660,7 +706,7 @@ Checkpoint 回滚是生产环境的明确缺口。长任务执行到后半段失
 | **Prompt** | 可复用提示模板 | 把任务模板和工具使用方式沉淀为可调用能力 |
 | **Client / Server** | 传输与能力发现边界 | 解耦 Runtime 和具体工具实现 |
 
-MCP 标准化的是“Agent 能调用什么、如何发现和调用”；Runtime Protocol 还要继续表达 `Thread / Run / Event / Artifact / Checkpoint / Interrupt` 这些任务生命周期对象。MCP 可以成为 Runtime 的工具层和上下文接入层，但完整 Runtime 仍然需要自己管理执行循环、状态持久化、流式事件、中断恢复和观测语义。
+MCP 标准化的是“Agent 能调用什么、如何发现和调用”；Runtime Protocol 还要继续表达 `Thread / Run / Step / Event / Artifact / Checkpoint / Interrupt` 这些任务生命周期对象。MCP 可以成为 Runtime 的工具层和上下文接入层，但完整 Runtime 仍然需要自己管理执行循环、状态持久化、流式事件、中断恢复和观测语义。
 
 MCP 的长期价值在于把工具生态从框架内部抽出来。一个 MCP Server 可以同时服务 Claude、IDE、桌面应用、后台 Agent 或自建 Runtime；Runtime 只需要实现 MCP Client/Host 侧适配，就能复用同一组工具、资源和 Prompt。这正是工具协议最可能先标准化的原因：工具层边界清晰，输入输出结构化，和底层 loop 承载方式解耦。
 
@@ -766,9 +812,9 @@ LangGraph Platform 的可恢复流是目前唯一完整的实现：
 
 ---
 
-## Part 4：Agent 如何协作、观测和评估
+## Part 4：协作、审计与评测：Agent 如何被理解
 
-这一部分回答“多个 Agent 如何协同，以及外部系统如何理解一次执行的质量”。多 Agent 关注分工边界，可观测性和可评测性关注反馈闭环。
+这一部分对应任务生命周期里的“跨 Agent 分工”和“评测审计”：多个 Agent 如何围绕同一任务协同，外部系统又如何理解一次执行的质量。多 Agent 关注分工边界，可观测性和可评测性关注反馈闭环。
 
 ### 8. 多 Agent 协作：最碎片化，也最不该过早押注
 
@@ -894,7 +940,7 @@ Trace 更适合事后分析，Event Stream 更适合前端实时展示，State S
 
 3. **调试能力严重不足**：只有 LangGraph 的 Checkpoint History 能做真正的"时间旅行调试"（回到任意一步查看当时的状态）。其他框架只能看日志。
 
-#### 9.7 可评测性：从可观测到质量闭环
+#### 9.6 可评测性：从可观测到质量闭环
 
 可评测性是可观测性的下游。一个具备可评测性的 Runtime 应该能回答：
 
@@ -918,7 +964,7 @@ Trace 更适合事后分析，Event Stream 更适合前端实时展示，State S
 - **反馈机制** ：评测结果能自动驱动 Prompt/工具/策略的调整
 - **Badcase 库** ：结构化失败案例，支持复现和追踪
 
-#### 9.8 本章结论
+#### 9.7 本章结论
 
 可观测性与可评测性回答“如何看见并评价一次 Run”。它收束前面的 Step、Event、State Snapshot、Artifact 和 Error，把 Runtime 执行过程变成可调试、可审计、可优化的数据。
 
@@ -930,7 +976,7 @@ Agent 需要同时具备可观测性和可评测性。可观测性需要 OpenTel
 
 ## 10. Agent Protocol 对象如何落到 Runtime 能力
 
-如果用协议主线串起来，前面八个维度可以归结为一张映射表：
+如果用协议主线串起来，前面的生命周期和八个维度可以归结为一张映射表：
 
 | Protocol 对象/操作 | 外部契约 | Runtime 需要实现的能力 | 对应章节 |
 |--------------------|----------|-------------------------|----------|
@@ -952,16 +998,17 @@ Agent 需要同时具备可观测性和可评测性。可观测性需要 OpenTel
 
 ### 10.1 一个好的 Agent Runtime Protocol 应该满足什么
 
-综合 A2A、AITP、ACP、LangGraph Server API、OpenAI Assistants 和 AG-UI 的设计，可以抽象出 8 条协议设计原则：
+综合 A2A、AITP、ACP、LangGraph Server API、OpenAI Assistants 和 AG-UI 的设计，可以抽象出 9 条协议设计原则：
 
 1. **任务对象一等化**：不能只有 request/response，必须有可查询、可取消、可恢复的 Task/Run
 2. **上下文对象一等化**：Thread/Context 不能只是 messages 数组，还要承载参与者、能力和元数据
-3. **事件流标准化**：token、状态、工具、Artifact、错误都应该是同一条事件流上的不同事件
-4. **产物对象一等化**：长任务的结果不应只塞进最终文本，而要成为可引用的 Artifact
-5. **中断是状态，不是异常**：`INPUT_REQUIRED`、`AUTH_REQUIRED` 这类状态应该进入协议状态机
-6. **发现与能力声明分离**：Agent metadata 负责发现，Capability 负责表达可选增强能力
-7. **协议绑定可替换**：同一语义对象可以绑定到 REST、SSE、JSON-RPC、gRPC 或消息队列
-8. **观测语义内建**：Trace/Span/Event ID 应该从协议层贯穿到 Runtime 内部
+3. **步骤对象一等化**：Run 内部的 LLM 调用、工具调用、Handoff、Guardrail、Subagent task 都应该能被表达为 Step/Run Step
+4. **事件流标准化**：token、状态、工具、Artifact、错误都应该是同一条事件流上的不同事件
+5. **产物对象一等化**：长任务的结果不应只塞进最终文本，而要成为可引用的 Artifact
+6. **中断是状态，不是异常**：`INPUT_REQUIRED`、`AUTH_REQUIRED` 这类状态应该进入协议状态机
+7. **发现与能力声明分离**：Agent metadata 负责发现，Capability 负责表达可选增强能力
+8. **协议绑定可替换**：同一语义对象可以绑定到 REST、SSE、JSON-RPC、gRPC 或消息队列
+9. **观测语义内建**：Trace/Span/Event ID 应该从协议层贯穿到 Runtime 内部
 
 ### 10.2 Protocol 与 Runtime 的边界
 
@@ -1008,7 +1055,9 @@ Runtime 则负责：
 **正在收敛的**：
 - Agent 任务对象（Task / Run）
 - Agent 上下文对象（Thread / Context）
+- Agent 步骤对象（Step / Run Step / Tool Call）
 - Agent 事件流（SSE + 标准事件类型）
+- Agent 产物对象（Artifact / File / Structured Output）
 - 工具定义格式（JSON Schema）
 - 工具调用协议
 - 流式传输协议（SSE）
@@ -1021,13 +1070,13 @@ Runtime 则负责：
 - 多 Agent 协作（各框架完全不兼容）
 - 可观测性标准（各自为战）
 
-2 年内，Agent Protocol 会先在 `Thread / Task / Run / Message / Artifact / Event` 这些外部对象上收敛，工具层会继续标准化，流式层会统一到 SSE + 可恢复流，但 Runtime Loop 承载方式、编排协议和多 Agent 协作**不会统一**——因为它们解决的问题空间太大，不存在一个"最优解"。相对来说，Graph 可以认为是编排协议的一个超集。
+2 年内，Agent Protocol 会先在 `Thread / Task / Run / Step / Message / Artifact / Event / Checkpoint` 这些外部对象上收敛，工具层会继续标准化，流式层会统一到 SSE + 可恢复流，但 Runtime Loop 承载方式、编排协议和多 Agent 协作**不会统一**——因为它们解决的问题空间太大，不存在一个"最优解"。相对来说，Graph 可以认为是编排协议的一个超集。
 
 ### 11.3 作为开发者，重点关注什么？
 
 | 方向 | 建议 | 理由 |
 |------|-------|------|
-| Agent Protocol 对象模型 | **重点投入** | Thread、Run、Task、Artifact、Event 会成为跨框架通用语言 |
+| Agent Protocol 对象模型 | **重点投入** | Thread、Run、Step、Artifact、Event、Checkpoint 会成为跨框架通用语言 |
 | 工具协议抽象 | **重点投入** | 工具定义、调用、结果处理的设计模式跨框架可迁移 |
 | 状态管理抽象 | **重点投入** | 无论哪个框架，状态持久化的设计模式是通用的 |
 | Harness 易用性判断 | **重点投入** | 开箱即用程度决定团队能否低成本把 Runtime 能力真正用起来 |
@@ -1048,7 +1097,7 @@ Runtime 则负责：
 
 | 维度 | 我的选择 | 理由 |
 |------|---------|------|
-| **协议对象** | Agent / Thread / Run / Message / Event / Artifact | 这些是外部系统真正依赖的稳定边界 |
+| **协议对象** | Agent / Thread / Run / Step / Message / Event / Artifact / Checkpoint | 这些是外部系统真正依赖的稳定边界 |
 | **执行模型** | 混合：图式 Runtime 做复杂工作流，代码式 Runtime 做简单任务，编排协议按场景选择 | LangGraph 的 `@entrypoint`/`@task` 方向正确——图式能力为底，代码式表面为简 |
 | **状态管理** | Checkpoint-based，自动 per-step 快照 | 这是中断恢复、错误回滚、调试回放的前提 |
 | **工具协议** | 统一 Tool API + Adapter | 不再写框架特定的 Tool wrapper |
@@ -1066,9 +1115,9 @@ Agent 框架还会继续变化。今天是 LangGraph、OpenAI Agents SDK、AutoG
 
 但生产级 Agent 系统真正绕不开的问题一直稳定：一次执行如何创建、取消、重试和结束；哪些历史、文件、状态和权限对当前执行可见；失败、中断、升级后系统还能不能恢复；前端、评测和审计系统如何知道 Agent 正在做什么；最终产物如何被保存、引用、追溯和复用；Agent 什么时候可以真的改文件、发请求或下订单。
 
-如果只盯着框架 API，很容易被短期流行牵着走；如果先建立 Runtime Protocol 的概念模型，就能反过来审视框架：它是否稳定表达 `Thread / Run / Event / Artifact / Checkpoint`，是否具备真正的状态持久化和可恢复事件流，是否把工具层从框架绑定中抽出来，是否能支撑调试、审计、成本归因和质量评估。
+如果只盯着框架 API，很容易被短期流行牵着走；如果先建立 Runtime Protocol 的概念模型，就能反过来审视框架：它是否稳定表达 `Thread / Run / Step / Event / Artifact / Checkpoint`，是否具备真正的状态持久化和可恢复事件流，是否把工具层从框架绑定中抽出来，是否能支撑调试、审计、成本归因和质量评估。
 
-对我来说，理解 Runtime Protocol 的价值，是把知识从“框架熟练度”提升到“系统设计判断力”。框架值得学，但不要只学框架；青山不改，绿水长流，框架终究只是对现实问题的抽象。
+对我来说，理解 Runtime Protocol 的价值，是把知识从“框架熟练度”提升到“系统设计判断力”。框架值得学，但不要只学框架；框架终究只是对现实问题的抽象。
 
 ---
 
