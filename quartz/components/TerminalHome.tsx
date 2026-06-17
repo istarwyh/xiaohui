@@ -39,7 +39,7 @@ function findPageSlug(pageId: string, allFiles: QuartzPluginData[], label: strin
 // 手选 pillar content：代表「晓灰 = AI Agent 实践者」的核心叙事
 const featured: FeaturedItem[] = [
   {
-    slug: "program/llm/【年度总结】从Claude Code到 OneAgent：如何做好上下文工程",
+    slug: "program/llm/从Claude Code到 OneAgent：如何做好上下文工程",
     title: "从 Claude Code 到 OneAgent：上下文工程年度总结",
     desc: "★ 我的年度方法论",
   },
