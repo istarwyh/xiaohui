@@ -3,7 +3,7 @@
 
 import { execFileSync } from "node:child_process"
 import fs from "node:fs"
-import matter from "gray-matter"
+import { parseFrontmatter } from "./lib/frontmatter.js"
 
 const DATE_ALIASES = {
   created: ["created", "date"],
@@ -100,7 +100,7 @@ function main() {
     const text = fs.readFileSync(file, "utf8")
     let data
     try {
-      data = matter(text).data ?? {}
+      data = parseFrontmatter(text).data
     } catch {
       continue
     }

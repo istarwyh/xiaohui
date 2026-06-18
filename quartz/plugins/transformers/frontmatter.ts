@@ -1,9 +1,7 @@
-import matter from "gray-matter"
 import remarkFrontmatter from "remark-frontmatter"
 import { QuartzTransformerPlugin } from "../types"
-import yaml from "js-yaml"
-import toml from "toml"
 import { FilePath, FullSlug, getFileExtension, slugifyFilePath, slugTag } from "../../util/path"
+import { parseFrontmatter } from "../../util/frontmatter"
 import { QuartzPluginData } from "../vfile"
 import { i18n } from "../../i18n"
 
@@ -63,13 +61,7 @@ export const FrontMatter: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
         () => {
           return (_, file) => {
             const fileData = Buffer.from(file.value as Uint8Array)
-            const { data } = matter(fileData, {
-              ...opts,
-              engines: {
-                yaml: (s) => yaml.load(s, { schema: yaml.JSON_SCHEMA }) as object,
-                toml: (s) => toml.parse(s) as object,
-              },
-            })
+            const { data } = parseFrontmatter(fileData, opts)
 
             if (data.title != null && data.title.toString() !== "") {
               data.title = data.title.toString()
@@ -88,11 +80,12 @@ export const FrontMatter: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
             }
 
             if (data.permalink != null && data.permalink.toString() !== "") {
-              data.permalink = data.permalink.toString() as FullSlug
+              const permalink = data.permalink.toString() as FullSlug
+              data.permalink = permalink
               const aliases = file.data.aliases ?? []
-              aliases.push(data.permalink)
+              aliases.push(permalink)
               file.data.aliases = aliases
-              allSlugs.push(data.permalink)
+              allSlugs.push(permalink)
             }
 
             const cssclasses = coerceToArray(coalesceAliases(data, ["cssclasses", "cssclass"]))

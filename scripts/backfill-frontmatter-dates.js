@@ -3,7 +3,7 @@
 import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
-import matter from "gray-matter"
+import { parseFrontmatter } from "./lib/frontmatter.js"
 
 const CONTENT_DIR = "content"
 const FALLBACK_DATE = "2026-01-01"
@@ -149,7 +149,7 @@ function main() {
     const text = fs.readFileSync(file, "utf8")
     let data
     try {
-      data = matter(text).data ?? {}
+      data = parseFrontmatter(text).data
     } catch (error) {
       skipped.parseError += 1
       changes.push({ file, error: `frontmatter parse error: ${String(error).split("\n")[0]}` })

@@ -1,5 +1,4 @@
 import { createHash } from "crypto"
-import matter from "gray-matter"
 import { h } from "preact"
 import { Element, Root } from "hast"
 import { toString } from "hast-util-to-string"
@@ -7,6 +6,7 @@ import { visit } from "unist-util-visit"
 import { getDate } from "../../components/Date"
 import { GlobalConfiguration } from "../../cfg"
 import { unescapeHTML } from "../../util/escape"
+import { stripFrontmatter as removeFrontmatter } from "../../util/frontmatter"
 import { FilePath, FullSlug, SimpleSlug, joinSegments, simplifySlug } from "../../util/path"
 import { QuartzEmitterPlugin } from "../types"
 import { ProcessedContent } from "../vfile"
@@ -106,7 +106,7 @@ function dateInfo(cfg: GlobalConfiguration, file: ProcessedContent[1]): DateInfo
 }
 
 function stripFrontmatter(source: string): string {
-  return matter(source).content.trim()
+  return removeFrontmatter(source).trim()
 }
 
 function hashContent(content: string): string {

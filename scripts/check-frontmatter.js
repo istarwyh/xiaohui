@@ -14,7 +14,7 @@
 import { execSync } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
-import matter from "gray-matter"
+import { parseFrontmatter } from "./lib/frontmatter.js"
 
 const DATE_FIELDS = [
   "created",
@@ -63,7 +63,7 @@ function checkFile(file) {
   const errors = []
   let fm
   try {
-    fm = matter(fs.readFileSync(file)).data || {}
+    fm = parseFrontmatter(fs.readFileSync(file)).data
   } catch (e) {
     errors.push(`frontmatter parse error: ${String(e).split("\n")[0]}`)
     return errors
