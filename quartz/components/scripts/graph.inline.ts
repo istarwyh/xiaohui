@@ -558,6 +558,10 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
 
 let localGraphCleanups: (() => void)[] = []
 let globalGraphCleanups: (() => void)[] = []
+let bodyOverflowBeforeGlobalGraph: string | null = null
+let globalGraphFocusReturn: HTMLElement | null = null
+let globalGraphRenderSeq = 0
+let globalGraphResizeTimeout: ReturnType<typeof setTimeout> | undefined
 
 function cleanupLocalGraphs() {
   for (const cleanup of localGraphCleanups) {
@@ -571,6 +575,18 @@ function cleanupGlobalGraphs() {
     cleanup()
   }
   globalGraphCleanups = []
+}
+
+function lockBodyScroll() {
+  if (bodyOverflowBeforeGlobalGraph !== null) return
+  bodyOverflowBeforeGlobalGraph = document.body.style.overflow
+  document.body.style.overflow = "hidden"
+}
+
+function restoreBodyScroll() {
+  if (bodyOverflowBeforeGlobalGraph === null) return
+  document.body.style.overflow = bodyOverflowBeforeGlobalGraph
+  bodyOverflowBeforeGlobalGraph = null
 }
 
 document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
@@ -596,42 +612,91 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
   })
 
   const containers = [...document.getElementsByClassName("global-graph-outer")] as HTMLElement[]
-  async function renderGlobalGraph() {
+  const anyGlobalGraphOpen = () =>
+    containers.some((container) => container.classList.contains("active"))
+
+  async function renderOpenGlobalGraphs() {
+    cleanupGlobalGraphs()
+    const renderSeq = ++globalGraphRenderSeq
     const slug = getFullSlug(window)
+    for (const container of containers) {
+      if (!container.classList.contains("active")) continue
+
+      const graphContainer = container.querySelector(".global-graph-container") as HTMLElement
+      if (graphContainer) {
+        const cleanup = await renderGraph(graphContainer, slug)
+        if (renderSeq === globalGraphRenderSeq && container.classList.contains("active")) {
+          globalGraphCleanups.push(cleanup)
+        } else {
+          cleanup()
+          if (!container.classList.contains("active")) {
+            removeAllChildren(graphContainer)
+          }
+        }
+      }
+    }
+  }
+
+  async function renderGlobalGraph() {
+    if (!anyGlobalGraphOpen()) {
+      globalGraphFocusReturn =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null
+    }
+    lockBodyScroll()
     for (const container of containers) {
       container.classList.add("active")
       const sidebar = container.closest(".sidebar") as HTMLElement
       if (sidebar) {
         sidebar.style.zIndex = "1"
       }
-
-      const graphContainer = container.querySelector(".global-graph-container") as HTMLElement
-      registerEscapeHandler(container, hideGlobalGraph)
-      if (graphContainer) {
-        globalGraphCleanups.push(await renderGraph(graphContainer, slug))
-      }
     }
+    containers[0]?.querySelector<HTMLElement>(".global-graph-close")?.focus()
+    await renderOpenGlobalGraphs()
   }
 
   function hideGlobalGraph() {
+    globalGraphRenderSeq++
+    if (globalGraphResizeTimeout) {
+      clearTimeout(globalGraphResizeTimeout)
+      globalGraphResizeTimeout = undefined
+    }
     cleanupGlobalGraphs()
+    restoreBodyScroll()
     for (const container of containers) {
       container.classList.remove("active")
       const sidebar = container.closest(".sidebar") as HTMLElement
       if (sidebar) {
         sidebar.style.zIndex = ""
       }
+      const graphContainer = container.querySelector(".global-graph-container") as HTMLElement
+      if (graphContainer) {
+        removeAllChildren(graphContainer)
+      }
     }
+    if (globalGraphFocusReturn?.isConnected) {
+      globalGraphFocusReturn.focus()
+    }
+    globalGraphFocusReturn = null
+  }
+
+  function handleGlobalGraphResize() {
+    if (!anyGlobalGraphOpen()) return
+    if (globalGraphResizeTimeout) clearTimeout(globalGraphResizeTimeout)
+    globalGraphResizeTimeout = setTimeout(() => {
+      globalGraphResizeTimeout = undefined
+      void renderOpenGlobalGraphs()
+    }, 150)
   }
 
   async function shortcutHandler(e: HTMLElementEventMap["keydown"]) {
     if (e.key === "g" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
       e.preventDefault()
-      const anyGlobalGraphOpen = containers.some((container) =>
-        container.classList.contains("active"),
-      )
-      anyGlobalGraphOpen ? hideGlobalGraph() : renderGlobalGraph()
+      anyGlobalGraphOpen() ? hideGlobalGraph() : renderGlobalGraph()
     }
+  }
+
+  for (const container of containers) {
+    registerEscapeHandler(container, hideGlobalGraph)
   }
 
   const containerIcons = document.getElementsByClassName("global-graph-icon")
@@ -640,10 +705,21 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
     window.addCleanup(() => icon.removeEventListener("click", renderGlobalGraph))
   })
 
+  const closeButtons = document.getElementsByClassName("global-graph-close")
+  Array.from(closeButtons).forEach((button) => {
+    button.addEventListener("click", hideGlobalGraph)
+    window.addCleanup(() => button.removeEventListener("click", hideGlobalGraph))
+  })
+
   document.addEventListener("keydown", shortcutHandler)
+  window.addEventListener("resize", handleGlobalGraphResize)
   window.addCleanup(() => {
     document.removeEventListener("keydown", shortcutHandler)
+    window.removeEventListener("resize", handleGlobalGraphResize)
+    if (globalGraphResizeTimeout) clearTimeout(globalGraphResizeTimeout)
+    globalGraphRenderSeq++
     cleanupLocalGraphs()
     cleanupGlobalGraphs()
+    restoreBodyScroll()
   })
 })
