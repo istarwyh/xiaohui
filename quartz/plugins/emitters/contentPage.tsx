@@ -19,6 +19,7 @@ async function processContent(
   ctx: BuildCtx,
   tree: Node,
   fileData: QuartzPluginData,
+  rawMarkdown: string,
   allFiles: QuartzPluginData[],
   opts: FullPageLayout,
   resources: StaticResources,
@@ -34,6 +35,7 @@ async function processContent(
     children: [],
     tree,
     allFiles,
+    rawMarkdown,
   }
 
   const content = renderPage(cfg, slug, componentData, opts, externalResources)
@@ -85,7 +87,15 @@ export const ContentPage: QuartzEmitterPlugin<Partial<FullPageLayout>> = (userOp
 
         // only process home page, non-tag pages, and non-index pages
         if (slug.endsWith("/index") || slug.startsWith("tags/")) continue
-        yield processContent(ctx, tree, file.data, allFiles, opts, resources)
+        yield processContent(
+          ctx,
+          tree,
+          file.data,
+          String(file.value ?? ""),
+          allFiles,
+          opts,
+          resources,
+        )
       }
 
       if (!containsIndex) {
@@ -114,7 +124,15 @@ export const ContentPage: QuartzEmitterPlugin<Partial<FullPageLayout>> = (userOp
         if (!changedSlugs.has(slug)) continue
         if (slug.endsWith("/index") || slug.startsWith("tags/")) continue
 
-        yield processContent(ctx, tree, file.data, allFiles, opts, resources)
+        yield processContent(
+          ctx,
+          tree,
+          file.data,
+          String(file.value ?? ""),
+          allFiles,
+          opts,
+          resources,
+        )
       }
     },
   }

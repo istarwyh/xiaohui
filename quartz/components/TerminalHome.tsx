@@ -49,7 +49,7 @@ const featured: FeaturedItem[] = [
     desc: "★ 我的 Agent 方法论",
   },
   {
-    slug: "program/llm/从 RAG 到 Deep Research：复杂业务报告生成的上下文工程",
+    slug: "program/llm/从RAG到DeepResearch：复杂业务报告生成的上下文工程",
     title: "从 RAG 到 Deep Research：复杂业务报告生成的上下文工程",
     desc: "Agent 架构思考",
   },
