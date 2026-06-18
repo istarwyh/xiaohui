@@ -1,6 +1,6 @@
 ---
 created: 2026-06-16
-modified: 2026-06-16
+modified: 2026-06-18
 published: 2026-06-16
 ---
 
@@ -27,11 +27,9 @@ LangGraph 讲 `Checkpoint`，OpenAI 讲 `Thread` 和 `Run`，A2A 讲 `Task`，AG
 
 这里先把边界说清楚：本文所说的 Agent Protocol 不是某一个具体标准，不等于 A2A、AG-UI、LangChain Agent Protocol 或任意单一规范；它指的是 Agent Runtime 对外暴露的一组稳定对象、生命周期操作和状态迁移。具体协议标准和框架 API 是证据，不是本文主线。
 
-这篇文章也承接了我前面几篇 Agent 实践文章。
+我前面几篇 Agent 实践文章中，[[如何快速创建领域Agent - OneAgent + MCPs 范式]] 讨论的是如何把 Manus / Claude Code 式 Loop Agent 带进企业业务场景；[[从Claude Code到 OneAgent：如何做好上下文工程]] 讨论的是长任务 Agent 如何通过 Plan / Offload / Isolate / Retrieve / Reduce / Cache 管理上下文。本文再往下抽一层：**这些实践背后，哪些对象和边界会沉淀为 Agent Runtime 的稳定协议语言？**
 
-[[如何快速创建领域Agent - OneAgent + MCPs 范式]] 讨论的是如何把 Manus / Claude Code 式 Loop Agent 带进企业业务场景；[[从Claude Code到 OneAgent：如何做好上下文工程]] 讨论的是长任务 Agent 如何通过 Plan / Offload / Isolate / Retrieve / Reduce / Cache 管理上下文。本文再往下抽一层：**这些实践背后，哪些对象和边界会沉淀为 Agent Runtime 的稳定协议语言？**
-
-协议告诉我们外部世界需要什么契约，Runtime 告诉我们内部如何实现这些契约。Harness 则进一步回答另一个现实问题：这些 Runtime 能力是否已经被打包成足够易用的默认体验。理解这层关系后，再看新框架时，就能快速判断：
+协议告诉我们外部世界需要什么契约，Runtime 告诉我们内部如何实现这些契约。Harness 则保证这些 Runtime 能力已经被打包成足够易用的默认体验。理解这层关系后，再看新框架时，就能快速判断：
 
 - 它只是换了一套 API 名字，还是解决了一个真实的 Runtime 问题？
 - 它强化的是执行模型、状态管理、工具协议，还是流式事件？
@@ -91,7 +89,7 @@ Agent Runtime Protocol 是 Agent Runtime 暴露给外部世界的契约。它回
 
 ![](https://oss-ata.alibaba.com/article/2026/06/a4c65177-4e8d-47e9-9e98-37b548ee8d59.png)
 
-因此，讨论 Agent Runtime 时不应该只讨论内部编排，也要讨论它被什么协议对象驱动，以及它向外承诺什么状态机。换句话说：**Runtime 是内部能力，Protocol 是外部可依赖的边界**。
+因此讨论 Agent Runtime 时不应该只讨论内部编排，也要讨论它被什么协议对象驱动，以及它向外承诺什么状态机。换句话说：**Runtime 是内部能力，Protocol 是外部可依赖的边界**。
 
 ### 1.3 Runtime：模型调用之外的执行系统
 
@@ -107,7 +105,7 @@ Agent Runtime 是 Agent 的执行环境，负责：接收输入 → 调用 LLM �
 - **控制面**：权限、Guardrail、取消、超时、预算、并发限制
 - **数据面**：状态快照、事件流、Trace、Artifact、成本数据如何流动
 
-这也是为什么 Responses API 不是完整 Runtime，而 OpenAI Agents SDK 是更高层 Runtime：前者主要给你模型和工具调用能力，后者开始接管循环、工具执行、Handoff、Session、Guardrail、Tracing 等运行时职责。
+这也是为什么 Responses API 不是 Runtime，而 OpenAI Agents SDK 是更高层 Runtime：前者主要给你模型和工具调用能力，后者开始接管循环、工具执行、Handoff、Session、Guardrail、Tracing 等运行时职责。
 
 ### 1.4 最小生命周期：一个 Agent 任务到底经历了什么
 
@@ -201,14 +199,17 @@ Agent Runtime 是 Agent 的执行环境，负责：接收输入 → 调用 LLM �
 
 Graph、Code、Managed 属于第一层，回答 loop 的承载容器；ReAct、Plan-and-Execute、Conversation-style coordination 属于第二层，回答 loop 内部的主导语义对象。Conversation 和 Graph / Code / Managed 放在同一层会制造误判，它更适合作为广义 Agent loop 上的一种消息协作契约。
 
+*执行模型应拆成两层看：Loop 承载方式决定循环在哪里，编排协议决定循环内部哪些语义被显式建模。*
+
+Loop 层：
+**图式 Runtime** 区别于 Code Runtime 在于它使用构建二叉树的方式来构建条件和边，不过以图式 Runtime 为代表的 LangGraph 的节点函数、条件边和工具调用仍然由代码实现，这些代码被放进图运行时里，控制流被结构化为节点、边、状态和 checkpoint。它的价值在于给复杂分支、并行、恢复和观测提供稳定运行时边界，是一种基于 Code 的 DSL（Domain Specific Language）。
+Managed 则代表着用户将 runtime 托管给平台。
+
 
 ![](https://oss-ata.alibaba.com/article/2026/06/e928d9aa-ff76-48e5-9957-a3037772b309.png)
 
 
-*执行模型应拆成两层看：Loop 承载方式决定循环在哪里，编排协议决定循环内部哪些语义被显式建模。*
-
-**图式 Runtime**并不排斥代码。LangGraph 的节点函数、条件边和工具调用仍然由代码实现，这些代码被放进图运行时里，控制流被结构化为节点、边、状态和 checkpoint。它的价值在于给复杂分支、并行、恢复和观测提供稳定运行时边界。
-
+编排协议层：
 **ReAct** 可以看成最小 Agent loop：`Observation` 进入上下文，模型完成 `Reasoning`，再选择 `Action`，最后把 `Result` 写回上下文继续推进。这里的 `Action` 可以是普通业务工具，也可以是带 Runtime 语义的工具，例如更新计划、发送消息、路由、handoff、请求人类确认。
 
 **Plan-and-Execute** 的关键是把 `Plan / Todo / Step / Progress` 提升为显式状态。计划依然可以由 ReAct 的 `update_plan()` 或 `update_todo()` 触发，但 Runtime 会把这些副作用纳入进度展示、checkpoint、恢复、审计和评测。
@@ -226,7 +227,7 @@ Harness 的价值是**易用性**：它把原本需要开发者自己组装的 R
 
 Claude Agent SDK 走的是另一种路线：它直接复用 Claude Code 二进制能力，因此可以获得成熟的代码 Agent 体验、文件操作、权限模型和工具链集成；对应的限制是，它的执行环境、工具边界、可移植性和可观测性会更强地绑定到 Claude Code 的产品形态。
 
-这也解释了我在 [[从Claude Code到 OneAgent：如何做好上下文工程]] 里为什么把规划工具、子智能体、虚拟文件系统和长 Prompt 放在同一组能力里讨论：它们不是零散技巧，而是 Harness 把 Runtime 能力产品化后的默认工作方式。到了协议视角，这些能力会进一步被拆成 Todo / Subagent task / Workspace / Skill / Event 等可观察对象。
+我在 [[从Claude Code到 OneAgent：如何做好上下文工程]] 里把规划工具、子智能体、虚拟文件系统和长 Prompt 放在同一组能力中，因为它们不是零散技巧，而是 Harness 把 Runtime 能力产品化后的默认工作方式。在协议视角，这些能力会进一步被拆成 Todo / Subagent task / Workspace / Skill / Event 等可观察对象。
 
 换成本文的六对象主线，可以这样对应：
 
@@ -260,7 +261,7 @@ Claude Agent SDK 走的是另一种路线：它直接复用 Claude Code 二进�
 
 很多 Agent 框架表面 API 差异很大，但内部都存在一个主循环：
 
-```
+```js
 while not done:
     messages = load_context()
     model_output = call_llm(messages, tools)
@@ -295,7 +296,7 @@ Deep Agents 的位置很特殊：它不重新发明 Runtime Loop，而是把 Lan
 
 从协议角度看，这个循环就是 `Task/Run` 状态机的内部实现：
 
-```
+```sh
 SUBMITTED ──► WORKING ──► INPUT_REQUIRED ──► WORKING ──► COMPLETED
                   │              │
                   │              └── 等待 Message / Resume / Authorization
@@ -532,7 +533,7 @@ OpenAI Assistants 把 Thread 和 Run 显式暴露出来；LangGraph 把 Thread �
 
 不管框架如何实现，中断/恢复的通用流程是一样的：
 
-```
+```sh
 Agent 执行 ──► 到达中断点 ──► 保存执行状态 ──► 向前端暴露中断载荷
                                                      │
                                                      ▼
@@ -610,7 +611,7 @@ graph.invoke(Command(resume="发布"), config)
 
 #### 5.3 两种错误哲学
 
-```
+```sh
 Error-as-Exception (传统)                Error-as-Data (Agent 原生)
 
 工具调用 ──► 失败 ──► 抛异常             工具调用 ──► 失败 ──► 返回错误信息

@@ -39,24 +39,29 @@ function findPageSlug(pageId: string, allFiles: QuartzPluginData[], label: strin
 // 手选 pillar content：代表「晓灰 = AI Agent 实践者」的核心叙事
 const featured: FeaturedItem[] = [
   {
+    slug: "program/llm/相比层出不穷的 Agent 框架，不变的 Agent Protocol 是什么",
+    title: "相比层出不穷的 Agent 框架，不变的 Agent Protocol 是什么",
+    desc: "★ 超越 Agent Runtime 的不变协议",
+  },
+  {
     slug: "program/llm/从Claude Code到 OneAgent：如何做好上下文工程",
     title: "从 Claude Code 到 OneAgent：上下文工程年度总结",
-    desc: "★ 我的年度方法论",
+    desc: "★ 我的 Agent 方法论",
   },
   {
-    slug: "program/llm/如何快速创建领域Agent - OneAgent + MCPs 范式",
-    title: "OneAgent + MCPs：如何快速创建领域 Agent",
-    desc: "蚂蚁保 MCP 落地实践",
-  },
-  {
-    slug: "program/llm/从指令到意图：AI Agent 架构范式演进史",
-    title: "从指令到意图：AI Agent 架构范式演进史",
+    slug: "program/llm/从 RAG 到 Deep Research：复杂业务报告生成的上下文工程",
+    title: "从 RAG 到 Deep Research：复杂业务报告生成的上下文工程",
     desc: "Agent 架构思考",
   },
   {
     slug: "program/practices/如何打造可靠的Agent系统",
     title: "如何打造可靠的 Agent 系统",
     desc: "工程化经验",
+  },
+  {
+    slug: "program/llm/如何快速创建领域Agent - OneAgent + MCPs 范式",
+    title: "OneAgent + MCPs：如何快速创建领域 Agent",
+    desc: "蚂蚁保领域 Agent 落地实践",
   },
 ]
 
