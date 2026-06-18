@@ -140,7 +140,9 @@ For `content/` edits:
 
 - Read and follow `content/CLAUDE.md`; it contains the author profile, writing style, content categories, and commit/review expectations for the vault.
 - Markdown uses YAML frontmatter and Obsidian `[[wikilink]]` syntax.
-- Frontmatter date checks require a created field (`created` or `date`) and a modified field (`modified`, `lastmod`, `updated`, or `last-modified`) with ISO-style dates.
+- Frontmatter date checks require a created field (`created` or `date`) and a modified field (`modified`, `lastmod`, `updated`, or `last-modified`) with ISO-style dates. A published field is optional but preferred (`published`, `publishDate`, or `date`).
+- When committing staged Markdown under `content/`, `scripts/fill-staged-frontmatter-dates.js` runs first and fills any missing canonical `created`, `modified`, and `published` fields with today's Asia/Shanghai date. It preserves existing alias fields and only inserts missing values.
+- For existing content backfills, `node scripts/backfill-frontmatter-dates.js` is dry-run by default and derives `created` from the earliest git author date, `modified` from the latest git author date, and `published` from `created`; use `--write` only when the user asks to update files.
 - The vault is primarily Chinese with English technical terms. Existing guidance asks to wrap English technical terms in backticks.
 - Images are generally hosted on Alibaba Cloud OSS rather than stored locally.
 - Root Prettier deliberately ignores `content/**/*.md` and `content/**/*.html`; preserve authorial Markdown formatting unless the user asks for formatting changes.
@@ -149,7 +151,7 @@ For `content/` edits:
 
 `scripts/install-hooks.sh` installs:
 
-- `pre-commit`: validates staged content frontmatter, runs `tsc --noEmit` when TypeScript files are staged, and runs Prettier on staged code/config files.
+- `pre-commit`: fills missing staged content frontmatter dates, validates staged content frontmatter, runs `tsc --noEmit` when TypeScript files are staged, and runs Prettier on staged code/config files.
 - `pre-push`: runs full `tsc --noEmit` and `npm test`.
 
 Generated or derived files/directories include `public/`, `.quartz-cache/`, `tsconfig.tsbuildinfo`, and `scripts/cards-data.json`. `extra-pages/` is source for additional published HTML, not generated output.
