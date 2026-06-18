@@ -327,6 +327,7 @@ AI 自动 review:https://github.com/Gijela/CR-Mentor
 ### 内容创作
 
 - [textream](https://github.com/f/textream)：免费开源的 macOS 提词器，无需注册、可离线使用，支持逐词跟踪、自动滚动和声控三种模式，适用于直播、主持、播客等场景。
+- [ScreenKite](https://www.screenkite.com/zh-CN)：免费的原生 macOS 桌面录制工具，AI 辅助编辑、自动跟随光标缩放、Metal 加速导出（比 Screen Studio 快 3 倍），无需注册，所有数据本地处理。适用于录制产品演示、Bug 复现、教学视频。
 
 ## Practices
 

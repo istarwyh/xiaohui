@@ -101,11 +101,25 @@ export default ((opts?: Partial<GraphOptions>) => {
               <div>
                 <h3>全站关系图</h3>
               </div>
-              <button class="global-graph-close" aria-label="关闭全站关系图">
-                ×
-              </button>
+              <div class="global-graph-actions">
+                <div class="global-graph-mode-toggle" role="group" aria-label="图谱显示模式">
+                  <button class="global-graph-mode active" data-graph-mode="2d" aria-pressed="true">
+                    2D
+                  </button>
+                  <button class="global-graph-mode" data-graph-mode="3d" aria-pressed="false">
+                    3D
+                  </button>
+                </div>
+                <button class="global-graph-close" aria-label="关闭全站关系图">
+                  ×
+                </button>
+              </div>
             </header>
-            <div class="global-graph-container" data-cfg={JSON.stringify(globalGraph)}></div>
+            <div
+              class="global-graph-container"
+              data-cfg={JSON.stringify(globalGraph)}
+              data-renderer="2d"
+            ></div>
           </div>
         </div>
       </div>

@@ -14,6 +14,8 @@ import {
   drag,
   zoom,
 } from "d3"
+import * as THREE from "three"
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 import { Text, Graphics, Application, Container, Circle } from "pixi.js"
 import { Group as TweenGroup, Tween as Tweened } from "@tweenjs/tween.js"
 import { registerEscapeHandler, removeAllChildren } from "./util"
@@ -66,6 +68,383 @@ function addToVisited(slug: SimpleSlug) {
 type TweenNode = {
   update: (time: number) => void
   stop: () => void
+}
+
+type GraphRenderMode = "2d" | "3d"
+
+type Node3DState = {
+  node: NodeData
+  x: number
+  y: number
+  z: number
+  vx: number
+  vy: number
+  vz: number
+}
+
+function hashToUnit(value: string) {
+  let hash = 2166136261
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0) / 4294967295
+}
+
+function cssColor(value: string, fallback: string) {
+  try {
+    return new THREE.Color(value.trim())
+  } catch {
+    return new THREE.Color(fallback)
+  }
+}
+
+function layoutGraph3D(
+  graphData: { nodes: NodeData[]; links: LinkData[] },
+  width: number,
+  height: number,
+  repelForce: number,
+  centerForce: number,
+  linkDistance: number,
+) {
+  const nodeCount = Math.max(graphData.nodes.length, 1)
+  const graphRadius = Math.max(160, Math.min(width, height) * 0.42)
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5))
+  const states = graphData.nodes.map((node, index): Node3DState => {
+    const t = (index + 0.5) / nodeCount
+    const inclination = Math.acos(1 - 2 * t)
+    const azimuth = goldenAngle * index + hashToUnit(node.id) * Math.PI * 2
+    const radius = graphRadius * (0.72 + hashToUnit(`${node.id}:radius`) * 0.28)
+
+    return {
+      node,
+      x: Math.sin(inclination) * Math.cos(azimuth) * radius,
+      y: Math.sin(inclination) * Math.sin(azimuth) * radius,
+      z: Math.cos(inclination) * radius,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+    }
+  })
+
+  const stateById = new Map(states.map((state) => [state.node.id, state]))
+  const links = graphData.links
+    .map((link) => ({
+      source: stateById.get(link.source.id),
+      target: stateById.get(link.target.id),
+    }))
+    .filter((link): link is { source: Node3DState; target: Node3DState } =>
+      Boolean(link.source && link.target),
+    )
+
+  const iterations = nodeCount > 600 ? 70 : nodeCount > 300 ? 95 : 125
+  const repulsion = 520 * Math.max(repelForce, 0.1)
+  const centering = 0.0025 * Math.max(centerForce, 0.05)
+  const desiredLinkDistance = Math.max(55, linkDistance * 3.4)
+  const spring = 0.012
+  const damping = 0.86
+
+  for (let iteration = 0; iteration < iterations; iteration++) {
+    for (let i = 0; i < states.length; i++) {
+      const a = states[i]
+      a.vx -= a.x * centering
+      a.vy -= a.y * centering
+      a.vz -= a.z * centering
+
+      for (let j = i + 1; j < states.length; j++) {
+        const b = states[j]
+        let dx = a.x - b.x
+        let dy = a.y - b.y
+        let dz = a.z - b.z
+        let distSq = dx * dx + dy * dy + dz * dz
+        if (distSq < 0.01) {
+          dx = hashToUnit(`${a.node.id}:${b.node.id}:x`) - 0.5
+          dy = hashToUnit(`${a.node.id}:${b.node.id}:y`) - 0.5
+          dz = hashToUnit(`${a.node.id}:${b.node.id}:z`) - 0.5
+          distSq = dx * dx + dy * dy + dz * dz
+        }
+
+        distSq = Math.max(distSq, 64)
+        const dist = Math.sqrt(distSq)
+        const force = repulsion / distSq
+        const fx = (dx / dist) * force
+        const fy = (dy / dist) * force
+        const fz = (dz / dist) * force
+        a.vx += fx
+        a.vy += fy
+        a.vz += fz
+        b.vx -= fx
+        b.vy -= fy
+        b.vz -= fz
+      }
+    }
+
+    for (const link of links) {
+      const dx = link.target.x - link.source.x
+      const dy = link.target.y - link.source.y
+      const dz = link.target.z - link.source.z
+      const dist = Math.max(Math.sqrt(dx * dx + dy * dy + dz * dz), 0.01)
+      const force = (dist - desiredLinkDistance) * spring
+      const fx = (dx / dist) * force
+      const fy = (dy / dist) * force
+      const fz = (dz / dist) * force
+
+      link.source.vx += fx
+      link.source.vy += fy
+      link.source.vz += fz
+      link.target.vx -= fx
+      link.target.vy -= fy
+      link.target.vz -= fz
+    }
+
+    for (const state of states) {
+      state.vx *= damping
+      state.vy *= damping
+      state.vz *= damping
+      state.x += state.vx
+      state.y += state.vy
+      state.z += state.vz
+    }
+  }
+
+  return { states, stateById }
+}
+
+function renderGraph3D({
+  graph,
+  fullSlug,
+  graphData,
+  width,
+  height,
+  repelForce,
+  centerForce,
+  linkDistance,
+  computedStyleMap,
+  color,
+  nodeRadius,
+}: {
+  graph: HTMLElement
+  fullSlug: FullSlug
+  graphData: { nodes: NodeData[]; links: LinkData[] }
+  width: number
+  height: number
+  repelForce: number
+  centerForce: number
+  linkDistance: number
+  computedStyleMap: Record<string, string>
+  color: (d: NodeData) => string
+  nodeRadius: (d: NodeData) => number
+}) {
+  const { states, stateById } = layoutGraph3D(
+    graphData,
+    width,
+    height,
+    repelForce,
+    centerForce,
+    linkDistance,
+  )
+  const scene = new THREE.Scene()
+  const camera = new THREE.PerspectiveCamera(56, width / height, 1, 12000)
+  const renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true,
+    powerPreference: "high-performance",
+  })
+  renderer.setClearAlpha(0)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  renderer.setSize(width, height)
+  graph.appendChild(renderer.domElement)
+
+  const controls = new OrbitControls(camera, renderer.domElement)
+  controls.enableDamping = true
+  controls.dampingFactor = 0.08
+  controls.rotateSpeed = 0.55
+  controls.zoomSpeed = 0.75
+  controls.autoRotate = true
+  controls.autoRotateSpeed = 0.32
+
+  const graphGroup = new THREE.Group()
+  scene.add(graphGroup)
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.72))
+  const keyLight = new THREE.PointLight(0xffffff, 1.3)
+  keyLight.position.set(400, 500, 800)
+  scene.add(keyLight)
+
+  const nodeGeometry = new THREE.SphereGeometry(1, 18, 14)
+  const nodeMeshes: THREE.Mesh<THREE.SphereGeometry, THREE.MeshLambertMaterial>[] = []
+  const materials = new Set<THREE.Material>()
+  const grayColor = cssColor(computedStyleMap["--gray"], "#8f8f8f")
+  const tertiaryColor = cssColor(computedStyleMap["--tertiary"], "#84a59d")
+
+  for (const state of states) {
+    const isTagNode = state.node.id.startsWith("tags/")
+    const nodeColor = isTagNode ? tertiaryColor : cssColor(color(state.node), "#8f8f8f")
+    const material = new THREE.MeshLambertMaterial({
+      color: nodeColor,
+      emissive: isTagNode ? tertiaryColor : nodeColor,
+      emissiveIntensity: isTagNode ? 0.28 : 0.12,
+    })
+    materials.add(material)
+
+    const mesh = new THREE.Mesh(nodeGeometry, material)
+    const radius = Math.max(4.2, nodeRadius(state.node) * 2.25)
+    mesh.position.set(state.x, state.y, state.z)
+    mesh.scale.setScalar(radius)
+    mesh.userData = {
+      node: state.node,
+      baseScale: radius,
+      baseEmissiveIntensity: material.emissiveIntensity,
+    }
+    graphGroup.add(mesh)
+    nodeMeshes.push(mesh)
+  }
+
+  const linkPositions = new Float32Array(graphData.links.length * 6)
+  graphData.links.forEach((link, index) => {
+    const source = stateById.get(link.source.id)
+    const target = stateById.get(link.target.id)
+    if (!source || !target) return
+    const offset = index * 6
+    linkPositions[offset] = source.x
+    linkPositions[offset + 1] = source.y
+    linkPositions[offset + 2] = source.z
+    linkPositions[offset + 3] = target.x
+    linkPositions[offset + 4] = target.y
+    linkPositions[offset + 5] = target.z
+  })
+
+  const linkGeometry = new THREE.BufferGeometry()
+  linkGeometry.setAttribute("position", new THREE.BufferAttribute(linkPositions, 3))
+  const linkMaterial = new THREE.LineBasicMaterial({
+    color: grayColor,
+    transparent: true,
+    opacity: 0.62,
+    depthWrite: false,
+  })
+  materials.add(linkMaterial)
+  graphGroup.add(new THREE.LineSegments(linkGeometry, linkMaterial))
+
+  const boundingBox = new THREE.Box3().setFromObject(graphGroup)
+  const boundingSphere = new THREE.Sphere()
+  boundingBox.getBoundingSphere(boundingSphere)
+  const cameraDistance = Math.max(260, boundingSphere.radius * 1.85)
+  camera.position.set(0, 0, cameraDistance)
+  controls.minDistance = Math.max(45, boundingSphere.radius * 0.18)
+  controls.maxDistance = Math.max(900, boundingSphere.radius * 6)
+  controls.target.copy(boundingSphere.center)
+  controls.update()
+
+  const tooltip = document.createElement("div")
+  tooltip.className = "global-graph-tooltip"
+  graph.appendChild(tooltip)
+
+  const raycaster = new THREE.Raycaster()
+  const pointer = new THREE.Vector2()
+  let hoveredMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshLambertMaterial> | null = null
+  let pointerDown: { x: number; y: number } | null = null
+
+  function positionTooltip(event: PointerEvent) {
+    const rect = graph.getBoundingClientRect()
+    const x = Math.min(Math.max(event.clientX - rect.left + 14, 8), rect.width - 16)
+    const y = Math.min(Math.max(event.clientY - rect.top + 14, 8), rect.height - 16)
+    tooltip.style.transform = `translate3d(${x}px, ${y}px, 0)`
+  }
+
+  function setHoveredMesh(
+    nextMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshLambertMaterial> | null,
+    event?: PointerEvent,
+  ) {
+    if (hoveredMesh === nextMesh) {
+      if (nextMesh && event) positionTooltip(event)
+      return
+    }
+
+    if (hoveredMesh) {
+      hoveredMesh.scale.setScalar(hoveredMesh.userData.baseScale)
+      hoveredMesh.material.emissiveIntensity = hoveredMesh.userData.baseEmissiveIntensity
+    }
+
+    hoveredMesh = nextMesh
+    if (hoveredMesh) {
+      hoveredMesh.scale.setScalar(hoveredMesh.userData.baseScale * 1.55)
+      hoveredMesh.material.emissiveIntensity = Math.max(
+        hoveredMesh.userData.baseEmissiveIntensity,
+        0.35,
+      )
+      tooltip.textContent = hoveredMesh.userData.node.text
+      tooltip.classList.add("active")
+      if (event) positionTooltip(event)
+      renderer.domElement.style.cursor = "pointer"
+    } else {
+      tooltip.classList.remove("active")
+      tooltip.style.transform = "translate3d(-9999px, -9999px, 0)"
+      renderer.domElement.style.cursor = ""
+    }
+  }
+
+  function pickNode(event: PointerEvent) {
+    const rect = renderer.domElement.getBoundingClientRect()
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+    raycaster.setFromCamera(pointer, camera)
+    const hit = raycaster.intersectObjects(nodeMeshes, false)[0]?.object as
+      | THREE.Mesh<THREE.SphereGeometry, THREE.MeshLambertMaterial>
+      | undefined
+    setHoveredMesh(hit ?? null, event)
+  }
+
+  function handlePointerMove(event: PointerEvent) {
+    pickNode(event)
+  }
+
+  function handlePointerDown(event: PointerEvent) {
+    pointerDown = { x: event.clientX, y: event.clientY }
+  }
+
+  function handlePointerUp(event: PointerEvent) {
+    if (!pointerDown || !hoveredMesh) return
+    const dx = event.clientX - pointerDown.x
+    const dy = event.clientY - pointerDown.y
+    pointerDown = null
+    if (Math.sqrt(dx * dx + dy * dy) > 6) return
+
+    const node = hoveredMesh.userData.node as NodeData
+    const targ = resolveRelative(fullSlug, node.id)
+    window.spaNavigate(new URL(targ, window.location.toString()))
+  }
+
+  function handlePointerLeave() {
+    pointerDown = null
+    setHoveredMesh(null)
+  }
+
+  renderer.domElement.addEventListener("pointermove", handlePointerMove)
+  renderer.domElement.addEventListener("pointerdown", handlePointerDown)
+  renderer.domElement.addEventListener("pointerup", handlePointerUp)
+  renderer.domElement.addEventListener("pointerleave", handlePointerLeave)
+
+  let stopAnimation = false
+  function animate() {
+    if (stopAnimation) return
+    controls.update()
+    renderer.render(scene, camera)
+    requestAnimationFrame(animate)
+  }
+
+  requestAnimationFrame(animate)
+  return () => {
+    stopAnimation = true
+    renderer.domElement.removeEventListener("pointermove", handlePointerMove)
+    renderer.domElement.removeEventListener("pointerdown", handlePointerDown)
+    renderer.domElement.removeEventListener("pointerup", handlePointerUp)
+    renderer.domElement.removeEventListener("pointerleave", handlePointerLeave)
+    controls.dispose()
+    nodeGeometry.dispose()
+    linkGeometry.dispose()
+    materials.forEach((material) => material.dispose())
+    renderer.dispose()
+  }
 }
 
 async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
@@ -164,16 +543,6 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
   const width = graph.offsetWidth
   const height = Math.max(graph.offsetHeight, 250)
 
-  // we virtualize the simulation and use pixi to actually render it
-  const simulation: Simulation<NodeData, LinkData> = forceSimulation<NodeData>(graphData.nodes)
-    .force("charge", forceManyBody().strength(-100 * repelForce))
-    .force("center", forceCenter().strength(centerForce))
-    .force("link", forceLink(graphData.links).distance(linkDistance))
-    .force("collide", forceCollide<NodeData>((n) => nodeRadius(n)).iterations(3))
-
-  const radius = (Math.min(width, height) / 2) * 0.8
-  if (enableRadial) simulation.force("radial", forceRadial(radius).strength(0.2))
-
   // precompute style prop strings as pixi doesn't support css variables
   const cssVars = [
     "--secondary",
@@ -211,6 +580,39 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
     ).length
     return 2 + Math.sqrt(numLinks)
   }
+
+  const renderMode = (graph.dataset["renderer"] ?? "2d") as GraphRenderMode
+  if (renderMode === "3d") {
+    try {
+      return renderGraph3D({
+        graph,
+        fullSlug,
+        graphData,
+        width,
+        height,
+        repelForce,
+        centerForce,
+        linkDistance,
+        computedStyleMap,
+        color,
+        nodeRadius,
+      })
+    } catch (err) {
+      console.error("Failed to initialize 3D graph, falling back to 2D", err)
+      graph.dataset["renderer"] = "2d"
+      removeAllChildren(graph)
+    }
+  }
+
+  // we virtualize the simulation and use pixi to actually render it
+  const simulation: Simulation<NodeData, LinkData> = forceSimulation<NodeData>(graphData.nodes)
+    .force("charge", forceManyBody().strength(-100 * repelForce))
+    .force("center", forceCenter().strength(centerForce))
+    .force("link", forceLink(graphData.links).distance(linkDistance))
+    .force("collide", forceCollide<NodeData>((n) => nodeRadius(n)).iterations(3))
+
+  const radius = (Math.min(width, height) / 2) * 0.8
+  if (enableRadial) simulation.force("radial", forceRadial(radius).strength(0.2))
 
   let hoveredNodeId: string | null = null
   let hoveredNeighbours: Set<string> = new Set()
@@ -563,6 +965,20 @@ let globalGraphFocusReturn: HTMLElement | null = null
 let globalGraphRenderSeq = 0
 let globalGraphResizeTimeout: ReturnType<typeof setTimeout> | undefined
 
+function getGlobalGraphContainers() {
+  return [...document.getElementsByClassName("global-graph-outer")] as HTMLElement[]
+}
+
+function ensureGlobalGraphPortals(containers = getGlobalGraphContainers()) {
+  for (const container of containers) {
+    if (container.parentElement !== document.body) {
+      document.body.appendChild(container)
+    }
+  }
+
+  return containers
+}
+
 function cleanupLocalGraphs() {
   for (const cleanup of localGraphCleanups) {
     cleanup()
@@ -612,17 +1028,27 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
     }
   }
 
-  const containers = [...document.getElementsByClassName("global-graph-outer")] as HTMLElement[]
-  for (const container of containers) {
-    if (container.parentElement !== document.body) {
-      document.body.appendChild(container)
-    }
-  }
+  let containers = ensureGlobalGraphPortals()
 
   const anyGlobalGraphOpen = () =>
     containers.some((container) => container.classList.contains("active"))
 
+  function updateGlobalGraphModeControls(container: HTMLElement) {
+    const graphContainer = container.querySelector(".global-graph-container") as HTMLElement | null
+    const renderMode = (graphContainer?.dataset["renderer"] ?? "2d") as GraphRenderMode
+    const buttons = container.querySelectorAll<HTMLButtonElement>(".global-graph-mode")
+
+    for (const button of buttons) {
+      const isActive = button.dataset["graphMode"] === renderMode
+      button.classList.toggle("active", isActive)
+      button.setAttribute("aria-pressed", String(isActive))
+    }
+  }
+
+  containers.forEach(updateGlobalGraphModeControls)
+
   async function renderOpenGlobalGraphs() {
+    containers = ensureGlobalGraphPortals(containers)
     cleanupGlobalGraphs()
     const renderSeq = ++globalGraphRenderSeq
     const slug = getFullSlug(window)
@@ -632,6 +1058,7 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
       const graphContainer = container.querySelector(".global-graph-container") as HTMLElement
       if (graphContainer) {
         const cleanup = await renderGraphSafely(graphContainer, slug)
+        updateGlobalGraphModeControls(container)
         if (renderSeq === globalGraphRenderSeq && container.classList.contains("active")) {
           if (cleanup) globalGraphCleanups.push(cleanup)
         } else {
@@ -645,6 +1072,7 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
   }
 
   async function renderGlobalGraph() {
+    containers = ensureGlobalGraphPortals(containers)
     if (!anyGlobalGraphOpen()) {
       globalGraphFocusReturn =
         document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -652,12 +1080,14 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
     lockBodyScroll()
     for (const container of containers) {
       container.classList.add("active")
+      updateGlobalGraphModeControls(container)
     }
     containers[0]?.querySelector<HTMLElement>(".global-graph-close")?.focus()
     await renderOpenGlobalGraphs()
   }
 
   function hideGlobalGraph() {
+    containers = ensureGlobalGraphPortals(containers)
     globalGraphRenderSeq++
     if (globalGraphResizeTimeout) {
       clearTimeout(globalGraphResizeTimeout)
@@ -702,6 +1132,32 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
   Array.from(containerIcons).forEach((icon) => {
     icon.addEventListener("click", renderGlobalGraph)
     window.addCleanup(() => icon.removeEventListener("click", renderGlobalGraph))
+  })
+
+  const modeButtons = document.getElementsByClassName("global-graph-mode")
+  Array.from(modeButtons).forEach((button) => {
+    const modeButton = button as HTMLButtonElement
+    const setGraphMode = () => {
+      const renderMode = modeButton.dataset["graphMode"] as GraphRenderMode | undefined
+      if (renderMode !== "2d" && renderMode !== "3d") return
+
+      const container = modeButton.closest(".global-graph-outer") as HTMLElement | null
+      const graphContainer = container?.querySelector(
+        ".global-graph-container",
+      ) as HTMLElement | null
+      if (!container || !graphContainer || graphContainer.dataset["renderer"] === renderMode) {
+        return
+      }
+
+      graphContainer.dataset["renderer"] = renderMode
+      updateGlobalGraphModeControls(container)
+      if (container.classList.contains("active")) {
+        void renderOpenGlobalGraphs()
+      }
+    }
+
+    modeButton.addEventListener("click", setGraphMode)
+    window.addCleanup(() => modeButton.removeEventListener("click", setGraphMode))
   })
 
   const closeButtons = document.getElementsByClassName("global-graph-close")

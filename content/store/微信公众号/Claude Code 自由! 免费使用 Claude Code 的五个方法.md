@@ -83,15 +83,44 @@ claude
 
 如果有其他问题可以参阅这个项目的README，比较详细。
 
+### FreeLLMAPI — 免费 LLM 全家桶
+
+前面四个方案各走各的路，有没有人把它们整合到一起？有的，[FreeLLMAPI](https://github.com/tashfeenahmed/freellmapi) 就是一个开源聚合层，把 16+ 个免费 LLM 提供商的 API 接到一个统一的端点，每月约 **17 亿免费 token** 池，智能路由自动故障转移。
+
+它覆盖了上面提到的 NVIDIA NIM、Google Gemini（相当于 Antigravity 的正规渠道），还加上 Groq、Cerebras、OpenRouter（21 个免费模型）、GitHub Models（GPT-4.1/4o）、Cloudflare、HuggingFace 等。本质上，你把 FreeLLMAPI 部署好后，就不用管哪个源今天额度用完了——它内部有 `RPM/RPD/TPM` 计数器，遇到 429 或超时自动切换到下一个可用模型。
+
+部署方式：
+
+```sh
+git clone https://github.com/tashfeenahmed/freellmapi.git
+cd freellmapi
+npm install
+npm run build
+npm start
+```
+
+启动后访问 `http://localhost:3000`，在管理面板填入各提供商的 API Key（没有的跳过即可），然后拿到统一 API Key 就能用了。FreeLLMAPI 提供了 OpenAI 兼容的 `/v1/chat/completions` 端点，也做了 Anthropic Responses API 的翻译层，可以直接对接 Claude Code。
+
+对于 Claude Code 使用，配置方式类似：
+
+```sh
+alias claude="ANTHROPIC_BASE_URL=http://localhost:3000/v1 ANTHROPIC_API_KEY=freellmapi-xxxxx claude"
+```
+
+⚠️ 需要注意的是：免费源毕竟有日配额，越是顶级的模型（Gemini、GPT-4.1 等）越早耗尽，router 会逐级降级到更小的模型。重度使用时会感觉"越用越笨"。另外 Cohere 的 ToS 明确禁止非家庭用途，NVIDIA 仅限评估，建议阅读项目的 ToS 合规说明。
+
+总结一下 FreeLLMAPI 的价值：**它不提供新的免费源，而是把分散的免费源变成一个可运维的统一入口**。如果你不想在各个平台注册、不想手动切换模型，这可能是最省心的方案。
+
 ## 📰 总结
 
-简单比较下四个方案：
+简单比较下五个方案：
 
-| 方案                | 稳定性     | 使用难度 | 最佳场景        |
-| ------------------- | ---------- | -------- | --------------- |
-| **Nvidia NIM**      | ⭐⭐⭐⭐⭐ | 简单     | 生产环境首选    |
-| **Any Router**      | ⭐⭐⭐     | 中等     | 备用方案+薅羊毛 |
-| **Ollama 本地**     | ⭐⭐⭐⭐⭐ | 简单     | 无网络/隐私优先 |
-| **Antigravity反代** | ⭐⭐⭐     | 较难     | 日常备用        |
+| 方案                  | 稳定性     | 使用难度 | 最佳场景              |
+| --------------------- | ---------- | -------- | --------------------- |
+| **Nvidia NIM**        | ⭐⭐⭐⭐⭐ | 简单     | 生产环境首选          |
+| **Any Router**        | ⭐⭐⭐     | 中等     | 备用方案+薅羊毛       |
+| **Ollama 本地**       | ⭐⭐⭐⭐⭐ | 简单     | 无网络/隐私优先       |
+| **Antigravity反代**   | ⭐⭐⭐     | 较难     | 日常备用              |
+| **FreeLLMAPI**        | ⭐⭐⭐⭐   | 中等     | 一站式聚合+自动切换   |
 
-NIM 和 Ollama 可以基本实现个人算力自由，AnyRouter 十分划算，Antigravity反代现在还能薅。
+NIM 和 Ollama 基本实现个人算力自由，AnyRouter 十分划算，Antigravity反代还能薅，FreeLLMAPI 则是把上面这些（还有其他十多个源）统一管起来的全家桶方案。
