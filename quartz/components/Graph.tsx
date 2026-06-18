@@ -68,8 +68,7 @@ export default ((opts?: Partial<GraphOptions>) => {
         <h3>{i18n(cfg.locale).components.graph.title}</h3>
         <div class="graph-outer">
           <div class="graph-container" data-cfg={JSON.stringify(localGraph)}></div>
-          <button class="global-graph-icon" aria-label="展开全屏图谱">
-            <span>展开图谱</span>
+          <button class="global-graph-icon" aria-label="展开全屏图谱" title="展开全屏图谱">
             <svg
               version="1.1"
               xmlns="http://www.w3.org/2000/svg"
@@ -101,7 +100,6 @@ export default ((opts?: Partial<GraphOptions>) => {
             <header class="global-graph-header">
               <div>
                 <h3>全站关系图</h3>
-                <p>拖拽移动节点，滚轮缩放，点击节点跳转，按 Esc 关闭。</p>
               </div>
               <button class="global-graph-close" aria-label="关闭全站关系图">
                 ×

@@ -357,7 +357,7 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
     autoStart: false,
     autoDensity: true,
     backgroundAlpha: 0,
-    preference: "webgpu",
+    preference: "webgl",
     resolution: window.devicePixelRatio,
     eventMode: "static",
   })
@@ -589,6 +589,16 @@ function restoreBodyScroll() {
   bodyOverflowBeforeGlobalGraph = null
 }
 
+async function renderGraphSafely(graph: HTMLElement, slug: FullSlug) {
+  try {
+    return await renderGraph(graph, slug)
+  } catch (err) {
+    console.error("Failed to render graph", err)
+    removeAllChildren(graph)
+    return undefined
+  }
+}
+
 document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
   const slug = e.detail.url
   addToVisited(simplifySlug(slug))
@@ -597,21 +607,18 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
     cleanupLocalGraphs()
     const localGraphContainers = document.getElementsByClassName("graph-container")
     for (const container of localGraphContainers) {
-      localGraphCleanups.push(await renderGraph(container as HTMLElement, slug))
+      const cleanup = await renderGraphSafely(container as HTMLElement, slug)
+      if (cleanup) localGraphCleanups.push(cleanup)
     }
   }
 
-  await renderLocalGraph()
-  const handleThemeChange = () => {
-    void renderLocalGraph()
+  const containers = [...document.getElementsByClassName("global-graph-outer")] as HTMLElement[]
+  for (const container of containers) {
+    if (container.parentElement !== document.body) {
+      document.body.appendChild(container)
+    }
   }
 
-  document.addEventListener("themechange", handleThemeChange)
-  window.addCleanup(() => {
-    document.removeEventListener("themechange", handleThemeChange)
-  })
-
-  const containers = [...document.getElementsByClassName("global-graph-outer")] as HTMLElement[]
   const anyGlobalGraphOpen = () =>
     containers.some((container) => container.classList.contains("active"))
 
@@ -624,11 +631,11 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
 
       const graphContainer = container.querySelector(".global-graph-container") as HTMLElement
       if (graphContainer) {
-        const cleanup = await renderGraph(graphContainer, slug)
+        const cleanup = await renderGraphSafely(graphContainer, slug)
         if (renderSeq === globalGraphRenderSeq && container.classList.contains("active")) {
-          globalGraphCleanups.push(cleanup)
+          if (cleanup) globalGraphCleanups.push(cleanup)
         } else {
-          cleanup()
+          cleanup?.()
           if (!container.classList.contains("active")) {
             removeAllChildren(graphContainer)
           }
@@ -645,10 +652,6 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
     lockBodyScroll()
     for (const container of containers) {
       container.classList.add("active")
-      const sidebar = container.closest(".sidebar") as HTMLElement
-      if (sidebar) {
-        sidebar.style.zIndex = "1"
-      }
     }
     containers[0]?.querySelector<HTMLElement>(".global-graph-close")?.focus()
     await renderOpenGlobalGraphs()
@@ -664,10 +667,6 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
     restoreBodyScroll()
     for (const container of containers) {
       container.classList.remove("active")
-      const sidebar = container.closest(".sidebar") as HTMLElement
-      if (sidebar) {
-        sidebar.style.zIndex = ""
-      }
       const graphContainer = container.querySelector(".global-graph-container") as HTMLElement
       if (graphContainer) {
         removeAllChildren(graphContainer)
@@ -688,7 +687,7 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
     }, 150)
   }
 
-  async function shortcutHandler(e: HTMLElementEventMap["keydown"]) {
+  function shortcutHandler(e: HTMLElementEventMap["keydown"]) {
     if (e.key === "g" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
       e.preventDefault()
       anyGlobalGraphOpen() ? hideGlobalGraph() : renderGlobalGraph()
@@ -713,7 +712,12 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
 
   document.addEventListener("keydown", shortcutHandler)
   window.addEventListener("resize", handleGlobalGraphResize)
+
+  let handleThemeChange: (() => void) | undefined
   window.addCleanup(() => {
+    if (handleThemeChange) {
+      document.removeEventListener("themechange", handleThemeChange)
+    }
     document.removeEventListener("keydown", shortcutHandler)
     window.removeEventListener("resize", handleGlobalGraphResize)
     if (globalGraphResizeTimeout) clearTimeout(globalGraphResizeTimeout)
@@ -721,5 +725,17 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
     cleanupLocalGraphs()
     cleanupGlobalGraphs()
     restoreBodyScroll()
+    for (const container of containers) {
+      container.remove()
+    }
   })
+
+  await renderLocalGraph()
+  handleThemeChange = () => {
+    void renderLocalGraph()
+    if (anyGlobalGraphOpen()) {
+      void renderOpenGlobalGraphs()
+    }
+  }
+  document.addEventListener("themechange", handleThemeChange)
 })
