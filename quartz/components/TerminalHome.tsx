@@ -962,7 +962,7 @@ export default (() => {
   display: none;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 768px) {
   body[data-slug="index"] .page > #quartz-body {
     grid-template-areas:
       "grid-center"
