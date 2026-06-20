@@ -1,0 +1,4 @@
+interface:
+  display_name: "文章配图 OSS"
+  short_description: "为既有博客文章生成配图、上传公共 OSS 并嵌入链接"
+  default_prompt: "Use $article-image-oss to add suitable OSS-hosted images to an existing blog article."
