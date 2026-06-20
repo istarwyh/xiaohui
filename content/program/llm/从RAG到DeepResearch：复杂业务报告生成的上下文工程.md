@@ -1,7 +1,7 @@
 ---
 title: 从 RAG 到 Deep Research：复杂业务报告生成的上下文工程
 created: 2026-06-03T00:00:00+08:00
-modified: 2026-06-05T00:00:00+08:00
+modified: 2026-06-20T00:00:00+08:00
 published: 2026-06-03T00:00:00+08:00
 aliases:
   - 对照式深度研究
@@ -425,6 +425,8 @@ plan research → search support → search opposition → read contrastively �
 ```
 
 这才是从 `RAG` 到 `Deep Research` 的真正跃迁。
+
+如果说本文讨论的是复杂业务报告如何生成，那么评测这类报告还需要另一套工程化尺子：从总分切到 `checkpoint`，再用元评测指标校准评测器本身。详见 [[如何科学评测 Agent 生成的文本报告：从评分体系到评测器的元评测]]。
 
 ## 参考资料
 
