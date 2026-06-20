@@ -17,6 +17,10 @@ content/.obsidian/cache
 .playwright-mcp/
 /homepage-*.png
 /screenshot-*.png
+
+# Local article image copies; upload final images to OSS instead
+content/**/_v_images/
+
 private/
 .replit
 replit.nix
