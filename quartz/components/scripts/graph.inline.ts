@@ -959,6 +959,8 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
 }
 
 let localGraphCleanups: (() => void)[] = []
+let localGraphObserver: IntersectionObserver | undefined
+let localGraphRenderSeq = 0
 let globalGraphCleanups: (() => void)[] = []
 let bodyOverflowBeforeGlobalGraph: string | null = null
 let globalGraphFocusReturn: HTMLElement | null = null
@@ -980,6 +982,10 @@ function ensureGlobalGraphPortals(containers = getGlobalGraphContainers()) {
 }
 
 function cleanupLocalGraphs() {
+  localGraphRenderSeq++
+  localGraphObserver?.disconnect()
+  localGraphObserver = undefined
+
   for (const cleanup of localGraphCleanups) {
     cleanup()
   }
@@ -1021,10 +1027,56 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
 
   async function renderLocalGraph() {
     cleanupLocalGraphs()
-    const localGraphContainers = document.getElementsByClassName("graph-container")
+    const localGraphContainers = [
+      ...document.getElementsByClassName("graph-container"),
+    ] as HTMLElement[]
+    const renderSeq = ++localGraphRenderSeq
+
+    const renderVisibleGraph = async (container: HTMLElement) => {
+      if (container.dataset["graphRenderState"] === "rendered") return
+
+      container.dataset["graphRenderState"] = "rendering"
+      const cleanup = await renderGraphSafely(container, slug)
+
+      if (renderSeq !== localGraphRenderSeq || !container.isConnected) {
+        cleanup?.()
+        return
+      }
+
+      container.dataset["graphRenderState"] = "rendered"
+      if (cleanup) {
+        localGraphCleanups.push(() => {
+          cleanup()
+          delete container.dataset["graphRenderState"]
+        })
+      }
+    }
+
+    if (!("IntersectionObserver" in window)) {
+      for (const container of localGraphContainers) {
+        void renderVisibleGraph(container)
+      }
+      return
+    }
+
+    localGraphObserver = new IntersectionObserver(
+      (entries, observer) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+
+          const container = entry.target as HTMLElement
+          observer.unobserve(container)
+          void renderVisibleGraph(container)
+        }
+      },
+      {
+        rootMargin: "240px 0px",
+        threshold: 0.01,
+      },
+    )
+
     for (const container of localGraphContainers) {
-      const cleanup = await renderGraphSafely(container as HTMLElement, slug)
-      if (cleanup) localGraphCleanups.push(cleanup)
+      localGraphObserver.observe(container)
     }
   }
 
