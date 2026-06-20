@@ -962,6 +962,25 @@ export default (() => {
   display: none;
 }
 
+@media (max-width: 768px) {
+  body[data-slug="index"] .page > #quartz-body {
+    grid-template-areas:
+      "grid-center"
+      "grid-sidebar-left"
+      "grid-sidebar-right"
+      "grid-footer";
+  }
+
+  body[data-slug="index"] .page > #quartz-body > .center {
+    grid-area: grid-center;
+  }
+
+  body[data-slug="index"] .page-header > header {
+    display: none;
+    margin: 0;
+  }
+}
+
 `
 
   return TerminalHome
