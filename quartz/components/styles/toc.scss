@@ -94,3 +94,17 @@ ul.toc-content.overflow {
     }
   }
 }
+
+.sidebar.left > .toc {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  position: static;
+  width: 100%;
+
+  & > ul.toc-content.overflow {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 0;
+  }
+}

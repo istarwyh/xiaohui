@@ -255,6 +255,8 @@ a {
       grid-area: grid-sidebar-right;
       margin-right: 0;
       flex-direction: column;
+      overflow-y: auto;
+      overscroll-behavior: contain;
       @media all and ($mobile) {
         margin-left: inherit;
         margin-right: inherit;
@@ -264,6 +266,7 @@ a {
         height: unset;
         width: 100%;
         flex-direction: row;
+        overflow-y: visible;
         padding: 0;
         & > * {
           flex: 1;
