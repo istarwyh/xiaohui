@@ -160,7 +160,146 @@ deep_search
   -> filter_rank
 ```
 
-`deep_search` 负责召回候选。它可以根据用户需求规划多路搜索任务，比如产品名、保险责任、承保区域、预算、收益、核保条件等。
+`deep_search` 负责召回候选。但这里的“搜索”不是一个普通查库函数，而是三段式：
+
+```text
+LLM 规划搜索任务
+  -> 确定性工具执行
+  -> 结构化结果回写
+```
+
+更完整地说：
+
+```text
+product_sub_agent
+  -> deep_search_node
+  -> deep_search_sub_agent / product_search_sub_agent
+  -> LLM 根据 query 规划 search_tasks
+  -> concurrent_search 并发执行 product / underwriting / budget / benefit
+  -> SearchResultCapture 把工具结果写入 search_context
+  -> deep_search_node 解析搜索 Agent 最终 JSON
+  -> 输出 matched_prod_nos + search_context 给 filter_rank
+```
+
+在 `AgenticOne` 里，主 `Agent` 调用 `product_sub_agent` 时传入的通常不是原始用户问题，而是经过主 `Agent` 理解后的任务描述。
+
+比如用户原句是：
+
+```text
+端午去尼泊尔爬山，买什么保险？
+```
+
+主 `Agent` 可能传给搜品子图的任务是：
+
+```text
+为端午短期尼泊尔爬山推荐保险，重点关注境外户外旅行险、
+尼泊尔 / 亚洲承保区域、紧急救援、搜救 / 医疗转运、
+高风险运动 / 高海拔 / 登山条款。
+```
+
+也就是说，`deep_search` 处理的是一个更结构化的搜索任务，而不只是用户原话。
+
+真正搜索前，`deep_search_node` 还会处理若干早退场景：如果命中人工干预的指定产品，就直接返回；如果本轮意图是普通回答或离题，就跳过搜索；如果外部上下文已经带了产品编号，就直接进入对比或展示；如果有用户画像，也可以把必要的年龄、性别、预算等信息注入到搜索 query 里。
+
+随后它会启动一个 ReAct 搜索 `Agent`。这个搜索 `Agent` 有专门的搜索 prompt 和一个核心工具：`concurrent_search`。它的工作模式是：
+
+```text
+Thinking: 理解用户需求
+Action: 调 concurrent_search
+Observation: 读取工具返回
+Final: 输出 JSON
+```
+
+搜索 prompt 会要求模型把所有搜索、核保、预算、收益筛选统一规划成 `search_tasks`，再交给 `concurrent_search` 执行。任务类型大致有四类：
+
+| task_type | 作用 |
+| --- | --- |
+| `product` | 产品搜索 |
+| `underwriting` | 核保过滤 |
+| `budget` | 预算过滤 |
+| `benefit` | 收益过滤 |
+
+对于“端午去尼泊尔爬山”这类问题，搜索 `Agent` 可能规划出：
+
+```text
+product:
+  产品分类 = 旅行意外
+  承保目的地国家或地区 = 亚洲
+  safe_in_country = 尼泊尔
+  fuzzy pattern = 登山 | 徒步 | 高海拔 | 高风险运动 | 紧急救援 | 医疗转运 | 搜救
+```
+
+如果用户补充“预算 300 元以内”，就追加 `budget` 任务。如果用户补充“我有高血压”，就追加 `underwriting` 任务。如果用户问的是收益阈值，再追加 `benefit` 任务。
+
+`concurrent_search` 接到这些任务后，会先按当前搜索场景拿产品池白名单，然后并发执行每个任务。不同任务走不同确定性能力：
+
+| task_type | 后端能力 |
+| --- | --- |
+| `product` | 产品结构化过滤与模糊扫描 |
+| `underwriting` | 核保查询 |
+| `budget` | 预算过滤 |
+| `benefit` | 收益过滤 |
+
+其中 `product` 搜索不是向量检索，而是基于产品 mapper 数据做结构化过滤和正则扫描。大致流程是：
+
+```text
+初始产品池
+  -> scene / scope 白名单过滤
+  -> 产品名 pattern
+  -> conditions_map 字段条件
+  -> liability 条件
+  -> safe_in_country 目的地除外过滤
+  -> fuzzy_prod_info_pattern 扫产品字段和责任详情
+  -> 排序、同名去重、slim 输出
+```
+
+放回尼泊尔爬山例子里：
+
+- `产品分类 = 旅行意外` 先锁定旅行险；
+- `承保目的地国家或地区 = 亚洲` 确保区域覆盖；
+- `safe_in_country = 尼泊尔` 排除不承保尼泊尔的产品；
+- `fuzzy pattern = 登山 / 徒步 / 高海拔 / 紧急救援 / 医疗转运 / 搜救` 用于找到责任或详情里有户外相关能力的产品。
+
+多路任务的合并规则也很关键：
+
+```text
+product tasks 之间取并集
+underwriting / budget / benefit 与候选池取交集
+最后按产品池白名单兜底过滤
+再排序、同名去重、截断
+```
+
+所以如果用户同时给出旅行、预算和健康条件，候选池会变成：
+
+```text
+旅行险候选
+  ∩ 预算范围内
+  ∩ 核保条件可接受
+  ∩ 收益或责任阈值满足
+```
+
+工具返回后，搜索结果不会只留在工具消息里。`SearchResultCapture` 会把结构化结果写入 `search_context`，例如产品 slim 信息、命中原因、核保结果、预算结果、收益结果、任务摘要等。它还可以维护本轮搜索池，支持后续在上一轮候选里继续追加条件，也就是类似 `scope = last` 的渐进搜索。
+
+搜索 `Agent` 最终不会给用户写推荐语，而是输出一个结构化 JSON，例如：
+
+```text
+{
+  "intent": "product_search",
+  "matched_prod_no_list": ["..."]
+}
+```
+
+`deep_search_node` 再解析这份 JSON，并做产品编号校验，过滤掉模型可能编错的编号。最后它返回：
+
+```text
+intent
+matched_prod_nos
+search_context
+search_note
+history_message
+```
+
+这里的 `matched_prod_nos` 是候选产品编号列表，`search_context` 是候选产品的轻量信息、命中原因以及预算 / 核保 / 收益等附属信息。
 
 `filter_rank` 负责从候选里精选。它读取召回结果、历史已展示产品、预算或核保约束，然后输出更适合给主 `Agent` 使用的精选产品编号。
 
@@ -221,7 +360,8 @@ deep_search
 
 ```text
 context_sub 取证
-  -> evidence 写入 state
+  -> ContextBypass 聚合原文片段
+  -> ContextEvidenceCapture 写入 state
   -> 主 Agent 只看到简短 manifest
   -> qa_summary 读取 evidence 并生成对客答案
 ```
@@ -235,7 +375,70 @@ context_sub 取证
 
 公网搜索也是同理。当用户点名一个库内找不到的产品，系统可以通过公网搜索取证，但最后仍然应该进入 evidence 管道，再由问答工具组织成答案。
 
-## 八、终末工具要被保护
+## 八、qa_summary 的三条线
+
+`qa_summary` 不是前端直接消费的工具 JSON。它是一个终末工具，同时连接三条线：证据线、回答线、前端流式线。
+
+以用户问“EBC 徒步能不能赔？”为例，链路大致是：
+
+```text
+用户问具体条款问题
+  -> 主 Agent 判断不能自己编，需要先取证
+  -> task(context_sub_agent, "查高海拔 / 登山 / 徒步除外责任")
+  -> context_sub_agent 读取条款、责任免除、投保须知等材料
+  -> ContextBypass 聚合原文片段，去重、截断、控制预算
+  -> ContextEvidenceCapture 把 evidence 写入 state.search_evidence
+  -> 主 Agent 只收到“已取证”的清单，不看到长原文
+  -> 主 Agent 调 qa_summary(question, prod_nos)
+  -> qa_summary 从 state.search_evidence 读取 evidence
+  -> qa_summary 拼 QA prompt，调用 LLM 生成 Markdown
+  -> LLM token 通过 SSE 流给前端
+  -> qa_summary 返回完整 Markdown
+  -> SummaryBypass 把 ToolMessage 转成最终 AIMessage
+```
+
+这里有几个细节很关键。
+
+第一，evidence 不是 `qa_summary` 自己查的。它来自 `context_sub_agent` 或公网取证类能力。取证过程中读到的条款原文会先被聚合成 evidence，再写入 `state.search_evidence`。主 `Agent` 收到的只是 manifest，例如“已取某产品的高海拔 / 登山 / 徒步除外责任，evidence 已入库，可调用 `qa_summary` 使用”。
+
+第二，`qa_summary` 的入参通常只需要问题和产品范围，例如：
+
+```text
+qa_summary(
+  question="EBC 徒步能不能赔？",
+  prod_nos=["某产品编号"]
+)
+```
+
+它不会要求主 `Agent` 把 evidence 作为参数传进来。evidence 通过注入的 `state` 读取。这样主 `Agent` 不需要背条款原文，也不会在转述过程中丢失或污染证据。
+
+第三，`qa_summary` 消费 evidence 时，会根据产品范围找到对应材料。如果某个产品缺少本轮 evidence，但产品库里有深档案，它会补充产品档案作为辅助上下文。回答优先级应该是：
+
+```text
+本轮 evidence > 产品档案 > 往轮对话
+```
+
+这条优先级很重要。具体问答必须优先相信本轮取到的条款、健告、投保须知等原文，而不是相信主 `Agent` 的历史印象。
+
+第四，前端看到的是 `qa_summary` 内部 LLM 生成过程中的 token，而不是等工具函数完全返回后才一次性显示。也就是说，`qa_summary` 内部的 LLM 调用会被标记成问答生成模块，SSE consumer 持续消费 token chunk，前端把这些 chunk 拼成用户看到的 Markdown 答案。
+
+第五，`qa_summary` 最后仍然会返回完整 Markdown。这个返回值进入图状态，成为工具消息。但它主要用于本轮状态收口，不是让主 `Agent` 再总结。`SummaryBypass` 会把这条终末工具结果转成最终 `AIMessage`，并结束本轮，防止主 `Agent` 二次加工。
+
+所以更准确的分工是：
+
+| 阶段 | 主 Agent 是否参与 |
+| --- | --- |
+| 判断用户是不是具体问答 | 参与 |
+| 选择产品和取证主题 | 参与 |
+| 调用取证 SubAgent | 参与 |
+| 阅读 evidence 原文 | 不参与 |
+| 解释 evidence 并写答案 | 不参与 |
+| 调用 qa_summary | 参与 |
+| qa_summary 生成答案后再总结 | 不参与，被 bypass 禁止 |
+
+一句话说，主 `Agent` 负责“该查什么、该问谁”；`context_sub_agent` 负责“把证据取回来”；`qa_summary` 负责“读证据并写给用户”；前端消费的是 `qa_summary` 生成过程中的 SSE token。
+
+## 九、终末工具要被保护
 
 在 `AgenticOne` 里，有些工具只是中间工具，有些工具是终末工具。
 
@@ -254,7 +457,7 @@ context_sub 取证
 
 这和离线生产闭环里的一个经验是同源的：已经通过专门链路生成和校验过的产物，不要再让另一个自由模型随手改写。
 
-## 九、状态模型：不要把所有东西都塞进 messages
+## 十、状态模型：不要把所有东西都塞进 messages
 
 `AgenticOne` 的稳定性，很大一部分来自状态拆分。
 
@@ -284,7 +487,7 @@ context_sub 取证
 
 这也是 [[LangGraph State 的生命周期]] 里状态持久化价值在业务层的体现。`state` 不只是框架内部的数据结构，而是复杂智能体的“工作台”。
 
-## 十、Middleware：把隐形纪律写进链路
+## 十一、Middleware：把隐形纪律写进链路
 
 生产级 `Agent` 不能只靠 prompt 管纪律。很多规则必须进入运行时。
 
@@ -300,7 +503,7 @@ context_sub 取证
 
 Prompt 告诉模型“应该怎么做”，middleware 则保证系统“每轮都会这样做”。前者是语义约束，后者是运行时约束。真正的生产系统需要两者一起工作。
 
-## 十一、流式输出也是架构的一部分
+## 十二、流式输出也是架构的一部分
 
 `AgenticOne` 的流式输出不是简单地把 LLM token 往前端推。
 
@@ -316,6 +519,34 @@ Prompt 告诉模型“应该怎么做”，middleware 则保证系统“每轮�
 
 如果按事件到达顺序展示，前端会看到多个 `SubAgent` 的输出互相打散。用户理解的业务时序和系统实际事件时序不一致。
 
+这些事件也不是业务代码手动一个个 `yield` 出来的。它们主要来自 LangGraph / LangChain 的运行时事件系统：
+
+```text
+Agent / Tool / LLM 每执行一步
+  -> LangChain 自动发标准事件
+  -> 最外层 agent.astream_events(...) 统一监听
+  -> producer 收集、分组、排序
+  -> consumer 翻译成前端 SSE
+```
+
+运行时会自动产生一组标准事件，例如：
+
+| 事件 | 含义 |
+| --- | --- |
+| `on_chain_start` | 某个 graph node / agent 开始 |
+| `on_chain_end` | 某个 graph node / agent 结束 |
+| `on_chat_model_start` | LLM 调用开始 |
+| `on_chat_model_stream` | LLM token 流 |
+| `on_chat_model_end` | LLM 调用结束 |
+| `on_tool_start` | 工具开始 |
+| `on_tool_end` | 工具结束 |
+
+所以主 `Agent`、搜品子图、搜索工具、筛选 `SubAgent`、取证 `SubAgent`、`qa_summary` 内部 LLM、`render_report` 内部 LLM，都会在同一棵运行树里冒出事件。
+
+系统不会消费所有事件，而是通过 include / exclude 规则只监听产品侧关心的节点和工具。每个事件还会携带 `metadata`、`name`、`run_id`、`parent_ids`、`checkpoint_ns` 等信息。`producer` 会先根据 `metadata` 里的 `lc_agent_name` 判断事件属于哪个 `Agent` 或工具；如果没有明确标记，再落到默认主 `Agent` 或默认工具 `Agent`。
+
+`qa_summary`、`render_report` 这种“工具内部直接调裸 LLM”的场景尤其需要显式标记。它们内部的 LLM 调用会带上专门的 `lc_agent_name`，这样 consumer 才能知道这些 token 应该进入最终回答区，而不是普通思考区。
+
 所以流式层要做生产者和消费者分离：
 
 ```text
@@ -330,9 +561,73 @@ Consumer
   展示搜索、筛选、取证、最终回答
 ```
 
+入口层只创建一个 producer 和一个 consumer，它们共享同一个事件派发状态。这个共享状态里最重要的是按 checkpoint 组织的事件队列：
+
+```text
+EventDispatchState
+  checkpoint_event_queues
+  checkpoint_index
+  checkpoint_lock
+```
+
+`producer` 负责监听最外层 `agent.astream_events(...)`，把原始运行时事件写入这些队列。`consumer` 负责顺序读取队列，把事件翻译成前端能消费的 SSE。
+
+关键在于分组。
+
+LangGraph 事件是并发、嵌套、交错的。`producer` 不会直接转发，而是按 `checkpoint_ns` 分组，再用 `run_id` 和 `parent_ids` 判断一个事件属于哪个队列：
+
+```text
+同一个队列：
+  本事件 run_id 等于队列首事件 run_id
+  或 队列首事件 run_id 出现在本事件 parent_ids 中
+
+没有匹配队列：
+  创建新的 EventQueue
+  追加到 checkpoint_event_queues
+```
+
+这一步的本质，是把“内部执行树”压成“业务段落队列”。
+
+`context_sub_agent` 是一个特殊场景。它可能并发查多个产品材料，如果直接展示，前端会看到多条材料读取事件互相穿插。所以 producer 会对取证事件单独聚合：第一个取证 `SubAgent` 开始时打开聚合，多个取证结束事件进入同一个聚合区，遇到非取证事件时再 flush 成一个合成队列。用户最终看到的是一张“正在查材料”的取证卡，而不是多个并发 `Agent` 的杂乱事件。
+
+`consumer` 则按 `checkpoint_event_queues` 的顺序消费。一个队列什么时候结束，取决于它首事件对应的关闭事件：
+
+```text
+on_chain_start      -> on_chain_end
+on_chat_model_start -> on_chat_model_end
+```
+
+因此 consumer 的职责不是“谁先到就先发”，而是“按业务队列顺序发”。这也是产品体验的关键：前端看到的是搜索、筛选、取证、最终回答这样的业务时序，而不是运行时事件到达顺序。
+
+最后，不管是工具卡、产品卡还是最终回答，都会被包装成统一的 SSE token：
+
+```text
+event_kind
+event_name
+lc_agent_name
+module_code
+event_data.chunk.content
+```
+
+其中 `module_code` 决定前端把内容放在哪个区域。例如思考 / 工具区和最终回答区应该分开，否则用户会把中间过程误认为最终结论。
+
+整条管线可以概括为：
+
+```text
+所有内部运行事件
+  -> agent.astream_events
+  -> produce_events
+  -> checkpoint_event_queues
+  -> consume_events
+  -> process_event
+  -> create_sse_token
+  -> SSE response
+  -> 前端
+```
+
 这和 [[LangGraph Platform 可恢复流协议深度解析]] 里讨论的可恢复流属于同一类问题：`Agent` 的执行流和用户看到的产品流不是一回事。产品侧需要一层协议把内部事件翻译成用户可理解的时序。
 
-## 十二、典型链路
+## 十三、典型链路
 
 ### 推荐链路
 
@@ -352,10 +647,11 @@ Consumer
 ```text
 用户追问某产品责任 / 健告 / 除外责任
   -> 主 Agent 定位产品
-  -> 取证 SubAgent 拉材料
-  -> evidence 写入 state
-  -> 问答工具读取 evidence
-  -> 终末工具直出
+  -> 取证 SubAgent 读取材料
+  -> ContextBypass 聚合原文片段
+  -> ContextEvidenceCapture 写入 evidence
+  -> qa_summary 读取 evidence 并流式生成 Markdown
+  -> SummaryBypass 终末工具直出
 ```
 
 ### 保费试算链路
@@ -382,7 +678,7 @@ Consumer
 
 核保的关键不在一次回答，而在跨轮状态。它必须记住同一被保人的已确认健康点位，这正是子流程状态存在的原因。
 
-## 十三、和离线生产闭环的关系
+## 十四、和离线生产闭环的关系
 
 离线生产闭环和 `AgenticOne` 都是 `OneAgent` 的应用，但它们解决的问题不同。
 
@@ -430,7 +726,7 @@ Host Agent
 
 区别只在业务目标：一个把 `AI` 产物变成可刷库的内容，一个把多种保险能力编排成在线咨询。
 
-## 十四、可迁移的方法论
+## 十五、可迁移的方法论
 
 `AgenticOne` 的价值不在于“保险场景里用了多少 Agent”，而在于它给复杂业务智能体提供了几条可迁移原则。
 
