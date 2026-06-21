@@ -966,6 +966,8 @@ let bodyOverflowBeforeGlobalGraph: string | null = null
 let globalGraphFocusReturn: HTMLElement | null = null
 let globalGraphRenderSeq = 0
 let globalGraphResizeTimeout: ReturnType<typeof setTimeout> | undefined
+type GlobalGraphOrigin = { parent: Node; nextSibling: ChildNode | null }
+const globalGraphOrigins = new WeakMap<HTMLElement, GlobalGraphOrigin>()
 
 function getGlobalGraphContainers() {
   return [...document.getElementsByClassName("global-graph-outer")] as HTMLElement[]
@@ -974,11 +976,34 @@ function getGlobalGraphContainers() {
 function ensureGlobalGraphPortals(containers = getGlobalGraphContainers()) {
   for (const container of containers) {
     if (container.parentElement !== document.body) {
+      if (container.parentNode && !globalGraphOrigins.has(container)) {
+        globalGraphOrigins.set(container, {
+          parent: container.parentNode,
+          nextSibling: container.nextSibling,
+        })
+      }
       document.body.appendChild(container)
     }
   }
 
   return containers
+}
+
+function restoreGlobalGraphPortals(containers = getGlobalGraphContainers()) {
+  for (const container of containers) {
+    const origin = globalGraphOrigins.get(container)
+    if (!origin) continue
+
+    if (origin.parent.isConnected) {
+      origin.parent.insertBefore(
+        container,
+        origin.nextSibling?.parentNode === origin.parent ? origin.nextSibling : null,
+      )
+    } else {
+      container.remove()
+    }
+    globalGraphOrigins.delete(container)
+  }
 }
 
 function cleanupLocalGraphs() {
@@ -1154,6 +1179,7 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
         removeAllChildren(graphContainer)
       }
     }
+    restoreGlobalGraphPortals(containers)
     if (globalGraphFocusReturn?.isConnected) {
       globalGraphFocusReturn.focus()
     }
@@ -1233,9 +1259,7 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
     cleanupLocalGraphs()
     cleanupGlobalGraphs()
     restoreBodyScroll()
-    for (const container of containers) {
-      container.remove()
-    }
+    restoreGlobalGraphPortals(containers)
   })
 
   await renderLocalGraph()

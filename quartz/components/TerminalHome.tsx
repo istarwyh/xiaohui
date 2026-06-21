@@ -101,7 +101,7 @@ function getRecentPages({
   return allFiles
     .filter((file) => file.slug !== "index" && !file.slug?.startsWith("tags/"))
     .sort(byDateAndAlphabetical(cfg))
-    .slice(0, 4)
+    .slice(0, 6)
     .map((page) => ({
       href: resolveRelative(currentSlug, page.slug!),
       title: page.frontmatter?.title ?? "Untitled",
