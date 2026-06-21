@@ -240,3 +240,21 @@ body[data-slug="index"] .graph > .graph-outer {
     }
   }
 }
+
+@media all and ($mobile) {
+  .sidebar.right > .graph {
+    flex: 0 0 auto;
+    max-height: none;
+    width: 100%;
+
+    & > h3 {
+      font-size: 1.05rem;
+    }
+
+    & > .graph-outer,
+    body[data-slug="index"] & > .graph-outer {
+      height: min(62vh, 380px);
+      min-height: 320px;
+    }
+  }
+}

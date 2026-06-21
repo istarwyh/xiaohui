@@ -273,6 +273,17 @@ a {
           display: none;
         }
       }
+      @media all and ($mobile) {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 1.5rem;
+        padding-top: 1.5rem;
+        & > * {
+          flex: 0 0 auto;
+          max-height: none;
+          width: 100%;
+        }
+      }
     }
     & .page-header,
     & .page-footer {
