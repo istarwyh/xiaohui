@@ -765,6 +765,7 @@ Host Agent
 - [[从Claude Code到 OneAgent：如何做好上下文工程]]
 - [[如何打造可靠的Agent系统]]
 - [[LangGraph State 的生命周期]]
+- [[LangGraph Agent Event 消费指南]]
 - [[LangGraph Platform 可恢复流协议深度解析]]
 - [[从RAG到DeepResearch：复杂业务报告生成的上下文工程]]
 - [[Harness Engineering - C 端 AIGC 实时生成系统]]
