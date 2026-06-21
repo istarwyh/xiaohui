@@ -25,7 +25,10 @@ Improve an existing blog article with relevant images, upload final image files 
 
 3. Create or select images.
    - If new raster images are needed, use the `imagegen` skill/tool and keep a consistent series style.
-   - For technical essays on this blog, a safe default is editorial technical-manual style: warm paper, engraved linework, restrained color, no logo, no watermark, and no readable title text.
+   - For technical essays on this blog, use an O'Reilly-style interior instructional illustration by default, not an O'Reilly cover style. The default should be demo-friendly and low-to-medium density: one image explains one idea, uses 3-5 main visual elements, large spacing, short labels, simple arrows, white or near-white background, black linework, and sparse muted accent colors.
+   - Do not compress the entire article into one picture unless the user explicitly asks for an overview map. Prefer a focused slice such as one workflow step, one before/after comparison, one metric definition, one small matrix, or one feedback loop.
+   - Avoid cover-like centered specimen compositions, decorative book-cover bands, oversized symbolic objects, visual metaphors that do not teach the content, logos, publisher names, watermarks, and exact replicas of any real book cover.
+   - When the image needs reliable labels, formulas, matrix cells, or process arrows, prefer deterministic SVG/HTML diagrams rendered to PNG over generative illustration.
    - Save project-bound generated images into the workspace before upload; do not leave final project assets only under `$CODEX_HOME/generated_images`.
 
 4. Upload final images to OSS.

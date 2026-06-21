@@ -1,7 +1,7 @@
 ---
 title: 如何科学评测 Agent 生成的文本报告：从评分体系到评测器的元评测
 created: 2026-06-20T00:00:00+08:00
-modified: 2026-06-20T19:04:22+08:00
+modified: 2026-06-21T11:15:00+08:00
 published: 2026-06-20T00:00:00+08:00
 tags:
   - AI Agent
@@ -91,7 +91,7 @@ aliases:
 
 > 到底是哪一类能力不行？
 
-![把报告质量拆到 checkpoint 层级](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260620-agent-report-eval-01-checkpoint-hierarchy.png)
+![把报告质量拆到 checkpoint 层级](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260621-agent-report-eval-interior-01-checkpoint.png)
 
 ## 二、第一层：如何评测文本报告？
 
@@ -199,7 +199,7 @@ dimension 分
 
 点评器只能看。测量仪器可以校准、回归、监控、优化。
 
-![结构化评测器像一台可校准的测量仪器](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260620-agent-report-eval-02-structured-evaluator-instrument.png)
+![结构化评测器像一台可校准的测量仪器](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260621-agent-report-eval-interior-02-structured-evaluator.png)
 
 `G-Eval` 用 `CoT` 和表单化评分提升 `LLM` 评价和人类评价的一致性，`Prometheus 2` 走的是专门训练评测模型、支持自定义 `rubric` 的路线。[^g-eval] [^prometheus] 它们都指向同一个工程结论：`LLM Judge` 可以用，但要关进评分表、证据要求和输出格式里。
 
@@ -211,7 +211,7 @@ dimension 分
 
 这就是元评测。
 
-![用专家评分结果校验评测器评分结果](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260620-agent-report-eval-03-meta-evaluation-expert-alignment.png)
+![用专家评分结果校验评测器评分结果](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260621-agent-report-eval-interior-03-expert-alignment.png)
 
 普通评测是：
 
@@ -257,7 +257,7 @@ SCE：评测器最终分数离专家有多远？
 REC：评测器是否稳定地像自己？
 ```
 
-![ESF、SCE、REC 三个元评测指标](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260620-agent-report-eval-04-esf-sce-rec-metrics.png)
+![ESF、SCE、REC 三个元评测指标](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260621-agent-report-eval-interior-04-metrics.png)
 
 ## 六、指标一：ESF，专家判分复现率
 
@@ -474,7 +474,7 @@ Compliance Flip Rate
 再次验证
 ```
 
-![从专家 GT 到评测器优化的闭环](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260620-agent-report-eval-05-evaluation-improvement-loop.png)
+![从专家 GT 到评测器优化的闭环](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260621-agent-report-eval-interior-05-loop.png)
 
 关键点有三个。
 
