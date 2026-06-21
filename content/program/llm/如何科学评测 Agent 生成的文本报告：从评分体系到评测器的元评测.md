@@ -655,6 +655,7 @@ ESF / SCE / REC 元评测
 
 - [[从RAG到DeepResearch：复杂业务报告生成的上下文工程]]：复杂业务报告如何从一次性 `RAG` 走向可验证的搜索推理轨迹。
 - [[Harness Engineering - C 端 AIGC 实时生成系统]]：把 `Research Agent`、`Verify Agent` 和 `Host Agent` 组合成可生产交付的验证闭环。
+- [[保险产品解读报告系统：Multi-Agent 生产链路与评测闭环]]：保险产品解读系统里，报告评分如何和生成、增强、质量网关、产品评测组成更完整的闭环。
 - [[如何放心 100% AI 交付需求(3) -- 为 AI 打造可持续迭代的环境]]：`Harness Engineering` 如何通过标准化评测和闭环环境让 AI 自主迭代。
 
 ## 参考资料
