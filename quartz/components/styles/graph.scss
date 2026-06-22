@@ -1,5 +1,15 @@
 @use "../../styles/variables.scss" as *;
 
+:root {
+  --graph-current-node: #d97706;
+  --graph-current-node-ring: #7c2d12;
+}
+
+:root[saved-theme="dark"] {
+  --graph-current-node: #facc15;
+  --graph-current-node-ring: #fff7ad;
+}
+
 .graph {
   & > h3 {
     font-size: 1rem;

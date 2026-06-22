@@ -52,6 +52,7 @@ type LinkRenderData = GraphicsInfo & {
 type NodeRenderData = GraphicsInfo & {
   simulationData: NodeData
   label: Text
+  isCurrent: boolean
 }
 
 const localStorageKey = "graph-visited"
@@ -276,14 +277,20 @@ function renderGraph3D({
   const materials = new Set<THREE.Material>()
   const grayColor = cssColor(computedStyleMap["--gray"], "#8f8f8f")
   const tertiaryColor = cssColor(computedStyleMap["--tertiary"], "#84a59d")
+  const currentNodeColor = cssColor(computedStyleMap["--graph-current-node"], "#d97706")
 
   for (const state of states) {
+    const isCurrent = state.node.id === simplifySlug(fullSlug)
     const isTagNode = state.node.id.startsWith("tags/")
-    const nodeColor = isTagNode ? tertiaryColor : cssColor(color(state.node), "#8f8f8f")
+    const nodeColor = isCurrent
+      ? currentNodeColor
+      : isTagNode
+        ? tertiaryColor
+        : cssColor(color(state.node), "#8f8f8f")
     const material = new THREE.MeshLambertMaterial({
       color: nodeColor,
-      emissive: isTagNode ? tertiaryColor : nodeColor,
-      emissiveIntensity: isTagNode ? 0.28 : 0.12,
+      emissive: isTagNode && !isCurrent ? tertiaryColor : nodeColor,
+      emissiveIntensity: isCurrent ? 0.58 : isTagNode ? 0.28 : 0.12,
     })
     materials.add(material)
 
@@ -547,6 +554,8 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
   const cssVars = [
     "--secondary",
     "--tertiary",
+    "--graph-current-node",
+    "--graph-current-node-ring",
     "--gray",
     "--light",
     "--lightgray",
@@ -566,7 +575,7 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
   const color = (d: NodeData) => {
     const isCurrent = d.id === slug
     if (isCurrent) {
-      return computedStyleMap["--secondary"]
+      return computedStyleMap["--graph-current-node"] || computedStyleMap["--secondary"]
     } else if (visited.has(d.id) || d.id.startsWith("tags/")) {
       return computedStyleMap["--tertiary"]
     } else {
@@ -578,7 +587,8 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
     const numLinks = graphData.links.filter(
       (l) => l.source.id === d.id || l.target.id === d.id,
     ).length
-    return 2 + Math.sqrt(numLinks)
+    const baseRadius = 2 + Math.sqrt(numLinks)
+    return d.id === slug ? baseRadius * 1.45 + 1 : baseRadius
   }
 
   const renderMode = (graph.dataset["renderer"] ?? "2d") as GraphRenderMode
@@ -683,6 +693,7 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
 
     const defaultScale = 1 / scale
     const activeScale = defaultScale * 1.1
+    const currentScale = defaultScale * 1.12
     for (const n of nodeRenderData) {
       const nodeId = n.simulationData.id
 
@@ -692,6 +703,16 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
             {
               alpha: 1,
               scale: { x: activeScale, y: activeScale },
+            },
+            100,
+          ),
+        )
+      } else if (n.isCurrent) {
+        tweenGroup.add(
+          new Tweened<Text>(n.label).to(
+            {
+              alpha: 1,
+              scale: { x: currentScale, y: currentScale },
             },
             100,
           ),
@@ -775,12 +796,15 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
 
   for (const n of graphData.nodes) {
     const nodeId = n.id
+    const isCurrentNode = nodeId === slug
+    const isTagNode = nodeId.startsWith("tags/")
+    const radius = nodeRadius(n)
 
     const label = new Text({
       interactive: false,
       eventMode: "none",
       text: n.text,
-      alpha: 0,
+      alpha: isCurrentNode ? 1 : 0,
       anchor: { x: 0.5, y: 1.2 },
       style: {
         fontSize: fontSize * 15,
@@ -792,16 +816,15 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
     label.scale.set(1 / scale)
 
     let oldLabelOpacity = 0
-    const isTagNode = nodeId.startsWith("tags/")
     const gfx = new Graphics({
       interactive: true,
       label: nodeId,
       eventMode: "static",
-      hitArea: new Circle(0, 0, nodeRadius(n)),
+      hitArea: new Circle(0, 0, radius + (isCurrentNode ? 6 : 0)),
       cursor: "pointer",
     })
-      .circle(0, 0, nodeRadius(n))
-      .fill({ color: isTagNode ? computedStyleMap["--light"] : color(n) })
+      .circle(0, 0, radius)
+      .fill({ color: isTagNode && !isCurrentNode ? computedStyleMap["--light"] : color(n) })
       .on("pointerover", (e) => {
         updateHoverInfo(e.target.label)
         oldLabelOpacity = label.alpha
@@ -817,7 +840,13 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
         }
       })
 
-    if (isTagNode) {
+    if (isCurrentNode) {
+      gfx.stroke({
+        alpha: 0.95,
+        width: Math.max(2.5, radius * 0.42),
+        color: computedStyleMap["--graph-current-node-ring"] || computedStyleMap["--dark"],
+      })
+    } else if (isTagNode) {
       gfx.stroke({ width: 2, color: computedStyleMap["--tertiary"] })
     }
 
@@ -831,6 +860,7 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
       color: color(n),
       alpha: 1,
       active: false,
+      isCurrent: isCurrentNode,
     }
 
     nodeRenderData.push(nodeRenderDatum)
@@ -914,10 +944,12 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
           // zoom adjusts opacity of labels too
           const scale = transform.k * opacityScale
           let scaleOpacity = Math.max((scale - 1) / 3.75, 0)
-          const activeNodes = nodeRenderData.filter((n) => n.active).flatMap((n) => n.label)
+          const persistentLabels = nodeRenderData
+            .filter((n) => n.active || n.isCurrent)
+            .flatMap((n) => n.label)
 
           for (const label of labelsContainer.children) {
-            if (!activeNodes.includes(label)) {
+            if (!persistentLabels.includes(label)) {
               label.alpha = scaleOpacity
             }
           }
