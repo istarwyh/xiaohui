@@ -1,3 +1,5 @@
+@use "../../styles/variables.scss" as *;
+
 .readermode {
   cursor: pointer;
   padding: 0;
@@ -21,14 +23,51 @@
   }
 }
 
-:root[reader-mode="on"] {
-  & .sidebar.left,
-  & .sidebar.right {
-    opacity: 0;
-    transition: opacity 0.2s ease;
+.article-end-observer {
+  display: block;
+  height: 1px;
+  pointer-events: none;
+  width: 1px;
+}
 
-    &:hover {
+@media all and ($desktop) {
+  :root[reader-mode="on"] {
+    & .sidebar.left,
+    & .sidebar.right {
+      filter: saturate(0.82);
+      opacity: var(--reader-sidebar-opacity);
+      transition:
+        opacity 0.2s ease,
+        filter 0.2s ease;
+    }
+
+    & .sidebar.left {
+      --reader-sidebar-opacity: 0.24;
+    }
+
+    & .sidebar.right {
+      --reader-sidebar-opacity: 0.18;
+    }
+
+    &.article-end-visible .sidebar.right {
+      --reader-sidebar-opacity: 0.38;
+    }
+
+    & .sidebar.left:hover,
+    & .sidebar.left:focus-within,
+    & .sidebar.right:hover,
+    & .sidebar.right:focus-within {
+      filter: none;
       opacity: 1;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[reader-mode="on"] {
+    & .sidebar.left,
+    & .sidebar.right {
+      transition: none;
     }
   }
 }
