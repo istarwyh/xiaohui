@@ -1,6 +1,6 @@
 ---
 created: 2026-01-01
-modified: 2026-01-01
+modified: 2026-06-23
 published: 2026-01-01
 ---
 
@@ -55,6 +55,30 @@ Thread（持久化会话容器）
 - 绑定到 **一个 Run**（Run streaming）或 **一个 Thread**（Thread streaming）
 - Run streaming 在 Run 完成时关闭；Thread streaming 跨 Run 保持打开
 - **可恢复性是 per-Run 配置的**，不是 per-Thread
+
+### 2.4 自建系统里的命名映射
+
+如果不直接使用 LangGraph Platform，而是自己设计一套 LLM 对话系统，这组三层模型可以翻译成：
+
+```text
+Session / Conversation（连续上下文对话）
+  │
+  ├── Run（一次 assistant 生成任务）
+  │     └── Event[]（这次生成过程中的流式事件）
+  │
+  └── Run N
+        └── Event[]
+```
+
+也就是说，`session` 或 `conversation` 负责承载长期上下文；`run` 代表一次具体生成；`event` 是这个 run 内部产生的 token、工具调用、进度、错误和完成标记。
+
+Redis Stream 的 key 通常不应该按 `user_id` 建，而应该按这条事件流本身的生命周期建：
+
+```text
+llm:run:{run_id}:events
+```
+
+`user_id` 是权限和归属关系，应该在数据库里通过 `session` / `run` 校验。真正决定断点续传位置的是 `run_id + last_event_id`，不是用户 ID。一个用户可以同时打开多个会话、多个标签页、多个生成任务，把所有事件塞进 `llm:user:{user_id}:events` 会让断点、过滤、TTL 和多端恢复都变复杂。
 
 ---
 
@@ -524,6 +548,21 @@ Consumer 不关心事件是历史还是实时的，执行统一的两阶段读�
 
 **关键性质**：Catch-up 和 Live Tail 的代码路径完全相同（都是 XREAD），差别仅在于是否阻塞。这保证了事件顺序的一致性——无论是回放还是实时，客户端收到的事件序列完全相同。
 
+这里容易混淆一个概念：`SSE GET` 是前端和后端之间的长连接，`Live Tail` 里的阻塞读取是后端内部等待新事件的机制。
+
+```text
+Browser
+  -> GET /runs/{run_id}/stream
+  -> 后端保持 HTTP 响应不断开
+
+API Server
+  -> XREAD BLOCK stream_key latest_id
+  -> 等 Redis 里出现新 event
+  -> 写入 SSE response
+```
+
+所以“实时唤醒”不是替代 SSE，而是让 SSE handler 不必每隔几十毫秒轮询一次缓冲层。Redis Stream 直接用 `XREAD BLOCK` 完成这个等待；如果用旧 Redis 数据结构模拟事件流，则通常需要 `Pub/Sub` 或短轮询作为唤醒机制。
+
 ### 9.4 Redis Stream 作为缓冲的特性
 
 | 特性       | 说明                                                                                       |
@@ -792,25 +831,30 @@ LangGraph Platform 使用 Redis Stream 作为事件缓冲，但该协议的核�
 
 ### 14.1 特性对比
 
-| 维度     | Redis Stream          | Redis Pub/Sub         | 进程内 Buffer            |
-| -------- | --------------------- | --------------------- | ------------------------ |
-| 持久化   | 是（append-only log） | 否（fire-and-forget） | 否（重启丢失）           |
-| 断线重放 | 是（游标回溯）        | 否                    | 是（offset 回溯）        |
-| 跨进程   | 是                    | 是                    | 否                       |
-| 消息积压 | 保留到 TTL 或 XTRIM   | 无订阅者则丢弃        | 保留到 maxlen 或进程退出 |
-| 典型延迟 | ~1ms                  | ~0.5ms                | ~0（同进程）             |
+| 维度     | Redis Stream          | Redis List + INCR + Pub/Sub | Redis Pub/Sub         | 进程内 Buffer            |
+| -------- | --------------------- | --------------------------- | --------------------- | ------------------------ |
+| 持久化   | 是（append-only log） | 是（自己维护 event log）    | 否（fire-and-forget） | 否（重启丢失）           |
+| 断线重放 | 是（游标回溯）        | 是（按 event_id 回溯）      | 否                    | 是（offset 回溯）        |
+| 跨进程   | 是                    | 是                          | 是                    | 否                       |
+| 消息积压 | 保留到 TTL 或 XTRIM   | 保留到 TTL 或 LTRIM         | 无订阅者则丢弃        | 保留到 maxlen 或进程退出 |
+| 实时等待 | `XREAD BLOCK`         | `Pub/Sub` 唤醒或短轮询      | 原生订阅              | 内存队列/条件变量        |
+| 典型延迟 | ~1ms                  | ~1ms                        | ~0.5ms                | ~0（同进程）             |
 
 ### 14.2 核心区别
 
 - **Pub/Sub ≈ 直连 SSE**：都是"发了就忘"，无法回放。Pub/Sub 的价值在于跨进程广播，但没有持久化能力。
 - **Stream 的本质差异**：Redis Stream 是带游标的持久化日志。它的价值不在于"消息传递"，而在于"消息保留"——事件追加后，任何消费者可以从任意位置开始读取。
+- **List + INCR 是手写 Stream**：如果 Redis 版本太旧，没有 Stream，可以用 `INCR` 生成递增事件 ID，用 `List` 保存事件 JSON，再用 `Pub/Sub` 只做唤醒。但排序、裁剪、并发写入、回放边界都要自己保证。
+
+Redis Stream 并不是因为 LLM token streaming 才出现。它更早面对的是可靠消息流、time series、可回放事件日志和 Pub/Sub 断线丢消息的问题。LLM 的 `SSE + Last-Event-ID` 只是后来落在了同一个底层模式上：**有序事件日志 + 客户端游标 + 断线后从游标继续读**。
 
 ### 14.3 选型决策树
 
 ```
 需要跨机器/跨进程共享事件流？
 ├── 是 → 已有 Redis？
-│        ├── 是 → Redis Stream（推荐）
+│        ├── Redis 版本支持 Stream？ → Redis Stream（推荐）
+│        ├── Redis 太旧？ → List + INCR + Pub/Sub
 │        └── 否 → 已有 PostgreSQL？
 │                 ├── 是 → PG NOTIFY + events 表
 │                 └── 否 → 引入 Redis（运维成本最低）
@@ -818,6 +862,103 @@ LangGraph Platform 使用 Redis Stream 作为事件缓冲，但该协议的核�
          ├── 是 → SQLite WAL
          └── 否 → 进程内 deque 缓冲
 ```
+
+### 14.4 旧 Redis 没有 Stream 时怎么建模
+
+如果项目暂时只能用 Redis Stream 之前的版本，核心思路是自己实现一个简化版 Stream：
+
+```text
+llm:run:{run_id}:seq      # INCR 生成 event_id
+llm:run:{run_id}:events   # List，按顺序 RPUSH event JSON
+llm:run:{run_id}:notify   # Pub/Sub channel，只做唤醒
+llm:run:{run_id}:meta     # running / completed / failed
+```
+
+事件结构可以保持和 SSE 接近：
+
+```json
+{
+  "id": 42,
+  "type": "message.delta",
+  "data": {"text": "你好"},
+  "ts": 1719123456789
+}
+```
+
+服务端对外发送：
+
+```text
+id: 42
+event: message.delta
+data: {"text":"你好"}
+```
+
+客户端断线重连时带回 `Last-Event-ID: 42`，服务端读取 `id > 42` 的事件。如果 `event_id` 从 1 开始，且 List 第 0 个元素就是 `id = 1`，那么可以用：
+
+```text
+LRANGE llm:run:{run_id}:events 42 -1
+```
+
+这里 list index `42` 对应的是 event id `43`。如果后续需要裁剪头部，这个索引关系会被破坏，应该改用 `ZSET + HASH`：
+
+```text
+llm:run:{run_id}:event_index     # ZSET，score = event_id
+llm:run:{run_id}:event_payloads  # HASH，field = event_id, value = event JSON
+```
+
+读取时：
+
+```text
+ZRANGEBYSCORE event_index (42 +inf LIMIT 0 100
+HMGET event_payloads 43 44 45
+```
+
+无论使用 List 还是 ZSET，都不要用 `LLEN + 1` 生成事件 ID。并发下它会冲突。应该用 `INCR`，并用 Lua 把 `INCR + RPUSH/ZADD/HSET + PUBLISH + EXPIRE` 包成一个原子写入。
+
+`Pub/Sub` 在这个模型里只是铃铛：
+
+```text
+事实来源：events list / zset+hash
+唤醒信号：notify channel
+对外传输：SSE response
+```
+
+SSE handler 的循环也就变成：
+
+```text
+1. 校验当前用户是否能读这个 run
+2. 从 Last-Event-ID 后补历史事件
+3. 没有新事件时订阅 notify 或短轮询等待
+4. 被唤醒后再次读事实来源
+5. 读到 completed / failed / cancelled 后结束 SSE
+```
+
+### 14.5 进程内先推、异步写 Redis 的边界
+
+为了降低延迟，有时会想直接在进程内把 event 推给 SSE，再异步写 Redis：
+
+```text
+LLM worker -> 进程内直接推给 SSE -> 异步写 Redis
+```
+
+这可以做，但它不是强可恢复流，而是 best-effort。问题在于客户端可能已经收到 `id = 100`，Redis 只落到了 `id = 96`。这时客户端断线后带着 `Last-Event-ID: 100` 重连，服务端无法从 Redis 精确恢复 `97-100` 这段事件。
+
+更可靠的顺序是：
+
+```text
+生成 event
+INCR event_id + 写入可恢复缓冲
+再推给 SSE
+```
+
+如果确实要先推前端，至少要保留进程内 ring buffer，并接受这些限制：
+
+- 重连最好能路由回同一个进程。
+- Redis 记录已持久化到哪个 `event_id`。
+- 如果发现客户端游标超过 Redis 持久化游标，就明确返回 `resume_unavailable`。
+- 前端降级为读取数据库里的最终 message，或等待 run 完成后刷新最终结果。
+
+一句话原则：**客户端收到的 event id，最好已经存在于某个可恢复介质中。**否则断点续传只是体验优化，不是可靠性承诺。
 
 ---
 
@@ -834,9 +975,17 @@ LangGraph Platform 的可恢复流协议由以下核心要素组成：
 | `last_event_id` 游标        | 重连参数                        | 服务端知道从哪里开始回放           |
 | Producer-Consumer 分离      | Worker 写缓冲 / API 读缓冲      | 生产消费独立，多客户端可同时消费   |
 | 两阶段 Consumer             | Catch-up → Live Tail            | 无缝衔接历史回放与实时推送         |
+| 可恢复事件日志              | Redis Stream 或自建 List/ZSET   | 将事件从连接生命周期中解耦         |
 | TTL 管理                    | `RESUMABLE_STREAM_TTL_SECONDS`  | 平衡存储开销与恢复窗口             |
 
 **协议的精髓**：将 SSE 从"实时管道"升级为"可回溯的日志"。通过在事件产生和事件消费之间插入一层持久化缓冲，彻底解耦了 Agent 执行与客户端连接的生命周期。
+
+---
+
+## Related
+
+- [[LangGraph Agent Event 消费指南]]
+- [[Redis源码架构阅读]]
 
 ---
 
