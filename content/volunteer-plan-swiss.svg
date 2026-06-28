@@ -1,0 +1,228 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2200" viewBox="0 0 1600 2200">
+  <defs>
+    <style>
+      .bg { fill: #ffffff; }
+      .ink { fill: #111111; }
+      .muted { fill: #666666; }
+      .light { fill: #9a9a9a; }
+      .rule { stroke: #111111; stroke-width: 2; }
+      .thin { stroke: #d8d8d8; stroke-width: 1; }
+      .accent { fill: #e01e26; }
+      .soft { fill: #f4f4f4; }
+      .warn { fill: #fff2f2; }
+      .font { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+      .title { font-size: 66px; font-weight: 700; letter-spacing: 0; }
+      .subtitle { font-size: 30px; font-weight: 500; letter-spacing: 0; }
+      .caption { font-size: 24px; font-weight: 400; letter-spacing: 0; }
+      .th { font-size: 22px; font-weight: 700; letter-spacing: 0; }
+      .rank { font-size: 36px; font-weight: 700; letter-spacing: 0; }
+      .school { font-size: 30px; font-weight: 700; letter-spacing: 0; }
+      .cell { font-size: 24px; font-weight: 500; letter-spacing: 0; }
+      .note { font-size: 23px; font-weight: 400; letter-spacing: 0; }
+      .small { font-size: 20px; font-weight: 400; letter-spacing: 0; }
+      .tag { font-size: 20px; font-weight: 700; letter-spacing: 0; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="2200"/>
+
+  <!-- Header -->
+  <rect class="accent" x="110" y="100" width="12" height="160"/>
+  <text class="font title ink" x="150" y="145">18 个平行志愿填报方案</text>
+  <text class="font subtitle muted" x="150" y="198">省排名 3060 · 普通农村学生 · 前冲中稳后保</text>
+  <text class="font caption muted" x="150" y="244">策略：冲学校时，只有能接受最差调剂专业，才建议服从调剂。</text>
+  <text class="font small light" x="1220" y="130">SWISS GRID</text>
+  <line class="rule" x1="110" y1="305" x2="1490" y2="305"/>
+
+  <!-- Strategy blocks -->
+  <g transform="translate(110 345)">
+    <rect class="accent" x="0" y="0" width="410" height="120"/>
+    <text class="font tag bg" x="28" y="42">01-07</text>
+    <text class="font subtitle bg" x="28" y="84">冲学校</text>
+    <text class="font small bg" x="190" y="43">平台优先</text>
+    <text class="font small bg" x="190" y="78">接受调剂风险</text>
+  </g>
+  <g transform="translate(595 345)">
+    <rect class="ink" x="0" y="0" width="410" height="120"/>
+    <text class="font tag bg" x="28" y="42">08-14</text>
+    <text class="font subtitle bg" x="28" y="84">稳专业</text>
+    <text class="font small bg" x="190" y="43">专业更重要</text>
+    <text class="font small bg" x="190" y="78">兼顾城市与就业</text>
+  </g>
+  <g transform="translate(1080 345)">
+    <rect class="soft" x="0" y="0" width="410" height="120"/>
+    <rect class="rule" x="0" y="0" width="410" height="120" fill="none"/>
+    <text class="font tag accent" x="28" y="42">15-18</text>
+    <text class="font subtitle ink" x="28" y="84">保底</text>
+    <text class="font small muted" x="190" y="43">不滑档</text>
+    <text class="font small muted" x="190" y="78">专业不能太差</text>
+  </g>
+
+  <!-- Table frame -->
+  <g transform="translate(110 540)">
+    <line class="rule" x1="0" y1="0" x2="1380" y2="0"/>
+    <text class="font th muted" x="10" y="40">序号</text>
+    <text class="font th muted" x="135" y="40">学校</text>
+    <text class="font th muted" x="445" y="40">定位</text>
+    <text class="font th muted" x="650" y="40">调剂态度</text>
+    <text class="font th muted" x="865" y="40">关键判断</text>
+    <line class="thin" x1="0" y1="62" x2="1380" y2="62"/>
+
+    <!-- Rows -->
+    <g transform="translate(0 76)">
+      <rect class="warn" x="0" y="0" width="1380" height="74"/>
+      <text class="font rank accent" x="14" y="49">1</text>
+      <text class="font school ink" x="135" y="48">华东政法大学</text>
+      <text class="font cell ink" x="445" y="47">冲 / 首选</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">法学价值最高，法考、考公、考研路径清楚</text>
+    </g>
+    <g transform="translate(0 150)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">2</text>
+      <text class="font school ink" x="135" y="48">东北财经大学</text>
+      <text class="font cell ink" x="445" y="47">冲 / 重点</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">财经类强校，经济、财管、投资方向更稳</text>
+    </g>
+    <g transform="translate(0 224)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">3</text>
+      <text class="font school ink" x="135" y="48">天津财经大学</text>
+      <text class="font cell ink" x="445" y="47">小冲</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">会计、金融、法学可冲，专业实用性强</text>
+    </g>
+    <g transform="translate(0 298)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">4</text>
+      <text class="font school ink" x="135" y="48">上海对外经贸大学</text>
+      <text class="font cell ink" x="445" y="47">冲</text>
+      <text class="font cell ink" x="650" y="47">谨慎服从</text>
+      <text class="font note ink" x="865" y="47">上海平台好，会计优先；营销、旅游有风险</text>
+    </g>
+    <g transform="translate(0 372)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">5</text>
+      <text class="font school ink" x="135" y="48">上海理工大学</text>
+      <text class="font cell ink" x="445" y="47">冲稳</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">上海平台不错，经管不是王牌但学校层次可以</text>
+    </g>
+    <g transform="translate(0 446)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">6</text>
+      <text class="font school ink" x="135" y="48">扬州大学</text>
+      <text class="font cell ink" x="445" y="47">稳中冲</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">综合性大学，经济、会计、法学都能接受</text>
+    </g>
+    <g transform="translate(0 520)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">7</text>
+      <text class="font school ink" x="135" y="48">上海师范大学</text>
+      <text class="font cell ink" x="445" y="47">小冲</text>
+      <text class="font cell ink" x="650" y="47">谨慎服从</text>
+      <text class="font note ink" x="865" y="47">上海位置好；法学可取，会展、旅游需谨慎</text>
+    </g>
+    <line class="rule" x1="0" y1="608" x2="1380" y2="608"/>
+
+    <g transform="translate(0 624)">
+      <text class="font rank ink" x="14" y="49">8</text>
+      <text class="font school ink" x="135" y="48">天津科技大学</text>
+      <text class="font cell ink" x="445" y="47">稳</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">国经、财管、法学都较干净，没有明显硬伤</text>
+    </g>
+    <g transform="translate(0 698)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">9</text>
+      <text class="font school ink" x="135" y="48">长沙理工大学</text>
+      <text class="font cell ink" x="445" y="47">稳</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">法学、金融、国经可接考研、考公和就业</text>
+    </g>
+    <g transform="translate(0 772)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">10</text>
+      <text class="font school ink" x="135" y="48">安徽财经大学</text>
+      <text class="font cell ink" x="445" y="47">稳</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">财经方向明确，金融、经济、供应链更稳</text>
+    </g>
+    <g transform="translate(0 846)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">11</text>
+      <text class="font school ink" x="135" y="48">天津外国语大学</text>
+      <text class="font cell ink" x="445" y="47">稳</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">法学、经济、金融、国经都可接受</text>
+    </g>
+    <g transform="translate(0 920)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">12</text>
+      <text class="font school ink" x="135" y="48">华侨大学</text>
+      <text class="font cell ink" x="445" y="47">稳</text>
+      <text class="font cell ink" x="650" y="47">谨慎服从</text>
+      <text class="font note ink" x="865" y="47">法学、国经可以；会展、旅游一般</text>
+    </g>
+    <g transform="translate(0 994)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">13</text>
+      <text class="font school ink" x="135" y="48">重庆工商大学</text>
+      <text class="font cell ink" x="445" y="47">稳 / 保</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">金融、国贸可接受；旅游管理是风险项</text>
+    </g>
+    <g transform="translate(0 1068)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">14</text>
+      <text class="font school ink" x="135" y="48">成都信息工程大学</text>
+      <text class="font cell ink" x="445" y="47">保中带稳</text>
+      <text class="font cell ink" x="650" y="47">谨慎服从</text>
+      <text class="font note ink" x="865" y="47">成都城市不错；会计、供应链可，营销旅游弱</text>
+    </g>
+    <line class="rule" x1="0" y1="1156" x2="1380" y2="1156"/>
+
+    <g transform="translate(0 1172)">
+      <text class="font rank ink" x="14" y="49">15</text>
+      <text class="font school ink" x="135" y="48">中南林业科技大学</text>
+      <text class="font cell ink" x="445" y="47">保</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">会计、法学、国经还能接受，用来保底</text>
+    </g>
+    <g transform="translate(0 1246)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">16</text>
+      <text class="font school ink" x="135" y="48">西安石油大学</text>
+      <text class="font cell ink" x="445" y="47">保</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">会计、国经、财管实用，适合兜底</text>
+    </g>
+    <g transform="translate(0 1320)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">17</text>
+      <text class="font school ink" x="135" y="48">天津商业大学</text>
+      <text class="font cell ink" x="445" y="47">保</text>
+      <text class="font cell ink" x="650" y="47">建议服从</text>
+      <text class="font note ink" x="865" y="47">财管、经济可接受；旅游管理需留意</text>
+    </g>
+    <g transform="translate(0 1394)">
+      <line class="thin" x1="0" y1="0" x2="1380" y2="0"/>
+      <text class="font rank ink" x="14" y="49">18</text>
+      <text class="font school ink" x="135" y="48">东华理工大学</text>
+      <text class="font cell ink" x="445" y="47">最后保底</text>
+      <text class="font cell ink" x="650" y="47">谨慎服从</text>
+      <text class="font note ink" x="865" y="47">会计能接受；市场营销不优先，放最后兜底</text>
+    </g>
+    <line class="rule" x1="0" y1="1482" x2="1380" y2="1482"/>
+  </g>
+
+  <!-- Footer notes -->
+  <g transform="translate(110 2070)">
+    <rect class="soft" x="0" y="0" width="1380" height="88"/>
+    <text class="font cell ink" x="28" y="36">删减建议：</text>
+    <text class="font small muted" x="150" y="36">重庆交通大学旅游管理、青岛科技大学广告/法学、辽宁工程技术大学文商法方向，暂不优先。</text>
+    <text class="font small muted" x="28" y="68">最终填报前：核对当年院校专业组、招生计划、是否只在组内调剂、单科/体检/语种限制。</text>
+  </g>
+</svg>
