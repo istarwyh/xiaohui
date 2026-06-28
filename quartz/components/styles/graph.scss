@@ -25,6 +25,17 @@
     position: relative;
     overflow: hidden;
 
+    & > .graph-container {
+      box-sizing: border-box;
+      height: 100%;
+      position: relative;
+      width: 100%;
+
+      & > canvas {
+        display: block;
+      }
+    }
+
     & > .global-graph-icon {
       align-items: center;
       background-color: color-mix(in srgb, var(--light) 90%, transparent);

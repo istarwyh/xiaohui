@@ -89,6 +89,10 @@ function formatTerminalDate(date: Date | undefined): string {
   ).padStart(2, "0")}`
 }
 
+function frontmatterFalse(value: unknown): boolean {
+  return value === false || value === "false"
+}
+
 function getRecentPages({
   allFiles,
   cfg,
@@ -99,7 +103,12 @@ function getRecentPages({
   currentSlug: FullSlug
 }): RecentPage[] {
   return allFiles
-    .filter((file) => file.slug !== "index" && !file.slug?.startsWith("tags/"))
+    .filter(
+      (file) =>
+        file.slug !== "index" &&
+        !file.slug?.startsWith("tags/") &&
+        !frontmatterFalse(file.frontmatter?.recent),
+    )
     .sort(byDateAndAlphabetical(cfg))
     .slice(0, 6)
     .map((page) => ({
@@ -124,12 +133,12 @@ export default (() => {
     return (
       <TerminalChrome>
         <WhoamiSection aboutHref={links.aboutHref} badges={identityBadges} />
+        <RecentSection pages={recentPages} />
+        <FeaturedSection pages={featuredPages} />
+        <SearchSection />
         <JourneySection href={links.journeyHref} />
         <AwardsSection items={awards} />
-        <FeaturedSection pages={featuredPages} />
-        <RecentSection pages={recentPages} />
         <MembershipSection href={links.membershipHref} />
-        <SearchSection />
       </TerminalChrome>
     )
   }

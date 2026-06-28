@@ -19,6 +19,7 @@ export type ContentDetails = {
   richContent?: string
   date?: Date
   description?: string
+  includeInRSS?: boolean
 }
 
 interface Options {
@@ -63,6 +64,7 @@ function generateRSSFeed(cfg: GlobalConfiguration, idx: ContentIndexMap, limit?:
   </item>`
 
   const items = Array.from(idx)
+    .filter(([_, content]) => content.includeInRSS !== false)
     .sort(([_, f1], [__, f2]) => {
       if (f1.date && f2.date) {
         return f2.date.getTime() - f1.date.getTime()
@@ -93,7 +95,9 @@ function generateRSSFeed(cfg: GlobalConfiguration, idx: ContentIndexMap, limit?:
 }
 
 export const ContentIndex: QuartzEmitterPlugin<Partial<Options>> = (opts) => {
-  opts = { ...defaultOptions, ...opts }
+  const options = { ...defaultOptions, ...opts }
+  const isFalse = (value: unknown) => value === false || value === "false"
+
   return {
     name: "ContentIndex",
     async *emit(ctx, content) {
@@ -102,7 +106,7 @@ export const ContentIndex: QuartzEmitterPlugin<Partial<Options>> = (opts) => {
       for (const [tree, file] of content) {
         const slug = file.data.slug!
         const date = getDate(ctx.cfg.configuration, file.data) ?? new Date()
-        if (opts?.includeEmptyFiles || (file.data.text && file.data.text !== "")) {
+        if (options.includeEmptyFiles || (file.data.text && file.data.text !== "")) {
           linkIndex.set(slug, {
             slug,
             filePath: file.data.relativePath!,
@@ -110,16 +114,17 @@ export const ContentIndex: QuartzEmitterPlugin<Partial<Options>> = (opts) => {
             links: file.data.links ?? [],
             tags: file.data.frontmatter?.tags ?? [],
             content: file.data.text ?? "",
-            richContent: opts?.rssFullHtml
+            richContent: options.rssFullHtml
               ? escapeHTML(toHtml(tree as Root, { allowDangerousHtml: true }))
               : undefined,
             date: date,
             description: file.data.description ?? "",
+            includeInRSS: !isFalse(file.data.frontmatter?.rss),
           })
         }
       }
 
-      if (opts?.enableSiteMap) {
+      if (options.enableSiteMap) {
         yield write({
           ctx,
           content: generateSiteMap(cfg, linkIndex),
@@ -128,11 +133,11 @@ export const ContentIndex: QuartzEmitterPlugin<Partial<Options>> = (opts) => {
         })
       }
 
-      if (opts?.enableRSS) {
+      if (options.enableRSS) {
         yield write({
           ctx,
-          content: generateRSSFeed(cfg, linkIndex, opts.rssLimit),
-          slug: (opts?.rssSlug ?? "index") as FullSlug,
+          content: generateRSSFeed(cfg, linkIndex, options.rssLimit),
+          slug: options.rssSlug as FullSlug,
           ext: ".xml",
         })
       }
@@ -145,6 +150,7 @@ export const ContentIndex: QuartzEmitterPlugin<Partial<Options>> = (opts) => {
           // for the RSS feed
           delete content.description
           delete content.date
+          delete content.includeInRSS
           return [slug, content]
         }),
       )
@@ -157,14 +163,14 @@ export const ContentIndex: QuartzEmitterPlugin<Partial<Options>> = (opts) => {
       })
     },
     externalResources: (ctx) => {
-      if (opts?.enableRSS) {
+      if (options.enableRSS) {
         return {
           additionalHead: [
             <link
               rel="alternate"
               type="application/rss+xml"
               title="RSS Feed"
-              href={`https://${ctx.cfg.configuration.baseUrl}/index.xml`}
+              href={`https://${joinSegments(ctx.cfg.configuration.baseUrl ?? "", options.rssSlug)}.xml`}
             />,
           ],
         }

@@ -31,6 +31,7 @@ import TerminalHome from "./TerminalHome"
 import ExploreHint from "./ExploreHint"
 import SiteIntro from "./SiteIntro"
 import QuoteExhibit from "./QuoteExhibit"
+import RssLink from "./RssLink"
 
 export {
   ArticleTitle,
@@ -66,4 +67,5 @@ export {
   ExploreHint,
   SiteIntro,
   QuoteExhibit,
+  RssLink,
 }

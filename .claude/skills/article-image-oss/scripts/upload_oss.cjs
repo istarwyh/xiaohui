@@ -79,7 +79,9 @@ function readPicGoConfig() {
   const data = JSON.parse(fs.readFileSync(configPath, "utf8"))
   const aliyun =
     data.picBed?.aliyun ||
-    data.uploader?.aliyun?.configList?.find((item) => item._id === data.uploader?.aliyun?.defaultId) ||
+    data.uploader?.aliyun?.configList?.find(
+      (item) => item._id === data.uploader?.aliyun?.defaultId,
+    ) ||
     data.uploader?.aliyun?.configList?.[0] ||
     {}
   return {
@@ -99,12 +101,14 @@ function loadConfig(opts) {
       firstEnv(["ALIYUN_OSS_ACCESS_KEY_ID", "OSS_ACCESS_KEY_ID", "ALIYUN_ACCESS_KEY_ID"]) ||
       picgo.accessKeyId,
     accessKeySecret:
-      firstEnv(["ALIYUN_OSS_ACCESS_KEY_SECRET", "OSS_ACCESS_KEY_SECRET", "ALIYUN_ACCESS_KEY_SECRET"]) ||
-      picgo.accessKeySecret,
+      firstEnv([
+        "ALIYUN_OSS_ACCESS_KEY_SECRET",
+        "OSS_ACCESS_KEY_SECRET",
+        "ALIYUN_ACCESS_KEY_SECRET",
+      ]) || picgo.accessKeySecret,
     bucket: firstEnv(["ALIYUN_OSS_BUCKET", "OSS_BUCKET"]) || picgo.bucket,
     region:
-      firstEnv(["ALIYUN_OSS_REGION", "ALIYUN_OSS_AREA", "OSS_REGION", "OSS_AREA"]) ||
-      picgo.region,
+      firstEnv(["ALIYUN_OSS_REGION", "ALIYUN_OSS_AREA", "OSS_REGION", "OSS_AREA"]) || picgo.region,
     prefix:
       opts.prefix !== undefined
         ? opts.prefix
@@ -117,7 +121,10 @@ function loadConfig(opts) {
   }
 
   const missing = Object.entries(config)
-    .filter(([key, value]) => ["accessKeyId", "accessKeySecret", "bucket", "region"].includes(key) && !value)
+    .filter(
+      ([key, value]) =>
+        ["accessKeyId", "accessKeySecret", "bucket", "region"].includes(key) && !value,
+    )
     .map(([key]) => key)
   if (missing.length) throw new Error(`Missing OSS config: ${missing.join(", ")}`)
 
@@ -168,8 +175,12 @@ function sign({ method, contentType, date, ossHeaders, key, config }) {
     .map(([k, v]) => `${k}:${v}\n`)
     .join("")
   const canonicalResource = `/${config.bucket}/${key}`
-  const stringToSign = [method, "", contentType, date].join("\n") + "\n" + canonicalHeaders + canonicalResource
-  return crypto.createHmac("sha1", config.accessKeySecret).update(stringToSign, "utf8").digest("base64")
+  const stringToSign =
+    [method, "", contentType, date].join("\n") + "\n" + canonicalHeaders + canonicalResource
+  return crypto
+    .createHmac("sha1", config.accessKeySecret)
+    .update(stringToSign, "utf8")
+    .digest("base64")
 }
 
 function ossRequest({ method, key, body, contentType, config, headers = {} }) {
@@ -179,7 +190,14 @@ function ossRequest({ method, key, body, contentType, config, headers = {} }) {
     for (const [k, v] of Object.entries(headers)) {
       if (k.toLowerCase().startsWith("x-oss-")) ossHeaders[k] = v
     }
-    const signature = sign({ method, contentType: contentType || "", date, ossHeaders, key, config })
+    const signature = sign({
+      method,
+      contentType: contentType || "",
+      date,
+      ossHeaders,
+      key,
+      config,
+    })
     const requestHeaders = {
       Date: date,
       Authorization: `OSS ${config.accessKeyId}:${signature}`,

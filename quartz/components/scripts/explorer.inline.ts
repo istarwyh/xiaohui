@@ -1,10 +1,10 @@
 import { FileTrieNode, FileTrieData } from "../../util/fileTrie"
 import { FullSlug, resolveRelative, simplifySlug } from "../../util/path"
-import { ContentDetails } from "../../plugins/emitters/contentIndex"
+import type { ContentDetails } from "../../plugins/emitters/contentIndex"
 
 type MaybeHTMLElement = HTMLElement | undefined
 
-type ExplorerNodeData = ContentDetails & FileTrieData
+type ExplorerNodeData = Omit<ContentDetails, "slug" | "filePath"> & FileTrieData
 type ExplorerNode = FileTrieNode<ExplorerNodeData>
 
 interface ParsedOptions {

@@ -1,0 +1,21 @@
+.rss-link {
+  align-items: center;
+  color: var(--darkgray);
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 20px;
+  justify-content: center;
+  width: 20px;
+
+  & svg {
+    fill: currentColor;
+    height: 20px;
+    transition: color 0.15s ease;
+    width: 20px;
+  }
+
+  &:hover,
+  &:focus {
+    color: var(--secondary);
+  }
+}

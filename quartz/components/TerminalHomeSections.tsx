@@ -116,7 +116,7 @@ export function FeaturedSection({ pages }: { pages: FeaturedPage[] }) {
 
 export function RecentSection({ pages }: { pages: RecentPage[] }) {
   return (
-    <TerminalSection command="recent --limit 4" outputClass="recent-output">
+    <TerminalSection command="ls -lt ~/posts | head -6" outputClass="recent-output">
       {pages.map((page) => (
         <a href={page.href} class="recent-item">
           <span class="recent-date">[{page.dateStr}]</span>

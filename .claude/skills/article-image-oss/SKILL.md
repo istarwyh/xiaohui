@@ -74,16 +74,16 @@ Improve an existing blog article with relevant images, upload final image files 
 
 Environment variables, first match wins:
 
-| Purpose | Accepted variables |
-| --- | --- |
-| Access key ID | `ALIYUN_OSS_ACCESS_KEY_ID`, `OSS_ACCESS_KEY_ID`, `ALIYUN_ACCESS_KEY_ID` |
+| Purpose           | Accepted variables                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| Access key ID     | `ALIYUN_OSS_ACCESS_KEY_ID`, `OSS_ACCESS_KEY_ID`, `ALIYUN_ACCESS_KEY_ID`             |
 | Access key secret | `ALIYUN_OSS_ACCESS_KEY_SECRET`, `OSS_ACCESS_KEY_SECRET`, `ALIYUN_ACCESS_KEY_SECRET` |
-| Bucket | `ALIYUN_OSS_BUCKET`, `OSS_BUCKET` |
-| Region / area | `ALIYUN_OSS_REGION`, `ALIYUN_OSS_AREA`, `OSS_REGION`, `OSS_AREA` |
-| Object prefix | `ALIYUN_OSS_PREFIX`, `OSS_PREFIX` |
-| Public base URL | `ALIYUN_OSS_PUBLIC_BASE_URL`, `OSS_PUBLIC_BASE_URL` |
-| Endpoint host | `ALIYUN_OSS_ENDPOINT`, `OSS_ENDPOINT` |
-| PicGo config path | `PICGO_CONFIG_PATH` |
+| Bucket            | `ALIYUN_OSS_BUCKET`, `OSS_BUCKET`                                                   |
+| Region / area     | `ALIYUN_OSS_REGION`, `ALIYUN_OSS_AREA`, `OSS_REGION`, `OSS_AREA`                    |
+| Object prefix     | `ALIYUN_OSS_PREFIX`, `OSS_PREFIX`                                                   |
+| Public base URL   | `ALIYUN_OSS_PUBLIC_BASE_URL`, `OSS_PUBLIC_BASE_URL`                                 |
+| Endpoint host     | `ALIYUN_OSS_ENDPOINT`, `OSS_ENDPOINT`                                               |
+| PicGo config path | `PICGO_CONFIG_PATH`                                                                 |
 
 PicGo fallback expects the Aliyun config used by PicGo GUI:
 
