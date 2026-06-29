@@ -6,7 +6,8 @@
   margin-left: 0.4rem;
 }
 
-.copy-page-button {
+.copy-page-button,
+.share-page-button {
   display: inline-flex;
   align-items: center;
   gap: 0.05rem;
@@ -20,6 +21,7 @@
 
   & > svg {
     fill: var(--gray);
+    stroke: var(--gray);
   }
 
   &:hover {
@@ -28,6 +30,14 @@
 
   &:focus {
     outline: 0;
+  }
+}
+
+.share-page-button {
+  padding: 0.2rem;
+
+  & > svg {
+    fill: none;
   }
 }
 

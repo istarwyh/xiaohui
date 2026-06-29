@@ -4,8 +4,14 @@ const svgCheck =
   '<svg aria-hidden="true" height="20" viewBox="0 0 16 16" version="1.1" width="20" data-view-component="true"><path fill-rule="evenodd" fill="rgb(63, 185, 80)" d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"></path></svg>'
 const svgChevron =
   '<svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16"><path fill-rule="evenodd" d="M3.22 5.72a.75.75 0 011.06 0L8 9.44l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L3.22 6.78a.75.75 0 010-1.06z"></path></svg>'
+const svgShare =
+  '<svg aria-hidden="true" height="20" viewBox="0 0 24 24" version="1.1" width="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>'
 
 type CopyFormat = "markdown" | "html"
+type WebShareNavigator = Navigator & {
+  share?: (data: ShareData) => Promise<void>
+  canShare?: (data: ShareData) => boolean
+}
 
 document.addEventListener("nav", () => {
   const titleEl = document.querySelector(".article-title")
@@ -26,6 +32,13 @@ document.addEventListener("nav", () => {
   button.setAttribute("aria-haspopup", "menu")
   button.setAttribute("aria-expanded", "false")
 
+  const shareButton = document.createElement("button")
+  shareButton.className = "share-page-button"
+  shareButton.type = "button"
+  shareButton.innerHTML = svgShare
+  shareButton.ariaLabel = "分享链接"
+  shareButton.title = "分享链接"
+
   const menu = document.createElement("span")
   menu.className = "copy-page-menu"
   menu.setAttribute("role", "menu")
@@ -44,9 +57,10 @@ document.addEventListener("nav", () => {
   htmlOption.textContent = "HTML"
 
   menu.append(markdownOption, htmlOption)
-  control.append(button, menu)
+  control.append(button, shareButton, menu)
 
   let resetTimer: ReturnType<typeof setTimeout> | undefined
+  let shareResetTimer: ReturnType<typeof setTimeout> | undefined
 
   function setMenuOpen(open: boolean) {
     menu.hidden = !open
@@ -63,6 +77,14 @@ document.addEventListener("nav", () => {
     return article?.innerHTML ?? ""
   }
 
+  function canonicalUrl() {
+    return document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href ?? location.href
+  }
+
+  function metaContent(selector: string) {
+    return document.querySelector<HTMLMetaElement>(selector)?.content ?? ""
+  }
+
   function showCopiedState() {
     button.blur()
     button.innerHTML = `${svgCheck}${svgChevron}`
@@ -70,6 +92,42 @@ document.addEventListener("nav", () => {
     resetTimer = setTimeout(() => {
       button.innerHTML = `${svgCopy}${svgChevron}`
     }, 2000)
+  }
+
+  function showSharedState(label: string) {
+    shareButton.blur()
+    shareButton.innerHTML = svgCheck
+    shareButton.ariaLabel = label
+    shareButton.title = label
+    if (shareResetTimer) clearTimeout(shareResetTimer)
+    shareResetTimer = setTimeout(() => {
+      shareButton.innerHTML = svgShare
+      shareButton.ariaLabel = "分享链接"
+      shareButton.title = "分享链接"
+    }, 2000)
+  }
+
+  function copyText(text: string) {
+    if (navigator.clipboard?.writeText) {
+      return navigator.clipboard.writeText(text)
+    }
+
+    const textarea = document.createElement("textarea")
+    textarea.value = text
+    textarea.setAttribute("readonly", "")
+    textarea.style.position = "fixed"
+    textarea.style.opacity = "0"
+    document.body.appendChild(textarea)
+    textarea.select()
+
+    try {
+      document.execCommand("copy")
+      return Promise.resolve()
+    } catch (error) {
+      return Promise.reject(error)
+    } finally {
+      textarea.remove()
+    }
   }
 
   function copy(format: CopyFormat) {
@@ -81,6 +139,32 @@ document.addEventListener("nav", () => {
         setMenuOpen(false)
         showCopiedState()
       },
+      (error) => console.error(error),
+    )
+  }
+
+  function sharePage() {
+    const url = canonicalUrl()
+    const shareData: ShareData = {
+      title: metaContent('meta[property="og:title"]') || document.title,
+      text:
+        metaContent('meta[property="og:description"]') || metaContent('meta[name="description"]'),
+      url,
+    }
+    const webShare = navigator as WebShareNavigator
+
+    if (webShare.share && (!webShare.canShare || webShare.canShare(shareData))) {
+      webShare
+        .share(shareData)
+        .then(() => showSharedState("已分享"))
+        .catch((error) => {
+          if (error?.name !== "AbortError") console.error(error)
+        })
+      return
+    }
+
+    copyText(url).then(
+      () => showSharedState("链接已复制"),
       (error) => console.error(error),
     )
   }
@@ -107,15 +191,18 @@ document.addEventListener("nav", () => {
   }
 
   button.addEventListener("click", onButtonClick)
+  shareButton.addEventListener("click", sharePage)
   menu.addEventListener("click", onMenuClick)
   document.addEventListener("click", onDocumentClick)
   document.addEventListener("keydown", onKeyDown)
   window.addCleanup(() => {
     button.removeEventListener("click", onButtonClick)
+    shareButton.removeEventListener("click", sharePage)
     menu.removeEventListener("click", onMenuClick)
     document.removeEventListener("click", onDocumentClick)
     document.removeEventListener("keydown", onKeyDown)
     if (resetTimer) clearTimeout(resetTimer)
+    if (shareResetTimer) clearTimeout(shareResetTimer)
   })
   titleEl.appendChild(control)
 })
