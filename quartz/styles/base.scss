@@ -282,6 +282,7 @@ a {
         gap: 1.5rem;
         padding-top: 1.5rem;
         & > * {
+          box-sizing: border-box;
           flex: 0 0 auto;
           max-height: none;
           width: 100%;

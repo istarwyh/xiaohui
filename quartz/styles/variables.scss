@@ -18,8 +18,8 @@ $desktop: "(min-width: #{map.get($breakpoints, desktop)})";
 
 $pageWidth: #{map.get($breakpoints, mobile)};
 $leftPanelWidth: 240px;
-$contentPanelWidth: minmax(0, 860px);
-$rightPanelWidth: minmax(380px, 1.3fr);
+$contentPanelWidth: minmax(0, 900px);
+$rightPanelWidth: minmax(320px, 0.9fr);
 $pageMaxWidth: none;
 $topSpacing: 6rem;
 $boldWeight: 700;
@@ -42,7 +42,7 @@ $tabletGrid: (
   templateRows: "auto auto auto auto",
   templateColumns: "#{$leftPanelWidth} auto",
   rowGap: "5px",
-  columnGap: "5px",
+  columnGap: "0",
   templateAreas:
     '"grid-sidebar-left grid-header"\
       "grid-sidebar-left grid-center"\
@@ -51,9 +51,9 @@ $tabletGrid: (
 );
 $desktopGrid: (
   templateRows: "auto auto auto",
-  templateColumns: "minmax(220px, 0.7fr) #{$contentPanelWidth} #{$rightPanelWidth}",
+  templateColumns: "minmax(220px, 0.55fr) #{$contentPanelWidth} #{$rightPanelWidth}",
   rowGap: "5px",
-  columnGap: "5px",
+  columnGap: "0",
   templateAreas:
     '"grid-sidebar-left grid-header grid-sidebar-right"\
       "grid-sidebar-left grid-center grid-sidebar-right"\

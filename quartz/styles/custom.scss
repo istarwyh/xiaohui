@@ -57,14 +57,21 @@ select:focus {
 
 // 暗色主题增强 - 绿色终端风格
 [saved-theme="dark"] {
+  --terminal-panel-bg: rgba(4, 12, 8, 0.38);
+  --terminal-panel-bg-strong: rgba(0, 0, 0, 0.56);
+  --terminal-panel-border: rgba(154, 205, 50, 0.16);
+  --terminal-panel-border-hover: rgba(154, 205, 50, 0.38);
+  --terminal-panel-glow: rgba(154, 205, 50, 0.12);
+  --terminal-muted-line: rgba(154, 205, 50, 0.1);
+
   body {
-    background: rgba(0, 0, 0, 0.95) !important;
+    background: #020403 !important;
     background-image: radial-gradient(
       circle at 1px 1px,
-      rgba(154, 205, 50, 0.15) 1px,
+      rgba(154, 205, 50, 0.08) 1px,
       transparent 0
     );
-    background-size: 20px 20px;
+    background-size: 24px 24px;
   }
 
   .page > #quartz-body {
@@ -73,6 +80,7 @@ select:focus {
       linear-gradient(270deg, rgba(154, 205, 50, 0.03), transparent 22%), rgba(0, 0, 0, 0.72);
     border-radius: 8px;
     backdrop-filter: blur(3px);
+    min-height: 100vh;
   }
 
   .sidebar {
@@ -92,9 +100,14 @@ select:focus {
   }
 
   article {
-    background: transparent;
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.18),
+      rgba(0, 18, 8, 0.08) 14rem,
+      transparent
+    );
     border-radius: 0;
-    padding: 1.5rem;
+    padding: 1.7rem 1.6rem 2.3rem;
     border: 0;
     backdrop-filter: none;
   }
@@ -120,34 +133,179 @@ select:focus {
   }
 
   #search-container {
-    background: rgba(0, 0, 0, 0.8);
-    border: 1px solid rgba(154, 205, 50, 0.3);
+    background: var(--terminal-panel-bg-strong);
+    border: 1px solid var(--terminal-panel-border);
     border-radius: 8px;
   }
 
   pre {
-    background: rgba(0, 0, 0, 0.9) !important;
-    border: 1px solid rgba(154, 205, 50, 0.3);
-    box-shadow: 0 0 10px rgba(154, 205, 50, 0.1);
+    background: var(--terminal-panel-bg-strong) !important;
+    border: 1px solid var(--terminal-panel-border);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
   }
 
   table {
-    background: rgba(0, 0, 0, 0.8);
-    border: 1px solid rgba(154, 205, 50, 0.3);
+    background: var(--terminal-panel-bg);
+    border: 1px solid var(--terminal-panel-border);
   }
 
   blockquote {
-    background: rgba(0, 15, 0, 0.3);
+    background: rgba(0, 15, 0, 0.22);
     border-left: 3px solid #7cb342;
-    backdrop-filter: blur(2px);
+    backdrop-filter: none;
+  }
+
+  .search > .search-button {
+    background: rgba(7, 18, 10, 0.42);
+    border: 1px solid transparent;
+
+    &:hover,
+    &:focus-visible {
+      background: rgba(18, 36, 18, 0.5);
+      border-color: var(--terminal-panel-border);
+    }
+  }
+
+  .search > .search-container {
+    background: rgba(0, 0, 0, 0.42);
+
+    & > .search-space > * {
+      background: var(--terminal-panel-bg-strong);
+      border-color: var(--terminal-panel-border);
+      box-shadow:
+        0 1.5rem 4rem rgba(0, 0, 0, 0.28),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+    }
+
+    & > .search-space > .search-layout {
+      border-color: var(--terminal-panel-border);
+
+      &[data-preview] > div:first-child {
+        border-right-color: var(--terminal-muted-line);
+      }
+
+      & > .results-container .result-card {
+        border-bottom-color: var(--terminal-muted-line);
+
+        &:hover,
+        &:focus,
+        &.focus {
+          background: rgba(154, 205, 50, 0.09);
+        }
+      }
+    }
+  }
+
+  .explore-hint,
+  .curated-quotes,
+  .graph > .graph-outer {
+    background: var(--terminal-panel-bg);
+    border-color: var(--terminal-panel-border);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.012);
+  }
+
+  .explore-hint,
+  .curated-quotes {
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .explore-hint:hover,
+  .curated-quotes:hover,
+  .graph > .graph-outer:hover {
+    background: rgba(8, 20, 10, 0.46);
+    border-color: var(--terminal-panel-border-hover);
+  }
+
+  .curated-quote-card {
+    background: rgba(7, 15, 12, 0.42);
+    border-color: var(--terminal-panel-border);
+
+    &:hover {
+      background: rgba(28, 48, 26, 0.36);
+      border-color: var(--terminal-panel-border-hover);
+    }
+  }
+
+  .graph > .graph-outer > .global-graph-icon {
+    background: rgba(4, 12, 8, 0.66);
+    border-color: var(--terminal-panel-border);
+
+    &:hover,
+    &:focus-visible {
+      background: rgba(154, 205, 50, 0.12);
+      border-color: var(--terminal-panel-border-hover);
+    }
+  }
+
+  .sidebar.right {
+    scrollbar-color: rgba(154, 205, 50, 0.34) transparent;
+    scrollbar-width: thin;
+  }
+
+  .sidebar.right::-webkit-scrollbar,
+  .toc-content.overflow::-webkit-scrollbar,
+  .curated-quotes-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sidebar.right::-webkit-scrollbar-track,
+  .toc-content.overflow::-webkit-scrollbar-track,
+  .curated-quotes-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar.right::-webkit-scrollbar-thumb,
+  .toc-content.overflow::-webkit-scrollbar-thumb,
+  .curated-quotes-list::-webkit-scrollbar-thumb {
+    background: rgba(154, 205, 50, 0.28);
+    border-radius: 999px;
+  }
+
+  .sidebar.right::-webkit-scrollbar-thumb:hover,
+  .toc-content.overflow::-webkit-scrollbar-thumb:hover,
+  .curated-quotes-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(154, 205, 50, 0.48);
   }
 }
 
 // 响应式设计
 @media (max-width: 768px) {
   [saved-theme="dark"] {
+    .page > #quartz-body {
+      background: rgba(0, 0, 0, 0.72);
+      border-radius: 0;
+    }
+
     .sidebar {
       background: transparent !important;
+    }
+
+    .sidebar.right {
+      gap: 1.25rem;
+      padding-top: 1.25rem;
+    }
+
+    .sidebar.right > .graph,
+    .sidebar.right > .explore-hint,
+    .sidebar.right > .backlinks {
+      border-top: 1px solid var(--terminal-muted-line);
+      padding-top: 1rem;
+    }
+
+    .sidebar.right > .graph {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .backlinks > ul.overflow {
+      max-height: none;
+    }
+
+    .explore-hint,
+    .graph > .graph-outer {
+      border-radius: 7px;
     }
 
     article {
