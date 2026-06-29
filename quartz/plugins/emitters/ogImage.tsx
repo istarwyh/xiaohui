@@ -21,6 +21,17 @@ const defaultOptions: SocialImageOptions = {
   excludeRoot: false,
 }
 
+function fallbackEmojiImage(segment: string) {
+  const escaped = segment
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72"><text x="36" y="54" text-anchor="middle" font-family="sans-serif" font-size="56" fill="currentColor">${escaped}</text></svg>`
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`
+}
+
 /**
  * Generates social image (OG/twitter standard) and saves it as `.webp` inside the public folder
  * @param opts options for generating image
@@ -55,7 +66,11 @@ async function generateSocialImage(
     fonts,
     loadAdditionalAsset: async (languageCode: string, segment: string) => {
       if (languageCode === "emoji") {
-        return await loadEmoji(getIconCode(segment))
+        try {
+          return await loadEmoji(getIconCode(segment))
+        } catch {
+          return fallbackEmojiImage(segment)
+        }
       }
 
       return languageCode
@@ -158,7 +173,7 @@ export const CustomOgImages: QuartzEmitterPlugin<Partial<SocialImageOptions>> = 
               : undefined
             const defaultOgImagePath = `https://${baseUrl}/static/og-image.png`
             const ogImagePath = userDefinedOgImagePath ?? generatedOgImagePath ?? defaultOgImagePath
-            const ogImageMimeType = `image/${getFileExtension(ogImagePath) ?? "png"}`
+            const ogImageMimeType = `image/${(getFileExtension(ogImagePath) ?? ".png").replace(/^\./, "")}`
             return (
               <>
                 {!userDefinedOgImagePath && (
