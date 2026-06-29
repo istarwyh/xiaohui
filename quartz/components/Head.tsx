@@ -5,14 +5,19 @@ import { googleFontHref, googleFontSubsetHref } from "../util/theme"
 import { QuartzComponent, QuartzComponentConstructor, QuartzComponentProps } from "./types"
 import { unescapeHTML } from "../util/escape"
 import { CustomOgImagesEmitterName } from "../plugins/emitters/ogImage"
+import { absolutePageUrl, getTranslationAlternates, normalizeLang } from "../util/translations"
 export default (() => {
   const Head: QuartzComponent = ({
     cfg,
     fileData,
+    allFiles,
     externalResources,
     ctx,
   }: QuartzComponentProps) => {
-    const titleSuffix = cfg.pageTitleSuffix ?? ""
+    const currentLang = normalizeLang(fileData.frontmatter?.lang, cfg.locale ?? "en-US")
+    const titleSuffix = currentLang.startsWith("en")
+      ? " | AI Agent · MCP Practitioner"
+      : (cfg.pageTitleSuffix ?? "")
     const title =
       (fileData.frontmatter?.title ?? i18n(cfg.locale).propertyDefaults.title) + titleSuffix
     const description =
@@ -27,15 +32,11 @@ export default (() => {
     const baseDir = fileData.slug === "404" ? path : pathToRoot(fileData.slug!)
     const iconPath = joinSegments(baseDir, "static/icon.png")
 
-    const isHome = fileData.slug === "index"
+    const isHome = fileData.slug === "index" || fileData.slug === "en"
     const is404 = fileData.slug === "404"
-    // Canonical URL of current page; collapse "/index" to "/" for the homepage.
-    const canonicalUrl = is404
-      ? url.toString()
-      : isHome
-        ? url.toString()
-        : joinSegments(url.toString(), fileData.slug!)
+    const canonicalUrl = is404 ? url.toString() : absolutePageUrl(cfg, fileData.slug!)
     const socialUrl = canonicalUrl
+    const alternates = getTranslationAlternates(cfg, fileData, allFiles)
 
     const usesCustomOgImage = ctx.cfg.plugins.emitters.some(
       (e) => e.name === CustomOgImagesEmitterName,
@@ -49,7 +50,7 @@ export default (() => {
     const dates = fileData.dates
     const isArticle = !isHome && !is404 && !!fileData.frontmatter
     const ogType = isArticle ? "article" : "website"
-    const locale = (cfg.locale ?? "en-US").replace("-", "_")
+    const locale = currentLang.replace("-", "_")
 
     // Structured data (JSON-LD)
     const websiteSchema = {
@@ -57,7 +58,7 @@ export default (() => {
       "@type": "WebSite",
       name: cfg.pageTitle,
       url: `https://${cfg.baseUrl}/`,
-      inLanguage: cfg.locale,
+      inLanguage: currentLang,
       potentialAction: {
         "@type": "SearchAction",
         target: `https://${cfg.baseUrl}/?q={search_term_string}`,
@@ -98,7 +99,7 @@ export default (() => {
           description,
           mainEntityOfPage: canonicalUrl,
           url: canonicalUrl,
-          inLanguage: cfg.locale,
+          inLanguage: currentLang,
           author: { "@type": "Person", name: author },
           publisher: {
             "@type": "Organization",
@@ -149,10 +150,24 @@ export default (() => {
         />
 
         {!is404 && <link rel="canonical" href={canonicalUrl} />}
-        {!is404 && cfg.locale && (
+        {!is404 && alternates.length > 0 && (
           <>
-            <link rel="alternate" hrefLang={cfg.locale} href={canonicalUrl} />
-            <link rel="alternate" hrefLang="x-default" href={canonicalUrl} />
+            {alternates.map((alternate) => (
+              <link
+                rel="alternate"
+                hrefLang={alternate.lang}
+                href={absolutePageUrl(cfg, alternate.slug ?? fileData.slug!, alternate.href)}
+              />
+            ))}
+            <link
+              rel="alternate"
+              hrefLang="x-default"
+              href={absolutePageUrl(
+                cfg,
+                alternates.find((alternate) => alternate.lang.startsWith("zh"))?.slug ??
+                  fileData.slug!,
+              )}
+            />
           </>
         )}
 

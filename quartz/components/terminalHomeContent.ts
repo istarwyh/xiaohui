@@ -8,6 +8,36 @@ export interface BadgeItem {
   text: string
 }
 
+export interface TerminalHomeCopy {
+  titlebar: string
+  whoamiLine: string
+  whoamiDim: string
+  aboutLabel: string
+  journeyPitch: string
+  journeyLinkText: string
+  journeyDesc: string
+  membershipPitch: string
+  membershipLinkText: string
+  membershipPrice: string
+  searchPlaceholder: string
+  searchAriaLabel: string
+  featuredCommand: string
+  recentCommand: string
+  journeyCommand: string
+  awardsCommand: string
+  membershipCommand: string
+}
+
+export interface TerminalHomeContent {
+  aboutSlug: string
+  journeySlug: string
+  membershipSlug: string
+  badges: BadgeItem[]
+  featuredItems: FeaturedItem[]
+  awards: BadgeItem[]
+  copy: TerminalHomeCopy
+}
+
 export const identityBadges: BadgeItem[] = [
   { text: "北大 '21" },
   { text: "蚂蚁 P7 · Agent 专家" },
@@ -51,3 +81,107 @@ export const awards: BadgeItem[] = [
   { text: "2025 蚂蚁集团 · 年度优秀创作者" },
   { text: "财保 ACE · AI 先锋 / 财保技术部 · AI 年度之星" },
 ]
+
+const englishBadges: BadgeItem[] = [
+  { text: "Peking University '21" },
+  { text: "Ant Group P7 · Agent specialist" },
+  { text: "Lead of Insurance Quick Check Agent, 1M+ MAU" },
+  { text: "Author of MCPAdvisor" },
+]
+
+const englishFeaturedItems: FeaturedItem[] = [
+  {
+    slug: "en/program/llm/agent-protocol",
+    title: "What stays stable beneath fast-moving Agent frameworks?",
+    desc: "Stable protocol boundaries beyond Agent runtimes",
+  },
+  {
+    slug: "en/program/llm/context-engineering-from-claude-code-to-oneagent",
+    title: "From Claude Code to OneAgent: context engineering",
+    desc: "My Agent methodology",
+  },
+  {
+    slug: "en/program/llm/deep-research-context-engineering",
+    title: "From RAG to Deep Research: context engineering for reports",
+    desc: "Agent architecture notes",
+  },
+  {
+    slug: "en/program/practices/reliable-agent-systems",
+    title: "How to build reliable Agent systems",
+    desc: "Production engineering experience",
+  },
+  {
+    slug: "en/program/llm/oneagent-mcps-domain-agent",
+    title: "OneAgent + MCPs: fast domain Agent creation",
+    desc: "Ant Insurance domain Agent practice",
+  },
+]
+
+const englishAwards: BadgeItem[] = [
+  { text: "2025 OceanBase AI Hackathon · Second Prize, team lead" },
+  { text: "2025 Ant Group Hackathon · Third Prize, team lead" },
+  { text: "First Alibaba & Ant ATA · Best Personal Agent Practice" },
+  { text: "2025 Ant Group · Outstanding Creator of the Year" },
+  { text: "Insurance ACE · AI Pioneer / AI Star of the Year" },
+]
+
+const zhHomeContent: TerminalHomeContent = {
+  aboutSlug: "Farming-in-the-cyber-world",
+  journeySlug: "journey",
+  membershipSlug: "membership",
+  badges: identityBadges,
+  featuredItems,
+  awards,
+  copy: {
+    titlebar: "xiaohui@blog:~",
+    whoamiLine: "晓灰 · 赛博农夫 · 写代码也写字",
+    whoamiDim: "一个关于 AI Agent、工程实践与思考的数字花园",
+    aboutLabel: "关于我",
+    journeyPitch: "比作品集更重要的是成长路径：求学、工程、业务、Agent，以及每次认知升级。",
+    journeyLinkText: "查看晓灰的成长时间线",
+    journeyDesc: "timeline · experience map",
+    membershipPitch: "想更深入交流？1:1 咨询 · 私密社群 · 内推机会。",
+    membershipLinkText: "加入私人成长会员",
+    membershipPrice: "$29 · 终身",
+    searchPlaceholder: "search notes...",
+    searchAriaLabel: "Search notes",
+    featuredCommand: "cat ~/featured.md",
+    recentCommand: "ls -lt ~/posts | head -6",
+    journeyCommand: "cat ~/journey.md",
+    awardsCommand: "cat ~/.awards",
+    membershipCommand: "cat ~/membership.md",
+  },
+}
+
+const enHomeContent: TerminalHomeContent = {
+  aboutSlug: "en/Farming-in-the-cyber-world",
+  journeySlug: "en/journey",
+  membershipSlug: "en/membership",
+  badges: englishBadges,
+  featuredItems: englishFeaturedItems,
+  awards: englishAwards,
+  copy: {
+    titlebar: "xiaohui@blog:~",
+    whoamiLine: "Xiaohui · cyber farmer · engineer and essayist",
+    whoamiDim: "A digital garden about AI Agents, engineering practice, and thinking",
+    aboutLabel: "About me",
+    journeyPitch:
+      "More important than a portfolio is the path: education, engineering, business, Agents, and each upgrade in judgment.",
+    journeyLinkText: "View Xiaohui's growth timeline",
+    journeyDesc: "timeline · experience map",
+    membershipPitch: "Want a deeper conversation? 1:1 consulting · private group · referrals.",
+    membershipLinkText: "Join the private growth membership",
+    membershipPrice: "$29 · lifetime",
+    searchPlaceholder: "search notes...",
+    searchAriaLabel: "Search notes",
+    featuredCommand: "cat ~/featured.md",
+    recentCommand: "ls -lt ~/posts | head -6",
+    journeyCommand: "cat ~/journey.md",
+    awardsCommand: "cat ~/.awards",
+    membershipCommand: "cat ~/membership.md",
+  },
+}
+
+export function getTerminalHomeContent(lang: string | undefined): TerminalHomeContent {
+  return lang?.startsWith("en") ? enHomeContent : zhHomeContent
+}

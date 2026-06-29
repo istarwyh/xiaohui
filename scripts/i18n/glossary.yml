@@ -1,0 +1,47 @@
+# Glossary for future LLM-based translation.
+# Keep source terms stable so translated drafts do not drift across runs.
+
+terms:
+  晓灰:
+    en: Xiaohui
+    note: Author name and public identity.
+  赛博农夫:
+    en: cyber farmer
+    note: Keep the metaphor literal unless a target language needs a short explanation.
+  数字花园:
+    en: digital garden
+  AI Agent:
+    en: AI Agent
+    note: Preserve as technical term.
+  智能体:
+    en: Agent
+  上下文工程:
+    en: context engineering
+  Agent Runtime:
+    en: Agent Runtime
+  Agent Protocol:
+    en: Agent Protocol
+  OneAgent:
+    en: OneAgent
+    note: Product or architecture name, do not translate.
+  MCP:
+    en: MCP
+    note: Model Context Protocol; preserve acronym unless expanded in explanatory prose.
+  MCPAdvisor:
+    en: MCPAdvisor
+    note: Project name, do not translate.
+  保险快查:
+    en: Insurance Quick Check
+    note: Ant Insurance product name, use this English label until an official translation exists.
+  蚂蚁:
+    en: Ant Group
+  淘工厂:
+    en: Taogongchang
+    note: Keep pinyin if no official English product name is provided.
+  债权经济学:
+    en: debt economics
+    note: Author's framework; keep lowercase unless used in a title.
+  全流开发:
+    en: full-stream development
+  私人成长会员:
+    en: private growth membership

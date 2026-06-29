@@ -4,7 +4,7 @@ import type { FilePath, FullSlug } from "../util/path"
 import type { QuartzPluginData } from "../plugins/vfile"
 import { byDateAndAlphabetical } from "./PageList"
 import { getDate } from "./Date"
-import { awards, featuredItems, identityBadges } from "./terminalHomeContent"
+import { getTerminalHomeContent, type TerminalHomeContent } from "./terminalHomeContent"
 import {
   AwardsSection,
   FeaturedSection,
@@ -53,10 +53,11 @@ function findPageSlug(pageId: string, allFiles: QuartzPluginData[], label: strin
 function resolveHomeLinks(
   currentSlug: FullSlug,
   allFiles: QuartzPluginData[],
+  content: TerminalHomeContent,
 ): HomeLinks | undefined {
-  const aboutSlug = findOptionalPageSlug("Farming-in-the-cyber-world", allFiles)
-  const journeySlug = findOptionalPageSlug("journey", allFiles)
-  const membershipSlug = findOptionalPageSlug("membership", allFiles)
+  const aboutSlug = findOptionalPageSlug(content.aboutSlug, allFiles)
+  const journeySlug = findOptionalPageSlug(content.journeySlug, allFiles)
+  const membershipSlug = findOptionalPageSlug(content.membershipSlug, allFiles)
 
   if (!aboutSlug || !journeySlug || !membershipSlug) {
     return undefined
@@ -69,8 +70,12 @@ function resolveHomeLinks(
   }
 }
 
-function resolveFeaturedPages(currentSlug: FullSlug, allFiles: QuartzPluginData[]): FeaturedPage[] {
-  return featuredItems.map((item) => {
+function resolveFeaturedPages(
+  currentSlug: FullSlug,
+  allFiles: QuartzPluginData[],
+  content: TerminalHomeContent,
+): FeaturedPage[] {
+  return content.featuredItems.map((item) => {
     const pageSlug = findPageSlug(item.slug, allFiles, `featured link "${item.title}"`)
     return {
       ...item,
@@ -97,16 +102,22 @@ function getRecentPages({
   allFiles,
   cfg,
   currentSlug,
+  lang,
 }: {
   allFiles: QuartzPluginData[]
   cfg: QuartzComponentProps["cfg"]
   currentSlug: FullSlug
+  lang: string
 }): RecentPage[] {
+  const englishHome = lang.startsWith("en")
+
   return allFiles
     .filter(
       (file) =>
         file.slug !== "index" &&
+        file.slug !== "en" &&
         !file.slug?.startsWith("tags/") &&
+        (englishHome ? file.slug?.startsWith("en/") : !file.slug?.startsWith("en/")) &&
         !frontmatterFalse(file.frontmatter?.recent),
     )
     .sort(byDateAndAlphabetical(cfg))
@@ -121,24 +132,31 @@ function getRecentPages({
 export default (() => {
   const TerminalHome: QuartzComponent = ({ fileData, allFiles, cfg }: QuartzComponentProps) => {
     const currentSlug = fileData.slug!
-    const links = resolveHomeLinks(currentSlug, allFiles)
+    const lang =
+      typeof fileData.frontmatter?.lang === "string"
+        ? fileData.frontmatter.lang
+        : currentSlug === "en"
+          ? "en"
+          : cfg.locale
+    const content = getTerminalHomeContent(lang)
+    const links = resolveHomeLinks(currentSlug, allFiles, content)
 
     if (!links) {
       return <></>
     }
 
-    const recentPages = getRecentPages({ allFiles, cfg, currentSlug })
-    const featuredPages = resolveFeaturedPages(currentSlug, allFiles)
+    const recentPages = getRecentPages({ allFiles, cfg, currentSlug, lang })
+    const featuredPages = resolveFeaturedPages(currentSlug, allFiles, content)
 
     return (
-      <TerminalChrome>
-        <WhoamiSection aboutHref={links.aboutHref} badges={identityBadges} />
-        <RecentSection pages={recentPages} />
-        <FeaturedSection pages={featuredPages} />
-        <SearchSection />
-        <JourneySection href={links.journeyHref} />
-        <AwardsSection items={awards} />
-        <MembershipSection href={links.membershipHref} />
+      <TerminalChrome title={content.copy.titlebar}>
+        <WhoamiSection aboutHref={links.aboutHref} badges={content.badges} copy={content.copy} />
+        <RecentSection pages={recentPages} copy={content.copy} />
+        <FeaturedSection pages={featuredPages} copy={content.copy} />
+        <SearchSection copy={content.copy} />
+        <JourneySection href={links.journeyHref} copy={content.copy} />
+        <AwardsSection items={content.awards} copy={content.copy} />
+        <MembershipSection href={links.membershipHref} copy={content.copy} />
       </TerminalChrome>
     )
   }

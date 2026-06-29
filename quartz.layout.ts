@@ -1,6 +1,9 @@
 import { PageLayout, SharedLayout } from "./quartz/cfg"
 import * as Component from "./quartz/components"
 
+const isHomePage = (page: { fileData: { slug?: string } }) =>
+  page.fileData.slug === "index" || page.fileData.slug === "en"
+
 // components shared across all pages
 export const sharedPageComponents: SharedLayout = {
   head: Component.Head(),
@@ -24,23 +27,23 @@ export const defaultContentPageLayout: PageLayout = {
   beforeBody: [
     Component.ConditionalRender({
       component: Component.Breadcrumbs(),
-      condition: (page) => page.fileData.slug !== "index",
+      condition: (page) => !isHomePage(page),
     }),
     Component.ConditionalRender({
       component: Component.TerminalHome(),
-      condition: (page) => page.fileData.slug === "index",
+      condition: isHomePage,
     }),
     Component.ConditionalRender({
       component: Component.ArticleTitle(),
-      condition: (page) => page.fileData.slug !== "index",
+      condition: (page) => !isHomePage(page),
     }),
     Component.ConditionalRender({
       component: Component.ContentMeta(),
-      condition: (page) => page.fileData.slug !== "index",
+      condition: (page) => !isHomePage(page),
     }),
     Component.ConditionalRender({
       component: Component.TagList(),
-      condition: (page) => page.fileData.slug !== "index",
+      condition: (page) => !isHomePage(page),
     }),
   ],
   left: [
@@ -58,9 +61,10 @@ export const defaultContentPageLayout: PageLayout = {
         { Component: Component.ReaderMode() },
       ],
     }),
+    Component.LanguageSwitcher(),
     Component.ConditionalRender({
       component: Component.DesktopOnly(Component.TableOfContents()),
-      condition: (page) => page.fileData.slug !== "index",
+      condition: (page) => !isHomePage(page),
     }),
     Component.ConditionalRender({
       component: Component.QuoteExhibit(),
@@ -85,7 +89,24 @@ export const defaultContentPageLayout: PageLayout = {
 
 // components for pages that display lists of pages  (e.g. tags or folders)
 export const defaultListPageLayout: PageLayout = {
-  beforeBody: [Component.Breadcrumbs(), Component.ArticleTitle(), Component.ContentMeta()],
+  beforeBody: [
+    Component.ConditionalRender({
+      component: Component.Breadcrumbs(),
+      condition: (page) => !isHomePage(page),
+    }),
+    Component.ConditionalRender({
+      component: Component.TerminalHome(),
+      condition: isHomePage,
+    }),
+    Component.ConditionalRender({
+      component: Component.ArticleTitle(),
+      condition: (page) => !isHomePage(page),
+    }),
+    Component.ConditionalRender({
+      component: Component.ContentMeta(),
+      condition: (page) => !isHomePage(page),
+    }),
+  ],
   left: [
     Component.PageTitle(),
     Component.SiteIntro(),
@@ -100,6 +121,7 @@ export const defaultListPageLayout: PageLayout = {
         { Component: Component.Darkmode() },
       ],
     }),
+    Component.LanguageSwitcher(),
   ],
   right: [],
 }

@@ -32,6 +32,7 @@ import ExploreHint from "./ExploreHint"
 import SiteIntro from "./SiteIntro"
 import QuoteExhibit from "./QuoteExhibit"
 import RssLink from "./RssLink"
+import LanguageSwitcher from "./LanguageSwitcher"
 
 export {
   ArticleTitle,
@@ -68,4 +69,5 @@ export {
   SiteIntro,
   QuoteExhibit,
   RssLink,
+  LanguageSwitcher,
 }
