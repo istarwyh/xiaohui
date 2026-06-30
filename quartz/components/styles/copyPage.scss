@@ -100,7 +100,7 @@
 .share-page-panel {
   box-sizing: border-box;
   width: 100%;
-  max-height: min(82vh, 36rem);
+  max-height: min(88vh, 44rem);
   overflow-y: auto;
   border: 1px solid var(--lightgray);
   border-radius: 14px 14px 0 0;
@@ -184,6 +184,39 @@
   line-height: 1.45;
 }
 
+.share-page-poster {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.9rem;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.share-page-poster-image {
+  display: block;
+  width: 100%;
+  max-height: min(46vh, 28rem);
+  border: 1px solid var(--lightgray);
+  border-radius: 8px;
+  background: white;
+  object-fit: contain;
+}
+
+.share-page-poster-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  border: 1px solid var(--lightgray);
+  border-radius: 8px;
+  background: var(--light);
+  color: var(--darkgray);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
 .share-page-actions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -227,7 +260,7 @@
     background: #1aad19;
   }
 
-  &.system {
+  &.poster {
     background: var(--secondary);
   }
 
