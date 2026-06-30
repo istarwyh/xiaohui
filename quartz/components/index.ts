@@ -29,7 +29,6 @@ import ReadingProgress from "./ReadingProgress"
 import CardFeed from "./CardFeed"
 import TerminalHome from "./TerminalHome"
 import ExploreHint from "./ExploreHint"
-import SiteIntro from "./SiteIntro"
 import QuoteExhibit from "./QuoteExhibit"
 import RssLink from "./RssLink"
 import LanguageSwitcher from "./LanguageSwitcher"
@@ -66,7 +65,6 @@ export {
   CardFeed,
   TerminalHome,
   ExploreHint,
-  SiteIntro,
   QuoteExhibit,
   RssLink,
   LanguageSwitcher,

@@ -1,7 +1,7 @@
 ---
 title: 如何科学评测 Agent 生成的文本报告：从评分体系到评测器的元评测
 created: 2026-06-20T00:00:00+08:00
-modified: 2026-06-21T12:11:41+08:00
+modified: 2026-06-30T22:00:12+08:00
 published: 2026-06-20T00:00:00+08:00
 tags:
   - AI Agent
@@ -287,17 +287,19 @@ source 必须来自素材
 | --- | --- | --- |
 | `ESF` | `Expert Scoring Fidelity` | 专家判分复现率 |
 | `SCE` | `Score Calibration Error` | 分数校准误差 |
-| `REC` | `Repeated Evaluation Consistency` | 重复评测一致率 |
+| `RCR` | `Repeated Consistency Rate` | 重复评测一致率 |
 
 它们分别回答三个问题：
 
 ```text
 ESF：评测器是否像专家？
 SCE：评测器最终分数离专家有多远？
-REC：评测器是否稳定地像自己？
+RCR：评测器是否稳定地像自己？
 ```
 
-![ESF、SCE、REC 三个元评测指标](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260621-agent-report-eval-interior-04-metrics.png)
+其中 `ESF` 和 `RCR` 是最核心的两条轴：`ESF` 保证评测结果像专家，`RCR` 保证评测过程稳定。`SCE` 则是辅助校准项，用来检查最终分数有没有偏离专家太远。
+
+![RCR 与 ESF 决定评测器是否可靠](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260630-agent-report-eval-rcr-esf.jpg)
 
 ### ESF：专家判分复现率
 
@@ -434,9 +436,9 @@ ESF 是主指标
 SCE 是辅助校准指标
 ```
 
-### REC：重复评测一致率
+### RCR：重复评测一致率
 
-`REC` 衡量：
+`RCR` 衡量：
 
 > 同一份报告，评测器多次评测是否一致。
 
@@ -444,7 +446,7 @@ SCE 是辅助校准指标
 
 一个评测器如果第一次给 82，第二次给 91，第三次又说合规不通过，那就别叫评测系统了，叫随机点评器更准确。
 
-`REC` 可以分三层算。
+`RCR` 可以分三层算。
 
 #### 1. Checkpoint 稳定性
 
@@ -480,9 +482,19 @@ Compliance Flip Rate
 
 在高风险场景里，合规翻转率必须非常低。如果合规判断会摇摆，这个评测器不能上线。
 
-`REC` 的定位是可信度门槛。评测器可以不完美，但不能不稳定。
+落地时，我会把 `RCR` 当成稳定性门槛，而不是一个可以被平均数美化的榜单分。
 
-近年的 `LLM-as-a-Judge` 可靠性研究也在把 consistency 和 human alignment 分开看：一个评测器既要接近人类专家，也要在等价评测条件下保持稳定。[^llm-judge-survey] [^judge-irt] 所以我会把 `REC` 单独拿出来，不只看和专家分数的相关性。
+| 场景 | Checkpoint Stability | Score Std | Compliance Flip Rate |
+| --- | --- | --- | --- |
+| 内测可用 | `>= 0.90` | `<= 3` 分 | `<= 2%` |
+| 生产上线 | `>= 0.95` | `<= 2` 分 | `<= 1%` |
+| 高风险场景 | `>= 0.98` | `<= 1` 分 | `0%` |
+
+如果必须对外只报一个数字，可以把 `Checkpoint Stability` 作为 `RCR` 主值：生产上线不低于 `0.95`，金融、保险、法务、医疗这类高风险场景不低于 `0.98`。但 `Score Std` 和 `Compliance Flip Rate` 不能被平均掉，尤其是合规翻转率，高风险场景里必须为 `0`。
+
+`RCR` 的定位是可信度门槛。评测器可以不完美，但不能不稳定。
+
+近年的 `LLM-as-a-Judge` 可靠性研究也在把 consistency 和 human alignment 分开看：一个评测器既要接近人类专家，也要在等价评测条件下保持稳定。[^llm-judge-survey] [^judge-irt] 所以我会把 `RCR` 单独拿出来，不只看和专家分数的相关性。
 
 ## 五、优化闭环：用元评测反过来提升评测器
 
@@ -490,7 +502,7 @@ Compliance Flip Rate
 
 最简单的一句话是：
 
-> 用专家 `GT` + 构造样本训练评测器，再用独立验证集上的 `ESF`、`SCE`、`REC` 验证它有没有复现专家判断逻辑、能不能保持稳定。
+> 用专家 `GT` + 构造样本训练评测器，再用独立验证集上的 `ESF`、`SCE`、`RCR` 验证它有没有复现专家判断逻辑、能不能保持稳定。
 
 展开来说，就是下面这条链路。
 
@@ -505,7 +517,7 @@ Compliance Flip Rate
         ↓
 按 checkpoint_id 对齐
         ↓
-计算 ESF / SCE / REC
+计算 ESF / SCE / RCR
         ↓
 分析失败 case
         ↓
@@ -516,7 +528,7 @@ Compliance Flip Rate
 
 ![从专家 GT 到评测器优化的闭环](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260621-agent-report-eval-interior-05-loop.png)
 
-关键点有三个。
+关键点有四个。
 
 ### 1. 不要拟合测试集，要拟合训练集
 
@@ -559,7 +571,7 @@ Compliance Flip Rate
 ```text
 先提高 ESF
 再降低 SCE
-最后把 REC 稳住
+最后把 RCR 稳住
 ```
 
 更具体一点：
@@ -568,9 +580,73 @@ Compliance Flip Rate
 | --- | --- |
 | `ESF` 低 | `checkpoint` 判断逻辑没学好 |
 | `SCE` 高 | 聚合和分数校准有问题 |
-| `REC` 低 | 输出不稳定，不能上线 |
+| `RCR` 低 | 输出不稳定，不能上线 |
 
 这比单纯追求“和专家总分相关性 0.9”更靠谱。
+
+### 4. 区分反馈优化和自进化
+
+到这里为止，这套闭环还不能叫 `Agent` 自进化。
+
+它只是一个反馈优化 `Loop`：
+
+```text
+评测器输出
+        ↓
+元评测发现偏差
+        ↓
+人或系统改 prompt / rubric / few-shot / 规则
+        ↓
+评测器更可靠
+```
+
+这个过程当然有价值，但它的主体还是“外部优化评测器”。评测器变准，是反馈优化；还不是自进化。
+
+我理解的 `Agent` 自进化，说的是同一个执行主体一次比一次执行得更聪明。这个主体可以是生成器，也可以是评估器，甚至可以是元评测器；关键不在于它是什么 `Agent`，而在于它有没有把上一次执行中的经验沉淀下来，改变下一次行动策略。
+
+所以在这套系统里，真正接近自进化的不是：
+
+```text
+元评测让评测器更可靠
+```
+
+而是：
+
+```text
+元评测自己一次比一次更会给反馈
+```
+
+同样是发现评测器漏判，一个低质量反馈可能只是：
+
+```text
+给这个 case 加一条特殊规则
+```
+
+这通常只是 `hack`。
+
+一个更高质量的反馈会追问：
+
+```text
+这是 rubric 粒度不够？
+是评测器职责太多？
+是证据链没有显式检查？
+还是合规规则没有结构化？
+```
+
+前者只能修一个点，后者会沉淀成可迁移的策略经验。
+
+这件事可以通过策略经验和启发式方法部分实现：
+
+| 经验类型 | 作用 |
+| --- | --- |
+| 错误类型经验 | 区分评分漂移、职责混淆、证据缺失、规则缺口 |
+| 修复策略经验 | 判断该补规则、拆职责、加对抗样本，还是调阈值 |
+| 反馈质量经验 | 识别哪些建议是特殊 case hack，哪些建议能改善系统结构 |
+| 验证经验 | 追踪一次修改是否真的提升 `ESF / SCE / RCR`，有没有引入新退化 |
+
+所以更准确的说法是：
+
+> 元评测优化评测器，是反馈优化；元评测优化自己的反馈策略，才开始接近自进化。
 
 ### 一个简单例子：ESF 怎么算
 
@@ -636,7 +712,7 @@ ESF ≈ 75.0%
     ↓
 checkpoint 级评分
     ↓
-ESF / SCE / REC 元评测
+ESF / SCE / RCR 元评测
     ↓
 反向优化评测器
     ↓

@@ -19,7 +19,7 @@ $desktop: "(min-width: #{map.get($breakpoints, desktop)})";
 $pageWidth: #{map.get($breakpoints, mobile)};
 $leftPanelWidth: 240px;
 $contentPanelWidth: minmax(0, 900px);
-$rightPanelWidth: minmax(320px, 0.9fr);
+$rightPanelWidth: minmax(340px, var(--right-sidebar-width, 0.98fr));
 $pageMaxWidth: none;
 $topSpacing: 6rem;
 $boldWeight: 700;

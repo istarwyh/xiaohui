@@ -9,6 +9,12 @@ html {
   text-size-adjust: none;
   overflow-x: hidden;
   width: 100vw;
+
+  &.is-resizing-right-sidebar,
+  &.is-resizing-right-sidebar * {
+    cursor: col-resize !important;
+    user-select: none !important;
+  }
 }
 
 body {
@@ -289,6 +295,59 @@ a {
         }
       }
     }
+
+    & .right-sidebar-resizer {
+      display: none;
+    }
+
+    @media all and ($desktop) {
+      & .right-sidebar-resizer {
+        grid-area: grid-sidebar-right;
+        justify-self: start;
+        align-self: stretch;
+        display: block;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        width: 14px;
+        min-height: 100vh;
+        margin-left: -7px;
+        padding: 0;
+        cursor: col-resize;
+        touch-action: none;
+        background: transparent;
+        border: 0;
+        outline: none;
+
+        &::before {
+          content: "";
+          position: absolute;
+          top: $topSpacing;
+          bottom: 2rem;
+          left: 50%;
+          width: 2px;
+          border-radius: 999px;
+          background: color-mix(in srgb, var(--secondary) 70%, transparent);
+          opacity: 0;
+          transform: translateX(-50%);
+          transition:
+            opacity 0.16s ease,
+            width 0.16s ease;
+        }
+
+        &:hover::before,
+        &:focus-visible::before {
+          width: 3px;
+          opacity: 0.65;
+        }
+      }
+    }
+
+    html.is-resizing-right-sidebar & .right-sidebar-resizer::before {
+      width: 3px;
+      opacity: 0.9;
+    }
+
     & .page-header,
     & .page-footer {
       margin-top: 1rem;

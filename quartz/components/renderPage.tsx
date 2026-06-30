@@ -223,12 +223,30 @@ export function renderPage(
   )
 
   const RightComponent = (
-    <div class="right sidebar">
+    <div class="right sidebar" id="right-sidebar">
       {right.map((BodyComponent) => (
         <BodyComponent {...componentData} />
       ))}
     </div>
   )
+
+  const RightResizeHandle =
+    right.length > 0 ? (
+      <div
+        class="right-sidebar-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="调整右侧栏宽度"
+        aria-controls="right-sidebar"
+        aria-valuemin={340}
+        aria-valuemax={640}
+        aria-valuenow={340}
+        title="拖动调整右侧栏宽度，双击重置"
+        tabIndex={0}
+      />
+    ) : (
+      <></>
+    )
 
   const lang = componentData.fileData.frontmatter?.lang ?? cfg.locale?.split("-")[0] ?? "en"
   const doc = (
@@ -259,6 +277,7 @@ export function renderPage(
                 ))}
               </div>
             </div>
+            {RightResizeHandle}
             {RightComponent}
             <Footer {...componentData} />
           </Body>
