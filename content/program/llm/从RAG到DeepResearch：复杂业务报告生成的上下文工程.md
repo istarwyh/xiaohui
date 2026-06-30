@@ -12,11 +12,11 @@ aliases:
 
 普通 `RAG` 像是把一摞资料搬到写作者桌上。`Deep Research` 更像派出一位研究员。他不会从第一页读到最后一页就开始写，而是先画出问题地图，沿着线索去几个关键地点，遇到矛盾就折返，发现空白再补查，最后把这段调查路线写进报告。
 
-把它放到工程系统里看，`Deep Research` 更接近一种 `Agentic Search`。它不是在普通 `RAG` 后面接一个更长的总结器，而是让模型围绕一个复杂问题持续规划、搜索、阅读、修正方向、比较证据，最后生成带依据的报告。
+把它放到工程系统里看，`Deep Research` 更接近一种 `Agentic Search`。它不是在普通 `RAG` 后面接一个更长的总结器，而是让模型围绕一个复杂问题持续规划、搜索、阅读、修正方向、比较证据，最后生成带依据的报告 <sup>[1][2][3]</sup>。
 
-这也是它和 `LongTraceRL` 这类工作的内在一致之处。`LongTraceRL` 关注的是如何让模型从搜索智能体的轨迹中学习长上下文推理：哪些页面被打开，哪些材料看似相关但最终没有被引用，哪些中间实体必须被覆盖，哪些干扰文档最容易误导模型。换到复杂业务报告生成里，问题几乎一样：系统不应该只保留最终命中的相关材料，而应该保留和组织一条研究轨迹，让模型在写作前经历“提出假设、寻找支持、寻找反证、修正判断”的过程。
+这也是它和 `LongTraceRL` 这类工作的内在一致之处。`LongTraceRL` 关注的是如何让模型从搜索智能体的轨迹中学习长上下文推理：哪些页面被打开，哪些材料看似相关但最终没有被引用，哪些中间实体必须被覆盖，哪些干扰文档最容易误导模型 <sup>[9]</sup>。换到复杂业务报告生成里，问题几乎一样：系统不应该只保留最终命中的相关材料，而应该保留和组织一条研究轨迹，让模型在写作前经历“提出假设、寻找支持、寻找反证、修正判断”的过程。
 
-所以，复杂业务场景里的 `Deep Research`，不是一个比 `RAG` 更大的盒子。它更像几条技术线索汇到同一个地方：`Agentic RAG` 让模型自己调用工具，自反式检索让模型检查证据，纠错式检索处理低质量召回，搜索轨迹学习则把研究过程本身变成训练信号。
+所以，复杂业务场景里的 `Deep Research`，不是一个比 `RAG` 更大的盒子。它更像几条技术线索汇到同一个地方：`Agentic RAG` 让模型自己调用工具 <sup>[7][8]</sup>，自反式检索让模型检查证据 <sup>[5]</sup>，纠错式检索处理低质量召回 <sup>[6]</sup>，搜索轨迹学习则把研究过程本身变成训练信号 <sup>[9]</sup>。
 
 > 可靠报告不是一次检索后的文本续写，而是一条被规划、验证和修正过的搜索推理轨迹。
 
@@ -60,15 +60,15 @@ aliases:
 
 几个相关研究放在一起看，会发现它们并不是松散并列的“参考资料”。它们都在处理同一个麻烦：检索不能只做静态召回，还要能反思、纠错和规划。
 
-`Self-RAG` 让模型学习何时需要检索，并用反思信号评估检索结果和自身生成。它不再盲目使用外部材料，而是把“是否需要证据”“证据是否相关”“回答是否被证据支持”放进生成过程。
+`Self-RAG` 让模型学习何时需要检索，并用反思信号评估检索结果和自身生成。它不再盲目使用外部材料，而是把“是否需要证据”“证据是否相关”“回答是否被证据支持”放进生成过程 <sup>[5]</sup>。
 
-`CRAG` 进一步指出，检索结果本身可能质量不足，因此需要检索评估器判断召回是否可靠。如果检索结果不够好，系统要过滤、分解、补充搜索，而不是把低质量上下文直接交给模型。
+`CRAG` 进一步指出，检索结果本身可能质量不足，因此需要检索评估器判断召回是否可靠。如果检索结果不够好，系统要过滤、分解、补充搜索，而不是把低质量上下文直接交给模型 <sup>[6]</sup>。
 
-`Agentic RAG` 把这个过程推进为多步工具使用。模型不再只接收固定候选文档，而是可以调用搜索、打开文档、在文档内定位、摘要、继续搜索等工具。检索变成了一个序列决策过程。
+`Agentic RAG` 把这个过程推进为多步工具使用。模型不再只接收固定候选文档，而是可以调用搜索、打开文档、在文档内定位、摘要、继续搜索等工具。检索变成了一个序列决策过程 <sup>[7][8]</sup>。
 
-`OpenAI Deep Research` 和 `Gemini Deep Research` 则把这种能力做成了产品：多步搜索、阅读、分析、综合，最后输出带引用的研究报告。它们服务的不是短问答，而是复杂知识工作。
+`OpenAI Deep Research` 和 `Gemini Deep Research` 则把这种能力做成了产品：多步搜索、阅读、分析、综合，最后输出带引用的研究报告。它们服务的不是短问答，而是复杂知识工作 <sup>[1][2][3][4]</sup>。
 
-`LongTraceRL` 从训练角度解释了为什么搜索轨迹重要。它不只让模型看到黄金证据，还利用搜索智能体实际走过的轨迹构造干扰文档，并用 `rubric reward` 奖励中间推理实体覆盖。模型要学的不只是“最终答案是什么”，还包括“在复杂材料中怎样搜索、怎样避开迷惑材料、怎样覆盖关键中间证据”。
+`LongTraceRL` 从训练角度解释了为什么搜索轨迹重要。它不只让模型看到黄金证据，还利用搜索智能体实际走过的轨迹构造干扰文档，并用 `rubric reward` 奖励中间推理实体覆盖。模型要学的不只是“最终答案是什么”，还包括“在复杂材料中怎样搜索、怎样避开迷惑材料、怎样覆盖关键中间证据” <sup>[9]</sup>。
 
 这些工作连起来，大致是这样一条技术脉络：
 
@@ -183,7 +183,7 @@ LongTraceRL：从搜索轨迹和中间证据覆盖中学习长上下文推理
 
 这个上下文不是单纯材料堆叠，而是在复现一个研究过程。模型读到的不只是“有哪些文本”，还有“为什么要读这些文本”“这些文本之间有什么张力”“哪些结论不能说满”。
 
-`LongTraceRL` 给人的提醒也在这里：搜索轨迹中的非最终证据、干扰证据、打开但未引用的文档，并不都是噪声。它们能让模型看到困难场景里的弯路和陷阱。
+`LongTraceRL` 给人的提醒也在这里：搜索轨迹中的非最终证据、干扰证据、打开但未引用的文档，并不都是噪声。它们能让模型看到困难场景里的弯路和陷阱 <sup>[9]</sup>。
 
 业务报告也是这样。那些让结论变得不那么顺滑的材料，不该被过滤掉，反而应该被有意放进上下文。
 
@@ -339,7 +339,7 @@ LongTraceRL：从搜索轨迹和中间证据覆盖中学习长上下文推理
 是否保留了定义、免责、例外和限制？
 ```
 
-这和 `Self-RAG`、`CRAG` 的思路是一致的：生成之后还要批判，检索不足还要纠错。
+这和 `Self-RAG`、`CRAG` 的思路是一致的：生成之后还要批判，检索不足还要纠错 <sup>[5][6]</sup>。
 
 ## 评估重点：轨迹质量，而不只是答案质量
 
@@ -372,7 +372,7 @@ LongTraceRL：从搜索轨迹和中间证据覆盖中学习长上下文推理
 是否把不确定性写成确定结论？
 ```
 
-这和 `LongTraceRL` 的 `rubric reward` 有直接对应关系。它不只奖励最终答案正确，还奖励中间推理实体覆盖。复杂业务报告也应该这样评估：文章是否好读是一层，关键研究路径有没有走到，是另一层。
+这和 `LongTraceRL` 的 `rubric reward` 有直接对应关系。它不只奖励最终答案正确，还奖励中间推理实体覆盖 <sup>[9]</sup>。复杂业务报告也应该这样评估：文章是否好读是一层，关键研究路径有没有走到，是另一层。
 
 ## 为什么这适用于更广泛的业务场景
 
@@ -406,7 +406,7 @@ LongTraceRL：从搜索轨迹和中间证据覆盖中学习长上下文推理
 
 把它放回 `Agentic Search`，它的工程意义才清楚：模型不再被动接收检索结果，而是主动规划搜索路径、寻找证据、寻找反证、修正判断，并把这条轨迹写进报告。
 
-这也解释了为什么 `Deep Research`、`Agentic RAG` 和 `LongTraceRL` 会走到一起。它们都在回答同一个问题：
+这也解释了为什么 `Deep Research`、`Agentic RAG` 和 `LongTraceRL` 会走到一起 <sup>[1][3][7][8][9]</sup>。它们都在回答同一个问题：
 
 > 如何让模型在海量材料中，不只是找到相关文本，而是学会像专家一样研究问题？
 
@@ -432,12 +432,12 @@ plan research → search support → search opposition → read contrastively �
 
 ## 参考资料
 
-- [OpenAI: Introducing deep research](https://openai.com/index/introducing-deep-research/)
-- [OpenAI: Deep research System Card](https://openai.com/index/deep-research-system-card/)
-- [Google AI for Developers: Gemini Deep Research Agent](https://ai.google.dev/gemini-api/docs/deep-research)
-- [Google Gemini: Deep Research overview](https://gemini.google/overview/deep-research/)
-- [Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection](https://arxiv.org/abs/2310.11511)
-- [Corrective Retrieval Augmented Generation](https://arxiv.org/abs/2401.15884)
-- [AgenticRAG: Agentic Retrieval for Enterprise Knowledge Bases](https://arxiv.org/abs/2605.05538)
-- [Agentic Retrieval-Augmented Generation: A Survey on Agentic RAG](https://arxiv.org/abs/2501.09136)
-- [LongTraceRL: Learning Long-Context Reasoning from Search Agent Trajectories with Rubric Rewards](https://arxiv.org/html/2605.31584v1)
+1. [OpenAI: Introducing deep research](https://openai.com/index/introducing-deep-research/)
+2. [OpenAI: Deep research System Card](https://openai.com/index/deep-research-system-card/)
+3. [Google AI for Developers: Gemini Deep Research Agent](https://ai.google.dev/gemini-api/docs/deep-research)
+4. [Google Gemini: Deep Research overview](https://gemini.google/overview/deep-research/)
+5. [Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection](https://arxiv.org/abs/2310.11511)
+6. [Corrective Retrieval Augmented Generation](https://arxiv.org/abs/2401.15884)
+7. [AgenticRAG: Agentic Retrieval for Enterprise Knowledge Bases](https://arxiv.org/abs/2605.05538)
+8. [Agentic Retrieval-Augmented Generation: A Survey on Agentic RAG](https://arxiv.org/abs/2501.09136)
+9. [LongTraceRL: Learning Long-Context Reasoning from Search Agent Trajectories with Rubric Rewards](https://arxiv.org/html/2605.31584v1)
