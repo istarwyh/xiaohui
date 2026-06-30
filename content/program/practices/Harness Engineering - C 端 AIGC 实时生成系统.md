@@ -4,8 +4,6 @@ modified: 2026-06-21
 published: 2026-05-30T22:42:00+08:00
 ---
 
-# Harness Engineering: C 端 AIGC 实时生成系统
-
 在前一篇 [[如何放心 100% AI 交付需求(3) -- 为 AI 打造可持续迭代的环境|《Harness Engineering:为 AI 打造可持续迭代环境的实践》]] 中,我们讲了 HelixVerify 如何在线下环境用 114 次迭代 把风险样本召回率从 8% 提升到 98.86%。那是一个典型的 线下 Harness。这一篇讲 Harness 思想搬到 C 端 AIGC 生产链路后的形态 —— 蚂蚁保保险快查深度解读页面生成系统(Deep Interpretation Page Generator,以下简称 DIPG)。
 DIPG 不让 C 端用户直接吃 LLM 实时生成的结果,而是把架构翻转成  "host-generate-verify-modify → DB 按品开启 → C 端直出" 。离线生成由一个带 verify 闭环的 [[如何放心 100% AI 交付需求(2) -- Loop 与 Agent Loop|Agentic Loop]] 负责,只有通过 verify 的 HTML 才会刷入 DB 并暴露给用户。实时生成只保留作为未开启品的兜底路径。即通过 Harness 的方式让 对 C 端交付的HTML 有足够好的质量。
 
@@ -25,6 +23,7 @@ DIPG 对外的产品形态:用户在支付宝保险快查里打开某款产品�
 2. 用户读的都是离线产物。DIPG 当前采用"离线刷入 DB + 按品维度开启"的方案:后台批量预生成并刷入 DB,只对"已开启的品"向 C 端暴露 —— 用户请求时直接从 DB 读离线产物,命中率 100%,不依赖缓存层兜底(线上还会叠加缓存做进一步加速,但那是性能优化,不是可用性前提)。实时链路仅作为未开启品的兜底生成通道存在,默认情况下 C 端看到的永远是离线产物。
 3. 离线链路--质量可控。如果实时生成能 100% 不出错,我们根本不需要离线。离线的核心价值是:把 verify 闭环的修正机会还回来,让 Harness 有施展空间。
 4. "合格 HTML 送达用户:DIPG 的外层 Graph 末端有一个 callback 节点,它把 HTML + verify 结论 + error_code 一起通过 RPC 回调发给下游(insexpert 的 deepResearchCallBack);下游根据 error_code 决定是否把这份 HTML 刷入 DB(通过 verify 的才刷)。
+
 ### DIPG 内部的三个 Agent
 
 离线链路的"带 verify 闭环"不是一个魔法盒子 —— 它内部由三个分工明确的 Agent 协作完成。这是后面所有工程讨论的概念起点:
@@ -46,8 +45,10 @@ DIPG 对外的产品形态:用户在支付宝保险快查里打开某款产品�
 </div>
 </div>          ← 第 201 行: 多出来的孤儿闭合标签
 ```
+
 问题很隐蔽。整份报告的顶层本来是平铺结构(<h2> 和各种 card 组件作为兄弟元素并列),没有外层包裹 <div>。但 LLM 凭"印象"在末尾补了一个 </div> 当作收尾。这个孤儿闭合标签进到移动端容器,被容器当成关闭自身的信号,导致下一个兄弟组件的位置错乱。
 同一时期,另一份惠民保产品的深度解读出了更隐蔽的问题。页面渲染完全正常,视觉上看不出任何毛病,但"特色保障分析"模块里赫然写着:
+
 
 ```html
 <div class="title" highlight-card>
@@ -60,7 +61,9 @@ DIPG 对外的产品形态:用户在支付宝保险快查里打开某款产品�
 这两个 badcase 恰好对应第一节提到的两类致命错误:渲染类(孤儿闭合标签让页面塌掉)和幻觉类(无中生有的数据让用户读到假信息)。共同特征:从文字上看完全"合理",LLM 生成时也没有"犹豫",但一个违反了 HTML 结构契约,一个违反了数据事实契约。
 
 对这两类问题,我们要回答两个层次:
+
 1. 这次能不能抓到? — 孤儿 </div> 靠纯程序化校验(HTML parser + 闭合规则)就能抓到;"优于市场 85%"则需要拿 HTML 和数据源做对比,靠 LLM 事实校验才能发现。两种校验手段正好对应 Verify Agent 内部的两个节点。
+
 2. 下次能不能不犯? — 这才是关键。每次都能抓到,意味着离线链路有 verify 环节可以在刷入 DB 前把问题拦下,不会让 badcase 飘到用户面前。同时,抓到之后,这些错误模式也能回灌到 prompt,让后续生成从源头减少类似错误。
 
 ## 三、多 Agent 是怎么组合起来的
@@ -90,6 +93,7 @@ blueprint = AgentBlueprint(
 内层的 Research Agent 和 Verify Agent 都是 CompiledSubAgent,各自是独立编译好的 LangGraph 图:
 - Research Agent 内部也是一个完整的 DeepAgent —— 拥有自己的 [[如何快速创建领域Agent - OneAgent + MCPs 范式|ReAct 循环]] + 工具链 + 中间件栈
 - Verify Agent 内部是一个两节点串行的 StateGraph —— structural_check → llm_verify （HelixVerify 的简化版）
+
 ### 3.2 SubAgent 是怎么被注入给 Host Agent 的? —— task 工具
 
 LangGraph 里没有"直接调另一个 agent"这种原生操作,所有异构执行必须包装成工具。create_task_tool 做的事:
