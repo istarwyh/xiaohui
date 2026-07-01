@@ -202,9 +202,32 @@ document.addEventListener("nav", () => {
     }
   }
 
-  function truncateText(text: string, maxLength: number) {
-    const trimmed = text.replace(/\s+/g, " ").trim()
-    return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength - 1)}…` : trimmed
+  function normalizeCanvasText(text: string, preserveBreaks = false) {
+    const normalized = text.replace(/\r\n?/g, "\n")
+    if (preserveBreaks) {
+      return normalized
+        .split("\n")
+        .map((line) => line.replace(/[ \t]+/g, " ").trim())
+        .join("\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim()
+    }
+
+    return normalized.replace(/\s+/g, " ").trim()
+  }
+
+  function truncateText(text: string, maxLength: number, preserveBreaks = false) {
+    const trimmed = normalizeCanvasText(text, preserveBreaks)
+    let count = 0
+    let result = ""
+
+    for (const character of Array.from(trimmed)) {
+      if (character !== "\n") count += 1
+      if (count >= maxLength) return `${result.trimEnd()}…`
+      result += character
+    }
+
+    return result
   }
 
   function wrapCanvasText(
@@ -212,34 +235,65 @@ document.addEventListener("nav", () => {
     text: string,
     maxWidth: number,
     maxLines: number,
+    preserveBreaks = false,
   ) {
-    const units = Array.from(text.replace(/\s+/g, " ").trim())
     const lines: string[] = []
-    let line = ""
+    const paragraphs = normalizeCanvasText(text, preserveBreaks).split(preserveBreaks ? "\n" : /\n/)
+    let truncated = false
 
-    for (const unit of units) {
-      const candidate = `${line}${unit}`
-      if (context.measureText(candidate).width <= maxWidth || line.length === 0) {
-        line = candidate
-        continue
+    function addEllipsis() {
+      let lastTextLineIndex = -1
+      for (let index = lines.length - 1; index >= 0; index -= 1) {
+        if (lines[index].length > 0) {
+          lastTextLineIndex = index
+          break
+        }
       }
+      if (lastTextLineIndex < 0) return
 
-      lines.push(line.trim())
-      line = unit.trimStart()
-
-      if (lines.length === maxLines) break
-    }
-
-    if (lines.length < maxLines && line) lines.push(line.trim())
-
-    if (lines.length === maxLines && units.join("").length > lines.join("").length) {
-      const last = lines[maxLines - 1]
-      let shortened = last
+      let shortened = lines[lastTextLineIndex]
       while (shortened.length > 0 && context.measureText(`${shortened}…`).width > maxWidth) {
         shortened = shortened.slice(0, -1)
       }
-      lines[maxLines - 1] = `${shortened}…`
+      lines[lastTextLineIndex] = `${shortened}…`
     }
+
+    for (const paragraph of paragraphs) {
+      if (!paragraph) {
+        if (preserveBreaks && lines.length < maxLines) lines.push("")
+        continue
+      }
+
+      const units = Array.from(paragraph)
+      let line = ""
+
+      for (const unit of units) {
+        const candidate = `${line}${unit}`
+        if (context.measureText(candidate).width <= maxWidth || line.length === 0) {
+          line = candidate
+          continue
+        }
+
+        lines.push(line.trim())
+        line = unit.trimStart()
+
+        if (lines.length === maxLines) {
+          truncated = true
+          break
+        }
+      }
+
+      if (truncated) break
+      if (lines.length < maxLines && line) lines.push(line.trim())
+
+      if (lines.length === maxLines) {
+        const consumed = lines.join("").length >= paragraphs.join("").length
+        truncated = !consumed
+        break
+      }
+    }
+
+    if (truncated) addEllipsis()
 
     return lines
   }
@@ -322,26 +376,21 @@ document.addEventListener("nav", () => {
     context.fillStyle = ink
     context.font =
       '700 64px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
-    const titleLines = wrapCanvasText(context, String(data.title ?? document.title), 816, 4)
+    const titleLines = wrapCanvasText(context, String(data.title ?? document.title), 816, 5)
     titleLines.forEach((line, index) => {
-      context.fillText(line, 132, 300 + index * 82)
-    })
-
-    const titleBottom = 300 + Math.max(titleLines.length - 1, 0) * 82
-    context.fillStyle = muted
-    context.font =
-      '400 34px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
-    const description = truncateText(String(data.text ?? articleExcerpt()), 180)
-    const descriptionLines = wrapCanvasText(context, description, 816, 4)
-    descriptionLines.forEach((line, index) => {
-      context.fillText(line, 132, titleBottom + 106 + index * 52)
+      context.fillText(line, 132, 284 + index * 82)
     })
 
     context.strokeStyle = border
     context.lineWidth = 2
     context.beginPath()
-    context.moveTo(132, 980)
-    context.lineTo(948, 980)
+    context.moveTo(132, 650)
+    context.lineTo(948, 650)
+    context.stroke()
+
+    context.beginPath()
+    context.moveTo(456, 720)
+    context.lineTo(456, 1248)
     context.stroke()
 
     const qrDataUrl = await QRCode.toDataURL(url, {
@@ -359,13 +408,27 @@ document.addEventListener("nav", () => {
     context.font =
       '600 34px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
     context.textAlign = "center"
-    context.fillText("扫码阅读", width / 2, 1034)
+    context.fillText("扫码阅读", 294, 800)
     context.textAlign = "start"
 
-    drawRoundedRect(context, 404, 1060, 272, 272, 24)
+    drawRoundedRect(context, 158, 846, 272, 272, 24)
     context.fillStyle = "#ffffff"
     context.fill()
-    context.drawImage(qrImage, 420, 1076, 240, 240)
+    context.drawImage(qrImage, 174, 862, 240, 240)
+
+    context.fillStyle = accent
+    context.font =
+      '600 30px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
+    context.fillText("摘要", 512, 764)
+
+    context.fillStyle = muted
+    context.font =
+      '400 31px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
+    const description = truncateText(String(data.text ?? articleExcerpt()), 220, true)
+    const descriptionLines = wrapCanvasText(context, description, 436, 9, true)
+    descriptionLines.forEach((line, index) => {
+      context.fillText(line, 512, 826 + index * 48)
+    })
 
     const blob = await canvasToBlob(canvas)
     const objectUrl = URL.createObjectURL(blob)
