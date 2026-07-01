@@ -157,8 +157,7 @@ document.addEventListener("nav", () => {
 
   function sourceFor(format: CopyFormat) {
     if (format === "markdown") {
-      const source = document.querySelector<HTMLTextAreaElement>("#copy-page-markdown-source")
-      return source?.value ?? ""
+      return markdownSource()
     }
 
     const article = document.querySelector("article")
@@ -173,9 +172,123 @@ document.addEventListener("nav", () => {
     return document.querySelector<HTMLMetaElement>(selector)?.content ?? ""
   }
 
+  function markdownSource() {
+    return document.querySelector<HTMLTextAreaElement>("#copy-page-markdown-source")?.value ?? ""
+  }
+
+  function markdownWithoutFrontmatter() {
+    return markdownSource().replace(/^---\s*\n[\s\S]*?\n---\s*(?:\n|$)/, "")
+  }
+
+  function stripMarkdownInlineSyntax(text: string) {
+    return text
+      .replace(/!\[[^\]]*]\([^)]+\)/g, "")
+      .replace(/\[\[([^\]|]+)\|([^\]]+)]]/g, "$2")
+      .replace(/\[\[([^\]]+)]]/g, "$1")
+      .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
+      .replace(/[`*_~]/g, "")
+      .trim()
+  }
+
+  function unquoteYamlValue(value: string) {
+    const trimmed = value.trim()
+    if (trimmed.length < 2) return trimmed
+
+    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+      return trimmed.slice(1, -1).replace(/\\n/g, "\n").replace(/\\"/g, '"').trim()
+    }
+
+    if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+      return trimmed.slice(1, -1).replace(/''/g, "'").trim()
+    }
+
+    return trimmed
+  }
+
+  function deindentYamlBlock(lines: string[]) {
+    const withoutOuterBlankLines = [...lines]
+    while (withoutOuterBlankLines[0]?.trim() === "") withoutOuterBlankLines.shift()
+    while (withoutOuterBlankLines[withoutOuterBlankLines.length - 1]?.trim() === "") {
+      withoutOuterBlankLines.pop()
+    }
+
+    const indents = withoutOuterBlankLines
+      .filter((line) => line.trim().length > 0)
+      .map((line) => line.match(/^\s*/)?.[0].length ?? 0)
+    const minIndent = indents.length > 0 ? Math.min(...indents) : 0
+
+    return withoutOuterBlankLines
+      .map((line) => line.slice(minIndent))
+      .join("\n")
+      .trim()
+  }
+
+  function markdownFrontmatterDescription() {
+    const source = markdownSource()
+    const frontmatter = source.match(/^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/)?.[1]
+    if (!frontmatter) return ""
+
+    const lines = frontmatter.split("\n")
+    for (let index = 0; index < lines.length; index += 1) {
+      const match = lines[index].match(/^description:\s*(.*)$/)
+      if (!match) continue
+
+      const rawValue = match[1].trim()
+      if (/^[>|]/.test(rawValue)) {
+        const blockLines: string[] = []
+        for (let blockIndex = index + 1; blockIndex < lines.length; blockIndex += 1) {
+          const line = lines[blockIndex]
+          if (/^\S[^:]*:\s*/.test(line)) break
+          blockLines.push(line)
+        }
+        return deindentYamlBlock(blockLines)
+      }
+
+      return unquoteYamlValue(rawValue)
+    }
+
+    return ""
+  }
+
+  function markdownBodyExcerpt() {
+    const paragraphs: string[] = []
+    let currentParagraph: string[] = []
+    const body = markdownWithoutFrontmatter().replace(/```[\s\S]*?```/g, "")
+
+    function flushParagraph() {
+      const paragraph = currentParagraph.join("\n").trim()
+      if (paragraph) paragraphs.push(paragraph)
+      currentParagraph = []
+    }
+
+    for (const line of body.split("\n")) {
+      const trimmed = line.trim()
+      if (!trimmed) {
+        flushParagraph()
+        continue
+      }
+
+      if (/^#{1,6}\s+/.test(trimmed) || /^-{3,}$/.test(trimmed)) {
+        flushParagraph()
+        continue
+      }
+
+      if (/^!\[[^\]]*]\([^)]+\)$/.test(trimmed)) continue
+
+      const text = stripMarkdownInlineSyntax(trimmed.replace(/^>\s?/, "").replace(/^[-*+]\s+/, ""))
+      if (text) currentParagraph.push(text)
+    }
+
+    flushParagraph()
+    return paragraphs.slice(0, 3).join("\n\n")
+  }
+
   function articleExcerpt() {
-    const paragraph = document.querySelector("article p")
-    return paragraph?.textContent?.replace(/\s+/g, " ").trim() ?? ""
+    return Array.from(document.querySelectorAll("article p"))
+      .map((paragraph) => paragraph.textContent?.replace(/[ \t]+/g, " ").trim() ?? "")
+      .filter(Boolean)
+      .slice(0, 3)
+      .join("\n\n")
   }
 
   function articleHeadingText() {
@@ -195,6 +308,8 @@ document.addEventListener("nav", () => {
         stripSiteTitleSuffix(metaContent('meta[property="og:title"]')) ||
         stripSiteTitleSuffix(document.title),
       text:
+        markdownFrontmatterDescription() ||
+        markdownBodyExcerpt() ||
         metaContent('meta[property="og:description"]') ||
         metaContent('meta[name="description"]') ||
         articleExcerpt(),
@@ -357,18 +472,26 @@ document.addEventListener("nav", () => {
     const accent = "#2563eb"
     const panel = "#ffffff"
     const border = "#e5e7eb"
-    const cardX = 52
-    const cardY = 60
+    const cardX = 28
+    const cardY = 44
     const cardWidth = width - cardX * 2
     const cardHeight = height - cardY * 2
-    const dividerX = 486
-    const textX = 556
-    const textWidth = 520
+    const dividerX = 456
+    const textX = 510
+    const textRightPadding = 56
+    const textWidth = cardX + cardWidth - textRightPadding - textX
+    const qrBoxSize = 356
+    const qrImageSize = 324
+    const qrBoxX = cardX + 52
+    const qrBoxY = (height - qrBoxSize) / 2
+    const qrPadding = (qrBoxSize - qrImageSize) / 2
+    const titleY = 166
+    const titleLineHeight = 64
 
     context.fillStyle = "#f5f7fb"
     context.fillRect(0, 0, width, height)
 
-    drawRoundedRect(context, cardX, cardY, cardWidth, cardHeight, 32)
+    drawRoundedRect(context, cardX, cardY, cardWidth, cardHeight, 30)
     context.fillStyle = panel
     context.fill()
     context.strokeStyle = border
@@ -376,14 +499,14 @@ document.addEventListener("nav", () => {
     context.stroke()
 
     context.beginPath()
-    context.moveTo(dividerX, 126)
-    context.lineTo(dividerX, height - 126)
+    context.moveTo(dividerX, cardY + 62)
+    context.lineTo(dividerX, cardY + cardHeight - 62)
     context.stroke()
 
     const qrDataUrl = await QRCode.toDataURL(url, {
       errorCorrectionLevel: "M",
       margin: 1,
-      width: 300,
+      width: qrImageSize,
       color: {
         dark: ink,
         light: "#ffffff",
@@ -391,24 +514,24 @@ document.addEventListener("nav", () => {
     })
     const qrImage = await loadImage(qrDataUrl)
 
-    drawRoundedRect(context, 118, 194, 332, 332, 28)
+    drawRoundedRect(context, qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 28)
     context.fillStyle = "#ffffff"
     context.fill()
-    context.drawImage(qrImage, 134, 210, 300, 300)
+    context.drawImage(qrImage, qrBoxX + qrPadding, qrBoxY + qrPadding, qrImageSize, qrImageSize)
 
     context.fillStyle = ink
     context.font =
       '700 50px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
     const titleLines = wrapCanvasText(context, String(data.title ?? document.title), textWidth, 3)
     titleLines.forEach((line, index) => {
-      context.fillText(line, textX, 180 + index * 64)
+      context.fillText(line, textX, titleY + index * titleLineHeight)
     })
 
     context.fillStyle = muted
     context.font =
       '400 28px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
-    const titleBottom = 180 + Math.max(titleLines.length - 1, 0) * 64
-    const description = truncateText(String(data.text ?? articleExcerpt()), 190, true)
+    const titleBottom = titleY + Math.max(titleLines.length - 1, 0) * titleLineHeight
+    const description = truncateText(String(data.text ?? articleExcerpt()), 220, true)
     const descriptionLines = wrapCanvasText(context, description, textWidth, 6, true)
     descriptionLines.forEach((line, index) => {
       context.fillText(line, textX, titleBottom + 68 + index * 42)
@@ -418,7 +541,7 @@ document.addEventListener("nav", () => {
     context.font =
       '600 30px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
     context.textAlign = "right"
-    context.fillText("xiaohui.cool", cardX + cardWidth - 64, cardY + cardHeight - 64)
+    context.fillText("xiaohui.cool", cardX + cardWidth - textRightPadding, cardY + cardHeight - 54)
     context.textAlign = "start"
 
     const blob = await canvasToBlob(canvas)
