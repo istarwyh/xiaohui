@@ -178,22 +178,28 @@ document.addEventListener("nav", () => {
     return paragraph?.textContent?.replace(/\s+/g, " ").trim() ?? ""
   }
 
+  function articleHeadingText() {
+    const clone = articleTitle.cloneNode(true) as HTMLElement
+    clone.querySelector(".copy-page-control")?.remove()
+    return clone.textContent?.replace(/\s+/g, " ").trim() ?? ""
+  }
+
+  function stripSiteTitleSuffix(title: string) {
+    return title.replace(/\s+\|\s+AI Agent\s*[·•]\s*MCP\s*(实践者|Practitioner)\s*$/i, "").trim()
+  }
+
   function shareData(): ShareData {
     return {
       title:
-        metaContent('meta[property="og:title"]') ||
-        articleTitle.textContent?.trim() ||
-        document.title,
+        articleHeadingText() ||
+        stripSiteTitleSuffix(metaContent('meta[property="og:title"]')) ||
+        stripSiteTitleSuffix(document.title),
       text:
         metaContent('meta[property="og:description"]') ||
         metaContent('meta[name="description"]') ||
         articleExcerpt(),
       url: canonicalUrl(),
     }
-  }
-
-  function cssColor(variable: string, fallback: string) {
-    return getComputedStyle(document.documentElement).getPropertyValue(variable).trim() || fallback
   }
 
   function truncateText(text: string, maxLength: number) {
@@ -292,44 +298,37 @@ document.addEventListener("nav", () => {
     const context = canvas.getContext("2d")
     if (!context) throw new Error("Canvas is not supported in this browser.")
 
-    const dark = cssColor("--dark", "#171717")
-    const darkgray = cssColor("--darkgray", "#4b5563")
-    const gray = cssColor("--gray", "#6b7280")
-    const secondary = cssColor("--secondary", "#2563eb")
-    const panel = cssColor("--light", "#ffffff")
+    const ink = "#111827"
+    const muted = "#4b5563"
+    const accent = "#2563eb"
+    const panel = "#ffffff"
+    const border = "#e5e7eb"
 
-    context.fillStyle = "#f7f8fb"
+    context.fillStyle = "#f5f7fb"
     context.fillRect(0, 0, width, height)
-    context.fillStyle = secondary
-    context.fillRect(0, 0, width, 18)
-
-    context.save()
-    context.globalAlpha = 0.08
-    context.fillStyle = secondary
-    context.beginPath()
-    context.arc(930, 150, 280, 0, Math.PI * 2)
-    context.fill()
-    context.restore()
 
     drawRoundedRect(context, 72, 88, width - 144, height - 176, 36)
     context.fillStyle = panel
     context.fill()
+    context.strokeStyle = border
+    context.lineWidth = 2
+    context.stroke()
 
-    context.fillStyle = secondary
+    context.fillStyle = accent
     context.font =
       '600 34px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
     context.fillText("xiaohui.cool", 132, 170)
 
-    context.fillStyle = dark
+    context.fillStyle = ink
     context.font =
       '700 64px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
-    const titleLines = wrapCanvasText(context, String(data.title ?? document.title), 816, 5)
+    const titleLines = wrapCanvasText(context, String(data.title ?? document.title), 816, 4)
     titleLines.forEach((line, index) => {
       context.fillText(line, 132, 300 + index * 82)
     })
 
     const titleBottom = 300 + Math.max(titleLines.length - 1, 0) * 82
-    context.fillStyle = darkgray
+    context.fillStyle = muted
     context.font =
       '400 34px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
     const description = truncateText(String(data.text ?? articleExcerpt()), 180)
@@ -338,41 +337,35 @@ document.addEventListener("nav", () => {
       context.fillText(line, 132, titleBottom + 106 + index * 52)
     })
 
-    context.strokeStyle = "#e5e7eb"
+    context.strokeStyle = border
     context.lineWidth = 2
     context.beginPath()
-    context.moveTo(132, 1030)
-    context.lineTo(948, 1030)
+    context.moveTo(132, 980)
+    context.lineTo(948, 980)
     context.stroke()
 
     const qrDataUrl = await QRCode.toDataURL(url, {
       errorCorrectionLevel: "M",
       margin: 1,
-      width: 284,
+      width: 240,
       color: {
-        dark: "#111827",
+        dark: ink,
         light: "#ffffff",
       },
     })
     const qrImage = await loadImage(qrDataUrl)
 
-    drawRoundedRect(context, 132, 1086, 316, 316, 24)
+    context.fillStyle = ink
+    context.font =
+      '600 34px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
+    context.textAlign = "center"
+    context.fillText("扫码阅读", width / 2, 1034)
+    context.textAlign = "start"
+
+    drawRoundedRect(context, 404, 1060, 272, 272, 24)
     context.fillStyle = "#ffffff"
     context.fill()
-    context.drawImage(qrImage, 148, 1102, 284, 284)
-
-    context.fillStyle = dark
-    context.font =
-      '600 40px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
-    context.fillText("扫码阅读原文", 488, 1178)
-
-    context.fillStyle = gray
-    context.font =
-      '400 26px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
-    const urlLines = wrapCanvasText(context, url.replace(/^https?:\/\//, ""), 410, 3)
-    urlLines.forEach((line, index) => {
-      context.fillText(line, 488, 1232 + index * 40)
-    })
+    context.drawImage(qrImage, 420, 1076, 240, 240)
 
     const blob = await canvasToBlob(canvas)
     const objectUrl = URL.createObjectURL(blob)
