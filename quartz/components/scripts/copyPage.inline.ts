@@ -344,8 +344,8 @@ document.addEventListener("nav", () => {
     const data = shareData()
     const url = data.url ?? canonicalUrl()
     const canvas = document.createElement("canvas")
-    const width = 1080
-    const height = 1440
+    const width = 1200
+    const height = 720
     canvas.width = width
     canvas.height = height
 
@@ -357,46 +357,33 @@ document.addEventListener("nav", () => {
     const accent = "#2563eb"
     const panel = "#ffffff"
     const border = "#e5e7eb"
+    const cardX = 52
+    const cardY = 60
+    const cardWidth = width - cardX * 2
+    const cardHeight = height - cardY * 2
+    const dividerX = 486
+    const textX = 556
+    const textWidth = 520
 
     context.fillStyle = "#f5f7fb"
     context.fillRect(0, 0, width, height)
 
-    drawRoundedRect(context, 72, 88, width - 144, height - 176, 36)
+    drawRoundedRect(context, cardX, cardY, cardWidth, cardHeight, 32)
     context.fillStyle = panel
     context.fill()
     context.strokeStyle = border
     context.lineWidth = 2
     context.stroke()
 
-    context.fillStyle = accent
-    context.font =
-      '600 34px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
-    context.fillText("xiaohui.cool", 132, 170)
-
-    context.fillStyle = ink
-    context.font =
-      '700 64px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
-    const titleLines = wrapCanvasText(context, String(data.title ?? document.title), 816, 5)
-    titleLines.forEach((line, index) => {
-      context.fillText(line, 132, 284 + index * 82)
-    })
-
-    context.strokeStyle = border
-    context.lineWidth = 2
     context.beginPath()
-    context.moveTo(132, 650)
-    context.lineTo(948, 650)
-    context.stroke()
-
-    context.beginPath()
-    context.moveTo(456, 720)
-    context.lineTo(456, 1248)
+    context.moveTo(dividerX, 126)
+    context.lineTo(dividerX, height - 126)
     context.stroke()
 
     const qrDataUrl = await QRCode.toDataURL(url, {
       errorCorrectionLevel: "M",
       margin: 1,
-      width: 240,
+      width: 300,
       color: {
         dark: ink,
         light: "#ffffff",
@@ -404,31 +391,35 @@ document.addEventListener("nav", () => {
     })
     const qrImage = await loadImage(qrDataUrl)
 
-    context.fillStyle = ink
-    context.font =
-      '600 34px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
-    context.textAlign = "center"
-    context.fillText("扫码阅读", 294, 800)
-    context.textAlign = "start"
-
-    drawRoundedRect(context, 158, 846, 272, 272, 24)
+    drawRoundedRect(context, 118, 194, 332, 332, 28)
     context.fillStyle = "#ffffff"
     context.fill()
-    context.drawImage(qrImage, 174, 862, 240, 240)
+    context.drawImage(qrImage, 134, 210, 300, 300)
+
+    context.fillStyle = ink
+    context.font =
+      '700 50px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
+    const titleLines = wrapCanvasText(context, String(data.title ?? document.title), textWidth, 3)
+    titleLines.forEach((line, index) => {
+      context.fillText(line, textX, 180 + index * 64)
+    })
+
+    context.fillStyle = muted
+    context.font =
+      '400 28px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
+    const titleBottom = 180 + Math.max(titleLines.length - 1, 0) * 64
+    const description = truncateText(String(data.text ?? articleExcerpt()), 190, true)
+    const descriptionLines = wrapCanvasText(context, description, textWidth, 6, true)
+    descriptionLines.forEach((line, index) => {
+      context.fillText(line, textX, titleBottom + 68 + index * 42)
+    })
 
     context.fillStyle = accent
     context.font =
       '600 30px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
-    context.fillText("摘要", 512, 764)
-
-    context.fillStyle = muted
-    context.font =
-      '400 31px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
-    const description = truncateText(String(data.text ?? articleExcerpt()), 220, true)
-    const descriptionLines = wrapCanvasText(context, description, 436, 9, true)
-    descriptionLines.forEach((line, index) => {
-      context.fillText(line, 512, 826 + index * 48)
-    })
+    context.textAlign = "right"
+    context.fillText("xiaohui.cool", cardX + cardWidth - 64, cardY + cardHeight - 64)
+    context.textAlign = "start"
 
     const blob = await canvasToBlob(canvas)
     const objectUrl = URL.createObjectURL(blob)
