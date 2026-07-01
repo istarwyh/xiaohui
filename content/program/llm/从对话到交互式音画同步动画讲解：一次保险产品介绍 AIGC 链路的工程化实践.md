@@ -967,3 +967,260 @@ turn_abc:000007
 ```
 
 如果 `Last-Event-ID` 不属于当前 turn，服务端不会模糊容错，而是返回明确错误。这个选择看起来严格，但对播放协议是必要的：错误续传比重新连接更危险，因为它会制造更隐蔽的音画错位。
+
+---
+
+## 五、状态、缓存与可靠性：让链路可查、可复用、可失败
+
+这一章聚焦工程可靠性。动画讲解不是一次性返回值，而是一条有状态的生成链路；它必须可查、可续传、可缓存，也必须能明确失败。
+
+### 5.1 TurnRecord 与 SceneStatus：让生成状态可查、可恢复
+
+除了 output 和 event，系统还维护可查询的 turn 状态。
+
+```text
+ProductIntroTurnRecord
+  ├─ turnId
+  ├─ sessionId
+  ├─ prodNo
+  ├─ reportVersion
+  ├─ query
+  ├─ producerMode
+  ├─ status
+  ├─ title
+  ├─ turnIndex
+  ├─ totalScenes
+  ├─ readyScenes
+  ├─ sceneHoldMs
+  ├─ sceneGapMs
+  ├─ previousTurnIds
+  ├─ clientTurnRequestId
+  ├─ refreshCache
+  ├─ outputCacheHit
+  ├─ outputSource
+  ├─ failedSceneId
+  └─ errorMessage
+```
+
+| 字段                            | 设计目的                                    |
+| ------------------------------- | ------------------------------------------- |
+| `status`                        | 表示 turn 是创建中、生成中、已完成还是失败 |
+| `turnIndex`                     | 保证 session 内多轮顺序                     |
+| `totalScenes` / `readyScenes`   | 支持前端展示 “第几幕已生成”                |
+| `sceneHoldMs` / `sceneGapMs`    | 控制 scene 之间播放节奏                     |
+| `clientTurnRequestId`           | 支持前端重试创建 turn 的幂等保护           |
+| `outputCacheHit` / `outputSource` | 说明结构化规划结果来自 producer 还是缓存   |
+| `failedSceneId`                 | 失败时定位到具体 scene，而不是只知道整个 turn 失败 |
+
+每个 scene 还有状态记录：
+
+```text
+SceneStatusRecord
+  ├─ sceneId
+  ├─ sceneIndex
+  ├─ status
+  ├─ startAtMs
+  ├─ endAtMs
+  ├─ eventStartId
+  ├─ eventEndId
+  ├─ eventCount
+  └─ audioUrl
+```
+
+这些字段让系统可以回答几个工程问题：
+
+- 当前 turn 总共有几幕？
+- 哪几幕已经 ready？
+- 某一幕的事件 ID 范围是什么？
+- 音频 URL 是否已经生成？
+- 如果失败，是失败在规划、音频、上传、事件写入，还是 scene ready？
+
+### 5.2 缓存：缓存的是规划结果，不是整段动画
+
+缓存容易被误解成“缓存完整动画”。当前链路缓存的是 `ProductIntroTurnOutputEnvelope`，也就是结构化规划结果，而不是 scene artifact、音频文件或事件流。
+
+```text
+cache value = encode_turn_snapshot(turnInput, outputEnvelope)
+```
+
+缓存命中后，系统可以跳过结构化规划 Agent，直接拿到 `ProductIntroTurnOutputEnvelope`。但后续 scene 制片仍然要继续执行：渲染视觉节点、生成音频、提取字幕边界、编译事件、写 scene ready。
+
+当前可缓存条件很保守：
+
+```text
+producerMode == conversation
+query == DEFAULT_PRODUCT_INTRO_QUERY
+previousTurnIds is empty
+```
+
+也就是说，只有默认首轮介绍才使用 output cache。追问不缓存，因为追问强依赖当前 query 和多轮上下文；缓存它容易把上一轮关注点带到错误场景里。
+
+缓存 key 由产品和 query 构成：
+
+```text
+turnOutputCacheKey(prodNo, query)
+```
+
+缓存值带有 producer version。读取时会校验：
+
+```text
+cachedEnvelope.metadata.producerVersion == currentProducerVersion
+```
+
+如果版本不一致，直接当 cache miss。这保证 prompt、schema、scene policy 变化后，不会继续使用旧策略产出的 scenes。
+
+缓存还有两个控制点：
+
+1. 请求可以通过 `refreshCache` 强制刷新；
+2. 如果请求没显式传，系统可以通过配置决定是否默认强制刷新。
+
+写缓存是 best-effort。也就是说，缓存写失败不会影响本次 turn 的主链路提交。原因很简单：缓存是优化，不是正确性依赖；主链路的正确性仍然由 turn snapshot 和 scene events 保证。
+
+另外，只有拿到真实报告内容时才允许写缓存。如果报告为空，系统可以降级生成通用回答，但不会把这种结果写成可复用缓存，避免后续污染正常产品介绍。
+
+### 5.3 Replay：缓存和回放不是一回事
+
+缓存解决的是“能不能少跑一次规划 Agent”；replay 解决的是“前端断线后能不能继续播放已经生成的事件”。这两者不要混在一起。
+
+| 能力              | 解决问题                     | 存的是什么                       | 使用时机                         |
+| ----------------- | ---------------------------- | -------------------------------- | -------------------------------- |
+| output cache      | 减少默认首轮规划耗时         | `ProductIntroTurnOutputEnvelope` | 创建 turn 后、scene 制片前       |
+| durable replay    | 前端断线/刷新后续播          | `ProductIntroEvent[]`            | SSE 连接和重连时                 |
+| turn snapshot     | 查询和恢复 turn 输出         | `turnInput + outputEnvelope`     | 后台任务恢复、重复调度保护       |
+| scene event shard | 场景级播放事件               | 单个 ready scene 的 events       | scene ready 后、SSE replay 时    |
+
+这也是为什么一次 cache hit 并不等于前端立即拿到完整动画。cache hit 只是说明“导演脚本可复用”；动画讲解仍要完成制片和事件写入。
+
+### 5.4 失败路径：把异常也纳入播放协议
+
+线上链路不能只设计成功路径。这里的失败处理有两个原则：一是尽量定位到具体阶段或 scene；二是对前端只暴露安全错误语义，不把内部异常直接透出。
+
+| 失败点                                      | 系统动作                                  | 前端看到什么                         |
+| ------------------------------------------- | ----------------------------------------- | ------------------------------------ |
+| Agent 输出非法字段，例如 `audio`、`events`、`style` | parser 拒绝 output，写入 `run:error`      | 安全失败提示，停止本轮播放           |
+| scene 字段不满足 `SceneKind` schema         | validator 拒绝 scene，记录 `failedSceneId` | 当前 turn 失败，可定位到具体 scene   |
+| 音频生成或上传失败                         | 写入失败终态，保留已记录的阶段日志        | 播放停止，展示安全错误提示           |
+| 事件 ID 序列不连续                         | scene ready 写入失败，避免脏事件对前端可见 | 不播放不完整事件流                   |
+| `Last-Event-ID` 不属于当前 turn             | 返回续传位置错误                          | 前端重置播放或重新发起连接           |
+
+这个设计的取舍是宁可失败得明确，也不要在错误位置继续播放。对音画同步链路来说，错误续传比直接失败更危险，因为它可能制造用户难以察觉的错位。
+
+---
+
+## 六、体验与方法论：交互、性能和可迁移经验
+
+这一章回到产品体验和工程方法论。前面讲对象和协议，这里回答：为什么它是“交互式”的，慢的问题怎么诚实表达，以及这套设计能迁移到哪些 AIGC 场景。
+
+### 6.1 交互式从哪里来：动画讲解如何接回对话流
+
+“交互式”不是只靠前端播放器按钮实现的，而是由三层能力共同组成。
+
+| 交互层   | 具体能力                                     | 关键对象/协议                                             |
+| -------- | -------------------------------------------- | ---------------------------------------------------------- |
+| 播放交互 | 用户刷新、断线、恢复后可以从已播放位置继续   | `ProductIntroEvent.id`、`Last-Event-ID`、durable replay    |
+| 生成交互 | 生成过程中能看到当前阶段，而不是黑盒 loading | `turn:progress`、`readyScenes`、`totalScenes`、`percentEstimate` |
+| 内容交互 | 用户看完一幕或一轮后继续追问                 | `suggestedQueries`、`sessionId`、`previousTurnIds`         |
+
+第一层是播放协议意义上的交互。用户不需要等整轮完成，也不需要刷新后从头开始；只要前端记录最后一个 committed event ID，就能用 `Last-Event-ID` 续传。
+
+第二层是生成过程的交互。超过 20 秒的问题还没完全解决，但用户至少能知道系统处于“规划内容”“生成音频”“上传音频”“发布场景”等哪个阶段。对工程排查来说，这些阶段也是性能切片。
+
+第三层是内容交互。`suggestedQueries` 不是普通推荐问题，它把一次动画讲解重新接回多轮对话。下一轮请求会带着同一个 `sessionId` 和历史 `previousTurnIds`，结构化规划 Agent 可以承接前文关注点，生成更短、更聚焦的 scenes。
+
+所以这条链路不是“聊天生成动画后结束”，而是：
+
+```text
+对话输入 -> 事件驱动讲解 -> 播放中可恢复 -> 播放后可追问 -> 新一轮讲解
+```
+
+### 6.2 慢的问题：先变得可观测，再变得更快
+
+端到端超过 20 秒的问题还没有完全解决，这一点不能回避。原因也很直接：这条链路不只是一次模型调用，还包括报告读取、结构化规划、逐 scene 渲染、TTS、字幕边界、音频上传、事件持久化和 SSE 推送。
+
+但工程上可以先把“慢”拆开。
+
+过去用户看到的是一个黑盒：
+
+```text
+请求已发出 -> 等待 -> 结果出现或失败
+```
+
+现在它被拆成多个可观测阶段：
+
+```text
+turn.accepted
+turn.output.started
+turn.report.loaded
+turn.planning.started
+turn.output.committed
+scene.generating
+scene.artifact.started
+scene.audio.tts.started
+scene.audio.tts.done
+scene.audio.boundary.done
+scene.audio.upload.started
+scene.audio.upload.done
+scene.artifact.draft.done
+scene.events.persisted
+scene.ready
+```
+
+这带来三个直接价值。
+
+第一，前端不再只能展示一个模糊 loading，而是能告诉用户系统正在做什么。
+
+第二，排查时可以知道慢在规划、TTS、上传还是事件写入，不必从端到端耗时反推。
+
+第三，系统可以围绕“首幕 ready”而不是“全量完成”优化体验。对用户来说，多久能看到第一段可信内容，往往比多久全部生成完更影响感知。
+
+所以当前阶段的诚实表达是：我们还没有彻底解决慢，但已经把慢从不可解释的等待，变成可观测、可分段交付、可继续优化的工程问题。
+
+### 6.3 这套架构的几个关键取舍
+
+#### 让模型生成意图，不生成产物
+
+模型适合做语义理解和表达规划，不适合维护前端安全边界、播放时间轴和可续传协议。把模型输出收敛到 `SceneContent`，后端再生成 `SceneArtifact`，可以同时保留灵活性和确定性。
+
+#### 用 scene kind 承载业务表达，而不是用模板锁死内容
+
+固定模板会限制对话灵活性，自由生成又不可控。`SceneKind` 是中间层：它把保险产品介绍抽象成有限镜头语言，让模型能根据 query 选择表达方式，同时让 renderer 有稳定输入。
+
+#### 把播放体验建模成事件流，而不是接口响应
+
+只要存在音频、字幕和视觉节点，就必须有统一时钟。`ProductIntroEvent` 让播放动作具备时间、顺序、payload 和 replay 语义，前端只需要按事件推进。
+
+#### 前端越轻，协议越要硬
+
+当前端不再理解业务结构时，后端必须承担更多协议责任：schema 校验、节点白名单、事件 ID、终态、续传、错误码和 replay。否则“轻前端”会变成“脆前端”。
+
+#### 性能优化先找首幕，而不是只盯总时长
+
+动画讲解的体验指标不应只有端到端完成时间。首幕 ready 时间、进度透明度、断线恢复能力、场景级失败处理，都会影响用户是否愿意等待。
+
+### 6.4 可迁移经验：AIGC 交互产品如何从“生成内容”走向“生产体验”
+
+这套方案虽然发生在保险产品介绍场景，但抽象出来有更通用的意义。
+
+很多 AIGC 应用一开始都以“生成内容”为目标：生成一段文字、一张图、一页 HTML、一个方案。但只要进入真实交互场景，问题就会变成：内容如何被消费？状态如何反馈？失败如何恢复？用户如何继续追问？产物如何被验证？
+
+从这个角度看，我们得到的经验是：
+
+1. **先定义消费协议，再定义生成格式。** 不是模型能吐什么就接什么，而是前端体验需要什么，后端就把模型输出编译成什么。
+
+2. **把模型输出放在业务语义层。** 让模型输出结构化意图，避免直接进入 UI、音频、事件等高风险产物层。
+
+3. **用确定性后处理承接不确定性生成。** schema、validator、renderer、timeline compiler、event store 都是在把模型的不确定性压进可控边界。
+
+4. **把实时体验拆成阶段，而不是只追求最终结果。** AIGC 链路不可避免有慢步骤，重要的是让慢可解释、可观察、可渐进交付。
+
+5. **交互式内容必须可恢复。** 用户刷新、断线、重连不是异常路径，而是播放协议的一部分。
+
+---
+
+## 结语
+
+回到开头的问题：我们做的不是一个“LLM 产品问答接口”，而是一条把产品咨询变成交互式音画同步动画讲解的工程链路。
+
+在这条链路里，LLM 负责把报告和 query 规划成结构化 scenes；后端逐 scene 生产视觉节点、讲解音频、字幕边界和播放事件；事件流服务把这些资产组织成可续传、可回放、可观测的协议；前端只负责播放 committed events，并把用户自然带回下一轮咨询。
+
+这套架构还没有解决所有问题，尤其是端到端耗时仍需要继续优化。但它先完成了一次关键的工程转向：从“生成一段内容”，转向“生产一段体验”。对于很多 AIGC 产品来说，这可能比单次模型效果更接近真正的线上交付。
