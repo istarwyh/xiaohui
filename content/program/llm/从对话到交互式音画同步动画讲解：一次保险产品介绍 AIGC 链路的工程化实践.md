@@ -441,3 +441,529 @@ risk_summary   限制、风险、除外责任
 ```
 
 这段输出里没有 SVG、音频 URL、字幕边界、事件 ID。它只说明“这一幕要讲什么”。后续的视觉、音频、字幕和播放时序由后端制片流水线完成。
+
+## 三、场景制片层：从 SceneContent 到可播放 SceneArtifact
+
+这一章聚焦后端制片。它解决的问题是：一幕结构化语义如何变成可播放资产，字幕如何真正对齐音频，视觉节点如何保持安全和确定性。
+
+### 3.1 SceneArtifact：把一幕变成可播放资产
+
+`SceneContent` 还是剧本，不能直接播放。后端逐 scene 生产 `SceneArtifact`。
+
+```text
+SceneArtifact
+  ├─ sceneId
+  ├─ sceneIndex
+  ├─ startMs
+  ├─ endMs
+  ├─ eventCount
+  ├─ endEventIndex
+  ├─ content
+  ├─ audio
+  ├─ boundaries
+  ├─ nodes
+  └─ events
+```
+
+| 字段            | 设计目的                                                     |
+| --------------- | ------------------------------------------------------------ |
+| `sceneId`       | 关联原始 `SceneContent`，也是节点、字幕、事件 payload 的主键 |
+| `sceneIndex`    | 当前是第几幕，用于布局纵向偏移和播放顺序                     |
+| `startMs`       | 这一幕在整个 turn 时间轴上的开始时间                         |
+| `endMs`         | 这一幕结束时间，通常由音频时长 + hold 时间决定               |
+| `eventCount`    | 这一幕会产生多少事件，用于预留事件 ID 区间                   |
+| `endEventIndex` | 这一幕最后一个事件在 turn 内的编号                           |
+| `content`       | 原始语义输入，便于回放、调试、重建                           |
+| `audio`         | 讲解音频资产，包括 URL、时长、hash、对齐级别                 |
+| `boundaries`    | 字幕 token 与音频时间的映射                                  |
+| `nodes`         | 受控视觉节点，前端按 `node:commit` 增量绘制                  |
+| `events`        | 最终可回放播放事件                                           |
+
+这里有两个阶段对象：
+
+```text
+SceneArtifactDraft    # 已有 nodes/audio/boundaries/rawEvents，但还没有最终事件 ID
+SceneArtifact         # 已分配最终事件 ID，可写入并对前端可见
+```
+
+为什么需要 draft？因为事件 ID 必须连续、稳定、可续传。后端要先知道这一幕会生成多少事件，再向存储层预留 event range，最后把 raw events materialize 成带最终 ID 的 events。
+
+制片流程如下：
+
+```text
+SceneContent
+  -> validate_scene_content
+  -> render_scene_nodes
+  -> build_scene_audio
+  -> build_raw_scene_events
+  -> reserve event range
+  -> materialize_scene_artifact
+  -> write_scene_ready
+```
+
+这里的“逐 scene”不是等所有 scene 都制片完成后再一次性输出。当前链路会先让结构化规划 Agent 一次性产出完整 `scenes[]`，保证这一轮讲解有统一导演脚本；随后后端按 scene 顺序制片，每完成一幕就写入该幕的事件 shard 和 ready 状态。SSE 侧会周期性读取已 ready 的连续 scene 前缀，因此第一幕 ready 后就可以被前端播放，后续 scene 继续生成。
+
+这也是为什么简单把 scene 制片并行化，收益未必直接。真正耗时的前置瓶颈往往是完整 `ProductIntroTurnOutput` 的规划：只要仍然坚持“先由 LLM 统一导演整轮脚本”，并行只能优化规划之后的 TTS、上传和事件编译阶段。并行化还要处理事件区间预留、连续 ready 前缀、scene 顺序、失败隔离和资源限流；它是后续优化方向，但不是解决首段可播放的唯一手段。当前更关键的体验策略是：完整脚本一次性规划，制片阶段逐 scene ready，前端尽早消费第一段 committed events。
+
+### 3.2 视觉节点：受控 SVG，而不是模型生成页面
+
+场景渲染器根据 `SceneKind` 分发到不同布局：
+
+```text
+identity     -> 产品身份卡片
+eligibility  -> 条件时间线 + 指标卡
+deductible   -> 核心数字 + 对比卡
+coverage     -> 三层保障 stack
+renewal      -> 续保路径
+hospital      -> 服务网络
+risk_summary -> 适合/风险决策卡
+```
+
+渲染结果是节点列表。一个节点大致长这样：
+
+```json
+{
+  "id": "deductible_001:metric-left-value",
+  "type": "text",
+  "anchorY": 142,
+  "props": {
+    "x": 89,
+    "y": 142,
+    "fontSize": 24,
+    "fontWeight": "900",
+    "textAnchor": "middle",
+    "fill": "#1677ff"
+  },
+  "text": "门槛"
+}
+```
+
+节点协议有几个关键约束：
+
+- `id` 必须以 `sceneId` 开头，便于定位和去重；
+- `type` 只允许 `rect`、`circle`、`line`、`path`、`text` 等有限类型；
+- `props` 只允许坐标、尺寸、颜色、字体等白名单字段；
+- 禁止 `component`、`class`、`style`、`script`、`on*` 这类字段；
+- 节点必须在画布边界内，颜色必须来自允许集合。
+
+这就是“让模型做导演，不让模型当前端工程师”的具体落点。模型决定 `deductible_001` 要讲免赔额，renderer 决定它应该画成什么节点、放在哪、用什么字号和颜色。
+
+### 3.3 音频资产：narration 如何变成可校验音频
+
+每个 scene 的 `narration` 会进入音频服务，生成 `SceneAudioAsset`：
+
+```text
+SceneAudioAsset
+  ├─ sceneId
+  ├─ voiceId
+  ├─ speechRate
+  ├─ format
+  ├─ sampleRate
+  ├─ durationMs
+  ├─ url
+  ├─ fileId
+  ├─ textHash
+  ├─ audioHash
+  ├─ alignmentLevel
+  ├─ storageMode
+  └─ urlExpireSeconds
+```
+
+| 字段               | 设计目的                                                   |
+| ------------------ | ---------------------------------------------------------- |
+| `durationMs`       | 后续编译 `scene:end` 和 node 分布时间必须依赖真实音频时长 |
+| `url`              | 前端播放音频的地址                                         |
+| `textHash`         | 校验音频对应的就是当前 narration                           |
+| `audioHash`        | 标识音频内容，便于排查重复生成和缓存问题                   |
+| `alignmentLevel`   | 标识字幕边界来自真实字词时间，还是估算                     |
+| `urlExpireSeconds` | 告诉前端音频 URL 的有效期，避免长期缓存误用                |
+
+### 3.4 字幕边界：narration 的哪段文字何时出现
+
+字幕边界是 `SubtitleBoundary`：
+
+```text
+SubtitleBoundary
+  ├─ sceneId
+  ├─ token
+  ├─ startMs
+  ├─ endMs
+  ├─ charStart
+  └─ charEnd
+```
+
+它回答的是：**narration 的哪一段文字，应该在音频的哪个时间范围内出现。** 如何实现？
+
+第一步，音频服务返回原始 TTS meta events，里面可能包含 `timeLineList`。系统会把所有 `timeLineList` 拉平，并只保留字段完整的 timeline item：
+
+```text
+TimelineItem
+  ├─ data
+  ├─ startIndex
+  ├─ endIndex
+  ├─ startTime
+  ├─ endTime
+  └─ sentence
+```
+
+第二步，系统会把 narration 切成 subtitle token。切分规则很克制：遇到中文标点 `，。；：、` 会切分；如果一直没有标点，单个 token 最多 5 个字符。切分时同时记录字符区间：
+
+```text
+TokenSpan
+  ├─ token
+  ├─ charStart
+  └─ charEnd
+```
+
+切完后会做一次重建校验：所有 token 拼起来必须和原始 narration 完全一致。这个校验能避免字幕切分丢字、增字或顺序错乱。
+
+第三步，优先使用 TTS 的真实字符时间。系统会过滤出 `sentence=false` 且 `startIndex < endIndex` 的字符级 timeline item，然后为每个 token 找到所有字符区间有重叠的 timeline item：
+
+```text
+item.startIndex < token.charEnd && item.endIndex > token.charStart
+```
+
+如果找到重叠项，这个 token 的时间边界就是：
+
+```text
+startMs = min(overlapping.startTime)
+endMs   = max(overlapping.endTime)
+```
+
+第四步，校验边界必须单调递增，并且不能超过真实音频时长。如果任何 token 找不到对应字符时间，或者边界不合法，就放弃真实对齐。
+
+第五步，fallback 到估算对齐。估算不是随便平均切，而是按 token 字符长度加权，把所有 token 分布到真实 `durationMs` 上：
+
+```text
+weight(token) = max(1, token.charEnd - token.charStart)
+endMs(i) = durationMs * sum(weights[0..i]) / sum(weights)
+```
+
+这样即使 TTS 不返回可用字级时间，字幕也能覆盖完整 narration，并且最后一个 token 会对齐到真实音频结束时间。
+
+一个边界示例：
+
+```json
+{
+  "sceneId": "deductible_001",
+  "token": "免赔额可以",
+  "startMs": 0,
+  "endMs": 620,
+  "charStart": 0,
+  "charEnd": 5
+}
+```
+
+这个实现对应两个工程目标：
+
+1. 有真实 TTS 时间时，尽量使用真实对齐，提升音画同步精度；
+2. 没有真实时间时，也不让字幕脱离真实音频时长，保证播放体验可接受。
+
+### 3.5 同一个 query 如何一路变成事件
+
+把“免赔额是什么意思？”贯穿起来，可以看到每层对象只解决一类问题：
+
+| 阶段     | 对象                       | 关键变化                                                         | 解决的问题                                     |
+| -------- | -------------------------- | ---------------------------------------------------------------- | ---------------------------------------------- |
+| 用户输入 | `ProductIntroTurnInput`    | `query="免赔额是什么意思？"`，带上 `sessionId`、`turnId`、`previousTurnIds` | 明确这一轮属于哪个会话、回答哪个问题           |
+| Agent 输出 | `ProductIntroTurnOutput`   | 生成 1 个 `deductible` scene 和 3 个 suggested queries           | 把文本回答拆成可制片剧本                       |
+| 场景语义 | `SceneContent`             | 有 `narration`、`metrics`、`comparison`、`warnings`              | 让 renderer 知道这一幕要表达什么               |
+| 视觉产物 | `nodes`                    | 生成标题、指标卡、对比卡、提醒卡等受控节点                       | 把业务语义变成安全视觉指令                     |
+| 音频产物 | `SceneAudioAsset`          | `narration` 变成音频 URL、`durationMs`、hash、对齐级别           | 让这一幕可以被播放和校验                       |
+| 字幕产物 | `SubtitleBoundary[]`       | narration 被切成 token，并对齐音频时间                           | 让字幕跟着音频节奏出现                         |
+| 播放产物 | `ProductIntroEvent[]`      | 编译出 `scene:start`、`subtitle:token`、`node:commit`、`scene:end` | 让前端按统一时间轴播放                         |
+
+这条对象链也是排查链。如果用户反馈“字幕慢了”，优先看 `SubtitleBoundary` 和 `alignmentLevel`；如果反馈“画面节点出现太晚”，看 `node:commit.atMs` 的编译逻辑；如果反馈“刷新后丢画面”，看 committed event ID 和 `Last-Event-ID` replay。
+
+---
+
+## 四、事件协议层：统一时间轴、SSE 与 durable replay
+
+这一章聚焦播放协议。它解决的问题是：音频、字幕、视觉节点如何共享一个时钟；前端断线后如何恢复；生成中的 progress 和最终播放事件有什么区别。
+
+### 4.1 ProductIntroEvent：把视觉、音频、字幕编译到同一条时间轴
+
+音画同步问题的本质，是画面、字幕、音频是否共享同一个时钟。
+
+如果前端分别拿到：
+
+```text
+一组视觉节点
+一段音频 URL
+一段字幕文本
+一个生成状态
+```
+
+它只能自己猜测什么时候显示哪个节点、什么时候滚动字幕、什么时候切换下一幕。这个猜测在 demo 中可能能跑，但在真实 TTS 时长波动、网络重连、异步生成的场景里很容易错位。
+
+我们的做法是把所有播放动作编译成同一组 `ProductIntroEvent`：
+
+```text
+ProductIntroEvent
+  ├─ id
+  ├─ eventType
+  ├─ atMs
+  └─ payload
+```
+
+| 字段        | 设计目的                                       |
+| ----------- | ---------------------------------------------- |
+| `id`        | 稳定事件 ID，用于排序、去重、`Last-Event-ID` 续传 |
+| `eventType` | 事件类型，决定前端如何处理 payload             |
+| `atMs`      | 事件在整个 turn 播放时间轴上的触发时间         |
+| `payload`   | 事件负载，根据事件类型变化                     |
+
+一个 scene 会被编译成：
+
+```text
+scene:start       # 开始当前场景，携带音频信息
+subtitle:token    # 在音频相对时间点显示字幕 token
+node:commit       # 在音频推进过程中提交视觉节点
+scene:end         # 当前场景结束
+```
+
+整个 turn 最后写入 `run:done`；异常时写入 `run:error`。
+
+这套协议的关键是 `atMs`。字幕 token 的 `atMs` 来自字幕边界，视觉节点的 `atMs` 根据音频时长分布或 visual beat 对齐，scene end 的 `atMs` 来自音频时长加 hold 时间。
+
+换句话说：
+
+```text
+音频不是画面的附属品，画面也不是音频的附属品；它们都被编译到同一条播放时间轴上。
+```
+
+这让音画同步从“前端经验逻辑”变成“后端事件协议”。
+
+### 4.2 一段完整事件流示例
+
+下面给一个脱敏后的单 scene 事件流。假设 turn id 是 `turn_abc`，当前只有一个 `deductible_001` 场景，音频时长约 6 秒，scene hold 800ms。
+
+#### 生成过程中的 progress 事件
+
+progress 事件和 committed playback event 要分开看。progress event 主要解决生成过程可观测，部分来源于内存实时通道；committed playback event 才是最终播放协议，具备稳定事件 ID 和 durable replay 能力。二者都以 SSE frame 形式发送，但语义和持久化要求不同。
+
+progress 事件不一定全部持久化为最终播放事件，但它们是用户等待和工程排查的关键。下文的 `remote_file` 是对内部音频存储枚举的脱敏表达，真实系统中该字段由后端白名单约束。
+
+```json
+{
+  "id": "live:1",
+  "eventType": "turn:progress",
+  "atMs": 0,
+  "payload": {
+    "stage": "turn.accepted",
+    "message": "已收到请求，正在准备生成讲解",
+    "sceneIndex": null,
+    "sceneId": null,
+    "readyScenes": 0,
+    "totalScenes": 0,
+    "percentEstimate": 8,
+    "source": "backend_stage",
+    "timestamp": "2026-07-01 10:00:00"
+  }
+}
+```
+
+```json
+{
+  "id": "live:7",
+  "eventType": "turn:progress",
+  "atMs": 0,
+  "payload": {
+    "stage": "scene.audio.tts.started",
+    "message": "正在生成讲解音频",
+    "sceneIndex": 0,
+    "sceneId": "deductible_001",
+    "readyScenes": 0,
+    "totalScenes": 1,
+    "percentEstimate": 49,
+    "source": "backend_stage",
+    "timestamp": "2026-07-01 10:00:05"
+  }
+}
+```
+
+#### 最终可回放播放事件
+
+当 scene ready 后，前端真正播放的是 committed events。
+
+第一条是 `scene:start`，它告诉播放器：这一幕开始了，音频在哪里，时长多少。
+
+```json
+{
+  "id": "turn_abc:000001",
+  "eventType": "scene:start",
+  "atMs": 0,
+  "payload": {
+    "sceneId": "deductible_001",
+    "title": "先过费用门槛",
+    "narration": "免赔额可以理解为理赔前的费用门槛。没有超过这条线的费用，通常需要自己承担；超过之后，才进入产品约定的赔付计算。",
+    "audio": {
+      "url": "https://example.com/audio/turn_abc/deductible_001.wav",
+      "durationMs": 6080,
+      "format": "wav",
+      "sampleRate": 16000,
+      "voiceId": "voice-default",
+      "speechRate": 0,
+      "textHash": "sha256:narration-hash",
+      "audioHash": "sha256:audio-hash",
+      "alignmentLevel": "word",
+      "storageMode": "remote_file",
+      "urlExpireSeconds": 604800
+    }
+  }
+}
+```
+
+随后是字幕事件。注意 `atMs` 是 turn 级时间，`audioStartMs/audioEndMs` 是 scene 音频内的相对时间。
+
+```json
+{
+  "id": "turn_abc:000002",
+  "eventType": "subtitle:token",
+  "atMs": 0,
+  "payload": {
+    "sceneId": "deductible_001",
+    "token": "免赔额可以",
+    "audioStartMs": 0,
+    "audioEndMs": 620,
+    "charStart": 0,
+    "charEnd": 5
+  }
+}
+```
+
+视觉节点不是一次性全量下发，而是以 `node:commit` 的方式沿音频时间轴出现。
+
+```json
+{
+  "id": "turn_abc:000004",
+  "eventType": "node:commit",
+  "atMs": 760,
+  "payload": {
+    "sceneId": "deductible_001",
+    "beatId": "deductible_001:frame-title",
+    "node": {
+      "id": "deductible_001:frame-title",
+      "type": "text",
+      "anchorY": 54,
+      "props": {
+        "x": 20,
+        "y": 54,
+        "fontSize": 18,
+        "fontWeight": "800",
+        "fill": "#1f2933"
+      },
+      "text": "先过费用门槛"
+    }
+  }
+}
+```
+
+scene 结束事件在音频时长 + hold 时间之后触发：
+
+```json
+{
+  "id": "turn_abc:000018",
+  "eventType": "scene:end",
+  "atMs": 6880,
+  "payload": {
+    "sceneId": "deductible_001"
+  }
+}
+```
+
+如果这是最后一幕，最后写入终态：
+
+```json
+{
+  "id": "turn_abc:000019",
+  "eventType": "run:done",
+  "atMs": 7380,
+  "payload": {
+    "reason": "completed"
+  }
+}
+```
+
+前端动作非常明确：
+
+| eventType        | 前端动作                         |
+| ---------------- | -------------------------------- |
+| `scene:start`    | 初始化当前 scene，加载/播放音频 |
+| `subtitle:token` | 在指定时间显示或追加字幕 token   |
+| `node:commit`    | 把一个视觉节点加入画布           |
+| `scene:end`      | 收尾当前 scene，准备进入下一幕   |
+| `run:done`       | 标记整个 turn 播放完成           |
+| `run:error`      | 展示安全错误提示，停止播放       |
+
+前端不需要知道免赔额是什么，也不需要知道为什么这个节点应该在 760ms 出现。它只按事件协议推进。
+
+### 4.3 Durable replay：为什么不是简单数组下发
+
+如果事件只是一个数组，前端断线后很难知道自己到底播到了哪里。尤其在 SSE 场景里，连接可能在任何事件之间断开。
+
+因此每个 committed event 都有稳定 ID：
+
+```text
+{turnId}:{eventIndex}
+```
+
+示例：
+
+```text
+turn_abc:000001
+turn_abc:000002
+turn_abc:000003
+```
+
+事件 ID 的生成不是靠数组下标临时算出来，而是通过 per-turn event counter 预留连续区间。一个 scene draft 生成后，后端知道它包含多少 raw events，于是调用 event range reservation：
+
+```text
+reserveTurnEventRange(turnId, eventCount)
+  -> counter += eventCount
+  -> 返回 [startIndex, endIndex]
+```
+
+然后 `materializeSceneArtifact` 把 raw events 变成最终 events：
+
+```text
+turn_abc:000001
+turn_abc:000002
+...
+```
+
+scene ready 写入时，不是把所有 scene 混在一个大 key 里，而是按 scene index 写入 event shard，同时更新 `SceneStatusRecord`：
+
+```text
+turn:{turnId}:scene:{sceneIndex}:events
+turn:{turnId}:scenes
+```
+
+SSE replay 的读取逻辑可以概括为：
+
+```text
+load_sse_events(turnId)
+  -> load_replay_events(turnId)
+     -> load_ready_scene_events_if_present(turnId)
+        -> 只读取连续 ready scene 前缀
+     -> load_terminal_events_if_present(turnId)
+     -> sort_events_by_id_suffix(...)
+```
+
+“连续 ready scene 前缀”很重要。如果第 0 幕 ready、第 1 幕还没 ready、第 2 幕因为并行提前 ready，replay 也不会跳过第 1 幕去播放第 2 幕。它会在第一个非 ready scene 停止读取，保证前端看到的是顺序连续的动画讲解。
+
+前端重连时带上：
+
+```text
+Last-Event-ID: turn_abc:000005
+```
+
+服务端会在已加载 events 中找到这个 ID，然后从下一个 event 继续返回：
+
+```text
+turn_abc:000006
+turn_abc:000007
+...
+```
+
+如果 `Last-Event-ID` 不属于当前 turn，服务端不会模糊容错，而是返回明确错误。这个选择看起来严格，但对播放协议是必要的：错误续传比重新连接更危险，因为它会制造更隐蔽的音画错位。
