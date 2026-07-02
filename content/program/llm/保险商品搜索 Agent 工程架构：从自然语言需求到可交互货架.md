@@ -148,6 +148,165 @@ flowchart LR
 
 这样分层之后，`Agent` 的位置就清楚了。它不是货架的“裁判”，更像一个搜索任务编排器：理解需求，选择召回后端，组织中间状态，然后把确定性工作交给对应服务。
 
+### 2.1 两个 query 进来后发生什么
+
+只画架构图还不够。真正容易混乱的是一个 `query` 进来后，前端、后端服务和 `Agent` 子图到底怎么接力。
+
+先看“好医保长期医疗”。
+
+这是一个具名产品搜索。用户大概率不是在说“帮我设计保障方案”，而是在找一个具体产品或它的相近计划。
+
+```text
+用户输入：好医保长期医疗
+
+前端：
+  POST /product-search/runs
+  body: { sessionId, query: "好医保长期医疗" }
+
+后端 API：
+  生成 runId
+  写 rec:v1:run:{runId}
+  写 run:accepted 事件
+  立即返回 runId + eventsUrl
+
+前端：
+  GET /product-search/runs/{runId}/events
+  开始订阅 SSE
+
+ProductSearchGraph：
+  normalize_query:
+    "好医保长期医疗" -> "好医保长期医疗"
+    query_hash = sha256(...)
+
+  route_query:
+    routeType = product_search
+    searchBackend = legacy_search
+    routeReason = 具名产品 / 产品名强匹配
+
+  exact_cache_lookup:
+    如果命中，拿到候选 prodNo 列表
+    如果未命中，继续 semantic_cache_lookup
+
+  semantic_cache_lookup:
+    查相似 query，比如“好医保长期医疗险”“支付宝好医保长期医疗”
+    命中则复用候选池
+    未命中则 live_query_if_needed
+
+  live_query_if_needed:
+    调旧搜索，优先产品名精确匹配和别名匹配
+    返回候选池，比如同名产品、升级版、不同计划 SKU
+
+  shelf_hard_filter:
+    去掉下架、不可展示、渠道不符、被屏蔽的 SKU
+
+  load_product_dossiers:
+    拉 Top10 产品深档案
+
+  rule_rerank:
+    产品名强匹配权重大于泛语义匹配
+    同产品不同计划做轻去重
+
+  build_shelf_response:
+    返回候选产品卡片
+    提醒还需要确认被保人年龄、地区、职业和健康情况
+```
+
+这个 `query` 的前端事件可以长这样：
+
+| 事件 | 前端展示 | 关键字段 |
+| --- | --- | --- |
+| `run:accepted` | 已创建搜索任务 | `runId` |
+| `query:normalized` | 正在理解你的保险需求 | `normalizedQuery=好医保长期医疗` |
+| `router:decided` | 已识别为产品搜索 | `routeType=product_search`、`searchBackend=legacy_search` |
+| `cache:hit` / `cache:miss` | 已复用候选 / 正在重新搜索产品 | `cacheHitType`、`candidateCount` |
+| `search:done` | 已找到相关候选产品 | `candidateCount` |
+| `candidate:filtered` | 正在检查当前货架状态 | `beforeCount`、`afterCount` |
+| `dossier:loaded` | 正在读取产品档案 | `loadedCount` |
+| `shelf:ranked` | 正在整理候选货架 | `shelfCount` |
+| `run:done` | 展示产品卡片 | `shelfCards` |
+
+再看“给全家买保险”。
+
+这不是具名产品搜索，而是一个很宽的家庭保障需求。第一版不能直接说“这是最适合你全家的方案”，因为系统还不知道家庭成员数量、年龄、职业、预算、已有保障和健康情况。
+
+它应该这样走：
+
+```text
+用户输入：给全家买保险
+
+ProductSearchGraph：
+  normalize_query:
+    "给全家买保险" -> "给家庭成员配置基础保障"
+
+  route_query:
+    routeType = product_search
+    searchBackend = agentic_search
+    routeReason = 宽泛保障需求，需要发散召回
+
+  cache lookup:
+    exact 通常不命中
+    semantic 可能命中“家庭保险怎么配置”“一家三口买什么保险”
+
+  live_query_if_needed:
+    如果缓存未命中，走 Agentic Search
+    Agentic Search 不直接给结论，而是拆搜索方向：
+      - 成人医疗险
+      - 成人重疾险
+      - 儿童医疗 / 重疾
+      - 老人医疗 / 防癌医疗
+      - 家庭意外险
+    每个方向交给确定性搜索工具召回候选
+
+  merge candidates:
+    合并各方向候选
+    保留 hit_summary 和 hit_tags
+    截断 Top50
+
+  shelf_hard_filter:
+    重新检查当前可展示货架
+
+  load_product_dossiers:
+    拉 Top10 深档案
+
+  rule_rerank:
+    按召回分、货架权重、档案完整度、更新时间排序
+    避免 Top3 全是同一类产品
+
+  build_shelf_response:
+    返回“可以优先看看”的候选
+    明确提示：还需要确认家庭成员年龄、预算、健康情况和已有保障
+```
+
+这个 `query` 的事件展示和具名产品搜索不一样。前端不需要看到 `Agentic Search` 内部拆了哪些 `prompt`，但可以看到业务阶段：
+
+| 事件 | 前端展示 | 关键字段 |
+| --- | --- | --- |
+| `run:accepted` | 已创建搜索任务 | `runId` |
+| `query:normalized` | 正在理解家庭保障需求 | `normalizedQuery=给家庭成员配置基础保障` |
+| `router:decided` | 已识别为综合保险需求 | `routeType=product_search`、`searchBackend=agentic_search` |
+| `cache:miss` | 正在重新搜索产品 | `reason=no_similar_candidate_pool` |
+| `search:started` | 正在按家庭成员和保障类型查找候选 | `searchBackend=agentic_search` |
+| `search:done` | 已召回多类候选产品 | `candidateCount`、`hitTags` |
+| `candidate:filtered` | 正在检查当前货架状态 | `beforeCount`、`afterCount` |
+| `dossier:loaded` | 正在读取候选产品档案 | `loadedCount` |
+| `shelf:ranked` | 正在整理候选货架 | `shelfCount` |
+| `run:done` | 展示候选货架和待确认条件 | `shelfCards`、`confirmNeeded` |
+
+两类 `query` 的差别不在前端接口。前端都是 `POST run -> 订阅 SSE -> 展示最终货架`。差别在后端 `router` 和召回策略：
+
+| query 类型 | 例子 | `router` 判断 | 查询后端 | 结果表达 |
+| --- | --- | --- | --- | --- |
+| 具名产品 | 好医保长期医疗 | 产品名强匹配 | `legacy_search` 优先 | 展示相关产品 / 计划候选 |
+| 宽泛需求 | 给全家买保险 | 综合保障需求 | `agentic_search` 优先 | 展示候选货架 + 待确认条件 |
+| 问答 / 对比 | 好医保和百万医疗有什么区别 | 先召回产品锚点，再交给问答 / 对比链路 | 视是否有产品锚点决定 | 不一定直接展示货架 |
+| 离题 | 明天天气怎么样 | `off_topic` | 不查产品 | 安全拒答或转普通问答 |
+
+所以，一个 `query` 的端到端路径可以压成一句话：
+
+```text
+前端创建 run，后端启动 ProductSearchGraph，Graph 把 query 变成候选池，再经过当前货架、产品档案和规则排序，所有阶段通过 ProductSearchEvent 写入 Redis Stream，前端只按产品事件更新 UI。
+```
+
 ## 三、`LangGraph` 子图怎么跑
 
 这个能力应该作为 `AgenticOne` 里的一个商品搜索子图存在。
