@@ -1,9 +1,9 @@
 ---
-title: 保险商品搜索 Agent 工程架构：从自然语言需求到可交互货架
+title: 保险搜品能力工程架构：从 Agent Tool 到可交互货架
 created: 2026-07-02T00:00:00+08:00
 modified: 2026-07-02
 published: 2026-07-02
-description: 设计一条可落地的保险自然语言商品搜索 Agent 链路：由 OneAgent / LangGraph 编排搜索子图，Redis 负责状态、事件和候选缓存，货架服务重新校验当前可售事实，产品档案服务提供最终卡片依据，前端通过 SSE 消费可恢复事件。
+description: 保险搜品能力不是独立入口，而是主 Agent 的一个能力：简单 query 走传统 fast search tool，复杂 query 进入 ProductSearchGraph / subagent 做 agentic search，再把候选货架、阶段事件和待确认条件交还给主 Agent。
 tags:
   - AI Agent
   - OneAgent
@@ -13,36 +13,51 @@ tags:
   - 搜索
 ---
 
-这篇只写给一类人：要把保险自然语言搜品能力落到线上链路里的工程同学。
+这篇文章最容易写错的地方，是把“搜品能力”写成一个独立的用户入口。
 
-它不是一篇推荐算法设计，也不是给业务看的概念稿，更不是一篇 `LangGraph` 入门。这里要回答的是一个更具体的问题：用户说一句“想给爸妈买个医疗险”，系统怎样稳定地产生一个可以展示、可以追踪、可以刷新续传的商品货架。
+实际不是。
 
-我一开始也想把它叫“推荐 `Agent`”。后来越写越觉得不对。第一版真正要做的不是推荐，而是搜索。
-
-推荐要判断“这个人该不该买这款”。那需要用户画像、年龄、地区、职业、健康告知、预算、保障缺口、业务策略，甚至还要接核保和合规口径。本文讨论的第一版先不碰这些。它只解决一件事：
+用户不是先进入一个 `Product Search API`，也不是每句话都启动一个商品搜索 `Agent`。用户先进的是主 `Agent` 会话。主 `Agent` 判断这句话要不要搜品；如果要搜品，再决定调用哪一种搜品能力：
 
 ```text
-自然语言需求
+简单 query
+  -> fast_search_products tool
+  -> 传统 fast search
+
+复杂 query
+  -> ProductSearchGraph / product_search_subagent
+  -> agentic search
+```
+
+比如“好医保长期医疗”，大概率是具名产品查询。它应该走快路径：产品名、别名、货架状态、产品档案，尽快给出相关卡片。
+
+比如“给全家买保险”，它不是一个普通搜索词。它里面藏着家庭成员、年龄结构、保障类型、预算、已有保障和健康状况。第一版可以先给候选货架，但应该通过 `subagent/subgraph` 做发散召回，并把待确认条件说清楚。
+
+所以，本文真正讨论的是：
+
+> 主 `Agent` 如何把搜品当成一个可调用能力，并把简单 `tool` 与复杂 `subgraph` 的结果，整理成前端可以消费的交互货架。
+
+这件事的边界先钉住。第一版不是正式推荐系统，不判断“这个人该不该买这款”。它只解决：
+
+```text
+用户 query
+  -> 主 Agent 判断是否需要搜品
+  -> 简单 query 调 fast search tool
+  -> 复杂 query 调 ProductSearchGraph
   -> 候选产品池
   -> 当前货架校验
   -> 产品深档案
   -> 规则排序
-  -> 可交互货架
+  -> 主 Agent 输出文本 + 产品卡片 + 待确认条件
 ```
 
-所以这条链路的名字应该更朴素一点：保险商品搜索 `Agent`。
+真正的推荐还要往后走：用户画像、保障缺口、预算、年龄、地区、职业、健康告知、核保、业务策略。第一版不要把这些能力伪装出来。
 
-它可以借助 `LLM` 理解用户需求，也可以用 `Agentic Search` 做更聪明的召回，但最终展示给用户的货架，不能是模型“想出来”的。它必须重新经过当前货架、产品档案、规则排序和事件协议。
+## 一、系统边界
 
-一句话概括：
+第一版的输出是候选货架，不是投保建议。
 
-> 保险商品搜索 `Agent` 不是一个会聊天的推荐黑盒，而是一条可缓存、可过滤、可取证、可排序、可观测的货架生产链路。
-
-## 一、先把边界钉住
-
-第一版的输出是候选货架，不是正式投保建议。
-
-用户能看到的是：
+用户可以看到：
 
 ```text
 可以优先看看这几款
@@ -59,145 +74,160 @@ tags:
 一定能赔
 ```
 
-这不是文字保守，而是系统边界。第一版没有做年龄、地区、职业、健康告知和预算强过滤，就不能假装自己已经完成了个性化投保判断。
+这不是文字保守，而是系统事实。没有问年龄、地区、职业、健康告知和预算，就不能假装已经完成了个性化投保判断。
 
-这条链路里，每一层只做自己的事：
+这条链路里有几类角色：
 
 | 层 | 职责 | 不做什么 |
 | --- | --- | --- |
-| `OneAgent / LangGraph` | 编排商品搜索子图，处理需求理解、路由、缓存、查询、过滤、取档案、排序 | 不把所有候选和档案塞进主 `messages` |
-| `Redis` | 保存 `run` 状态、可恢复事件、精确缓存、语义缓存、短锁 | 不承载最终业务判断 |
-| 旧搜索 / `Agentic Search` | 召回候选产品池 | 不直接决定最终展示货架 |
+| 主 `Agent` | 接收用户 `query`，判断意图，决定是否调用搜品能力，组织最终对话输出 | 不直接拼复杂搜索参数，不把长候选和档案塞进 `messages` |
+| `fast_search_products tool` | 处理简单、明确、低发散的搜品请求 | 不做多步规划，不做复杂保障方案拆解 |
+| `ProductSearchGraph / subagent` | 处理复杂、宽泛、需要发散召回的搜品请求 | 不直接面向前端，不输出模型原始思考链 |
+| `Redis` | 保存内部 `run` 状态、候选缓存、可恢复事件、短锁 | 不承载最终业务判断 |
+| 旧搜索 / `Agentic Search` | 召回候选产品池 | 不决定最终展示货架 |
 | 货架服务 | 判断产品当前是否可展示、可售、在当前渠道内 | 第一版不做用户级投保适配 |
 | 产品档案服务 | 提供卡片理由和风险提示所需的产品事实 | 不接收模型编造字段 |
-| 前端 | 消费产品事件，展示阶段过程和最终货架 | 不理解保险搜品业务逻辑 |
+| 前端 | 消费主 `Agent` 的统一业务事件，展示文本、状态和卡片 | 不理解搜品内部链路 |
 
-这里有几个硬规则，后面所有细节都围绕它们展开：
+这里有几个硬规则：
 
-1. 缓存只复用候选池，不复用最终话术。
-2. `cache hit` 之后也必须重新走货架过滤。
-3. 最终卡片只能依赖搜索命中摘要和产品深档案。
-4. 第一版不让 `Agent` 做最终排序。
-5. 前端只消费产品事件，不消费 `LangGraph` 原始运行时事件。
+1. 搜品能力是主 `Agent` 的能力，不是用户入口。
+2. 简单 `query` 走 `tool`，复杂 `query` 才进 `subagent/subgraph`。
+3. 缓存只复用候选池，不复用最终话术。
+4. `cache hit` 之后也必须重新走货架过滤。
+5. 最终卡片只能依赖搜索命中摘要和产品深档案。
+6. 第一版不让 `Agent` 做最终排序。
+7. 前端只消费业务事件，不消费 `LangGraph` 原始运行时事件。
 
-把这五条守住，系统不会因为加了 `Agent` 就变成一团雾。
+把这几条守住，搜品能力才不会从“工具”膨胀成一个难以治理的黑盒。
 
-## 二、主链路：先候选，后货架
+## 二、整体架构：主 Agent 调用搜品能力
 
-主路径不要从“模型怎么想”开始，而要从“系统怎么生产货架”开始。
+用户入口应该长这样：
 
 ```text
-query normalize
-  -> router 判断 query 类型和查询后端
-  -> exact candidate cache
-  -> semantic candidate cache
-  -> cache hit 复用 candidate pool
-  -> cache miss 走实际查询
-  -> 重新执行货架侧硬过滤
-  -> 拉产品深档案
-  -> 纯规则轻量 rerank
-  -> 返回货架卡片 + 阶段事件
+Frontend
+  -> Agent API
+  -> Host Agent
+     -> intent classify
+     -> fast_search_products tool
+        or ProductSearchGraph / subagent
+     -> final assistant response
+  -> Agent Event Stream
+  -> Frontend UI
 ```
 
-这里最容易误解的是缓存。缓存不是为了绕过业务链路，而是为了少做一次候选召回。缓存命中后，仍然要重新检查当前货架。产品可能下架，渠道可能关闭，运营可能屏蔽，档案也可能更新。
-
-整体架构可以画成这样：
+主 `Agent` 先判断用户要什么。只有当本轮需要搜品时，才会调用搜品能力。
 
 ```mermaid
 flowchart LR
-    FE[前端搜索货架] --> API[Product Search API]
-    FE --> SSE[SSE Event Endpoint]
+    FE[前端对话 / 搜索框] --> API[Agent API]
+    FE --> SSE[Agent SSE Endpoint]
 
-    API --> SVC[Product Search Service]
-    SVC --> G[ProductSearchGraph]
+    API --> HOST[Host Agent]
+    HOST --> INTENT[Intent Classifier]
 
-    G --> N[Query Normalizer]
-    G --> R[Query Router]
-    G --> C[Candidate Cache Adapter]
-    G --> Q[Live Query Adapter]
-    G --> F[Shelf Filter]
-    G --> D[Product Dossier Loader]
-    G --> K[Rule Reranker]
-    G --> B[Shelf Response Builder]
+    INTENT -->|简单搜品| FAST[fast_search_products tool]
+    INTENT -->|复杂搜品| GRAPH[ProductSearchGraph / Subagent]
+    INTENT -->|问答 / 对比 / 核保 / 离题| OTHER[其他 Agent 能力]
 
-    C --> Redis[(Redis<br/>run / events / cache / lock)]
-    Q --> Legacy[旧搜索接口]
-    Q --> Agentic[Agentic Search]
-    F --> Shelf[货架服务]
-    D --> Dossier[产品档案服务]
-    B --> Redis
+    FAST --> CACHE[Candidate Cache Adapter]
+    FAST --> SEARCH[传统 Fast Search]
+    FAST --> FILTER[Shelf Filter]
+    FAST --> DOSSIER[Product Dossier Loader]
+    FAST --> RANK[Rule Reranker]
 
-    G --> E[Product Event Adapter]
-    E --> Redis
+    GRAPH --> PLAN[Search Task Planner]
+    GRAPH --> CACHE
+    GRAPH --> AGENTIC[Agentic Search]
+    GRAPH --> FILTER
+    GRAPH --> DOSSIER
+    GRAPH --> RANK
+
+    CACHE --> Redis[(Redis<br/>run / events / cache / lock)]
+    SEARCH --> Legacy[旧搜索接口]
+    AGENTIC --> Backend[搜索工具 / 多路召回]
+    FILTER --> Shelf[货架服务]
+    DOSSIER --> Dossier[产品档案服务]
+
+    FAST --> RESULT[ProductShelfResult]
+    GRAPH --> RESULT
+    RESULT --> HOST
+    HOST --> ADAPTER[Agent Event Adapter]
+    ADAPTER --> Redis
     SSE --> Redis
 ```
 
-各模块的边界要写清楚：
+这里的关键变化是：`ProductSearchGraph` 不再是所有 `query` 的入口。它只处理复杂搜品。简单搜品用 `tool` 更合适，链路短，延迟低，也容易回退。
 
-| 模块 | 作用 | 边界 |
-| --- | --- | --- |
-| `Product Search API` | 创建搜索 `run`，返回订阅地址 | 不等待完整货架生成 |
-| `ProductSearchGraph` | 用 `LangGraph` 编排搜索生命周期 | 不直接把运行时事件暴露给前端 |
-| `Candidate Cache Adapter` | 查精确缓存和语义缓存 | 只返回候选池，不返回最终展示话术 |
-| `Live Query Adapter` | 按路由调用旧搜索或 `Agentic Search` | 不关心前端展示 |
-| `Shelf Filter` | 重新校验当前货架状态 | `cache hit` 也必须执行 |
-| `Product Dossier Loader` | 拉最终候选的产品深档案 | 没有档案就不生成卡片 |
-| `Rule Reranker` | 做轻量确定性排序 | 不调用模型重排 |
-| `Product Event Adapter` | 把 `LangGraph` 事件翻译成产品事件 | 不透出模型原始思考链 |
-| `Redis` | 存 `run`、事件、缓存、向量索引、短锁 | 不承载推荐决策 |
+两种能力的差别：
 
-这样分层之后，`Agent` 的位置就清楚了。它不是货架的“裁判”，更像一个搜索任务编排器：理解需求，选择召回后端，组织中间状态，然后把确定性工作交给对应服务。
+| 能力 | 适合的 `query` | 运行方式 | 召回后端 | 输出 |
+| --- | --- | --- | --- | --- |
+| `fast_search_products tool` | 具名产品、明确险种、短条件搜索 | 主 `Agent` 直接调用工具 | 传统 fast search | `ProductShelfResult` |
+| `ProductSearchGraph / subagent` | 宽泛需求、多条件、场景化、需要发散 | 主 `Agent` 调用子图 / 子 `Agent` | `Agentic Search` + 多路工具 | `ProductSearchRunResult` |
 
-### 2.1 两个 query 进来后发生什么
+主链路可以压缩成：
 
-只画架构图还不够。真正容易混乱的是一个 `query` 进来后，前端、后端服务和 `Agent` 子图到底怎么接力。
+```text
+用户 query
+  -> 主 Agent 判断意图
+  -> 判断是否需要搜品
+  -> 判断搜品复杂度
+  -> 简单 query: fast_search_products tool
+  -> 复杂 query: ProductSearchGraph / subagent
+  -> 候选池
+  -> 当前货架校验
+  -> 产品深档案
+  -> 规则排序
+  -> 返回给主 Agent
+  -> 主 Agent 输出文本、产品卡片、待确认条件
+```
 
-先看“好医保长期医疗”。
+缓存、货架过滤、档案和排序不是主 `Agent` 的事。它们属于搜品能力内部的确定性链路。主 `Agent` 只拿结构化结果，不吞全部候选。
 
-这是一个具名产品搜索。用户大概率不是在说“帮我设计保障方案”，而是在找一个具体产品或它的相近计划。
+## 三、两个 query 进来后发生什么
+
+只说“简单走 `tool`，复杂走 `subgraph`”还不够。看两个具体例子。
+
+### 3.1 “好医保长期医疗”
+
+这是具名产品查询。主 `Agent` 不需要启动复杂 `subagent`，直接调快搜工具。
 
 ```text
 用户输入：好医保长期医疗
 
 前端：
-  POST /product-search/runs
-  body: { sessionId, query: "好医保长期医疗" }
+  POST /agent/sessions/{sessionId}/messages
+  body: { message: "好医保长期医疗" }
 
-后端 API：
-  生成 runId
-  写 rec:v1:run:{runId}
-  写 run:accepted 事件
-  立即返回 runId + eventsUrl
+Agent API：
+  创建 agentRunId
+  写 agent:accepted 事件
+  返回 agentRunId + eventsUrl
 
 前端：
-  GET /product-search/runs/{runId}/events
-  开始订阅 SSE
+  GET /agent/runs/{agentRunId}/events
+  订阅统一 Agent SSE
 
-ProductSearchGraph：
+Host Agent：
+  判断 intent = product_lookup
+  判断 complexity = simple
+  调 fast_search_products(query, session_context)
+
+fast_search_products tool：
   normalize_query:
     "好医保长期医疗" -> "好医保长期医疗"
-    query_hash = sha256(...)
 
-  route_query:
-    routeType = product_search
-    searchBackend = legacy_search
-    routeReason = 具名产品 / 产品名强匹配
+  exact candidate cache:
+    查产品名 / 别名 / query hash 对应候选
 
-  exact_cache_lookup:
-    如果命中，拿到候选 prodNo 列表
-    如果未命中，继续 semantic_cache_lookup
-
-  semantic_cache_lookup:
-    查相似 query，比如“好医保长期医疗险”“支付宝好医保长期医疗”
-    命中则复用候选池
-    未命中则 live_query_if_needed
-
-  live_query_if_needed:
-    调旧搜索，优先产品名精确匹配和别名匹配
-    返回候选池，比如同名产品、升级版、不同计划 SKU
+  fast search:
+    cache miss 时调传统搜索
+    优先产品名、别名、计划名、SKU 映射
 
   shelf_hard_filter:
-    去掉下架、不可展示、渠道不符、被屏蔽的 SKU
+    去掉下架、不可展示、渠道不符、运营屏蔽的 SKU
 
   load_product_dossiers:
     拉 Top10 产品深档案
@@ -206,58 +236,71 @@ ProductSearchGraph：
     产品名强匹配权重大于泛语义匹配
     同产品不同计划做轻去重
 
-  build_shelf_response:
-    返回候选产品卡片
-    提醒还需要确认被保人年龄、地区、职业和健康情况
+  return ProductShelfResult:
+    shelfCards
+    confirmNeeded
+    visibleSummary
+
+Host Agent：
+  根据 ProductShelfResult 输出一句短文本
+  附产品卡片
+  提醒还需要确认年龄、地区、职业和健康情况
 ```
 
-这个 `query` 的前端事件可以长这样：
+前端看到的是主 `Agent` 的业务事件，不是快搜工具内部调用栈：
 
 | 事件 | 前端展示 | 关键字段 |
 | --- | --- | --- |
-| `run:accepted` | 已创建搜索任务 | `runId` |
-| `query:normalized` | 正在理解你的保险需求 | `normalizedQuery=好医保长期医疗` |
-| `router:decided` | 已识别为产品搜索 | `routeType=product_search`、`searchBackend=legacy_search` |
-| `cache:hit` / `cache:miss` | 已复用候选 / 正在重新搜索产品 | `cacheHitType`、`candidateCount` |
-| `search:done` | 已找到相关候选产品 | `candidateCount` |
-| `candidate:filtered` | 正在检查当前货架状态 | `beforeCount`、`afterCount` |
-| `dossier:loaded` | 正在读取产品档案 | `loadedCount` |
-| `shelf:ranked` | 正在整理候选货架 | `shelfCount` |
-| `run:done` | 展示产品卡片 | `shelfCards` |
+| `agent:accepted` | 已收到问题 | `agentRunId` |
+| `intent:classified` | 已识别为产品查询 | `intent=product_lookup`、`complexity=simple` |
+| `tool:started` | 正在查找相关产品 | `tool=fast_search_products` |
+| `product:cache_hit` / `product:cache_miss` | 已复用候选 / 正在搜索产品 | `cacheHitType` |
+| `product:candidates_found` | 已找到相关候选 | `candidateCount` |
+| `product:filtered` | 正在检查当前货架状态 | `beforeCount`、`afterCount` |
+| `product:dossiers_loaded` | 正在读取产品档案 | `loadedCount` |
+| `product:shelf_ready` | 已整理出候选产品 | `shelfCount`、`shelfCards` |
+| `agent:done` | 完成本轮回复 | `message`、`cards` |
 
-再看“给全家买保险”。
+这条路径里，`ProductSearchGraph` 没有出场。它不该为了一个具名产品查询被启动。
 
-这不是具名产品搜索，而是一个很宽的家庭保障需求。第一版不能直接说“这是最适合你全家的方案”，因为系统还不知道家庭成员数量、年龄、职业、预算、已有保障和健康情况。
+### 3.2 “给全家买保险”
 
-它应该这样走：
+这是复杂搜品，不适合直接丢给传统搜索。
+
+主 `Agent` 应该先判断：这是家庭保障配置需求，不是单个产品查询。第一版如果选择“信息不足时先直推”，也必须把待确认条件放进结果里。
 
 ```text
 用户输入：给全家买保险
 
+Host Agent：
+  判断 intent = product_search
+  判断 complexity = complex
+  构造搜品任务：
+    为家庭成员配置基础保障候选，关注成人医疗、成人重疾、儿童保障、老人医疗/防癌医疗、家庭意外险。
+    信息不足时先给候选方向，但必须提示需要确认家庭成员年龄、预算、已有保障和健康情况。
+
+  调 ProductSearchGraph(task, session_context)
+
 ProductSearchGraph：
-  normalize_query:
+  normalize_task:
     "给全家买保险" -> "给家庭成员配置基础保障"
 
-  route_query:
-    routeType = product_search
-    searchBackend = agentic_search
-    routeReason = 宽泛保障需求，需要发散召回
+  plan_search_tasks:
+    - 成人医疗险
+    - 成人重疾险
+    - 儿童医疗 / 儿童重疾
+    - 老人医疗 / 防癌医疗
+    - 家庭意外险
 
-  cache lookup:
+  candidate cache:
     exact 通常不命中
     semantic 可能命中“家庭保险怎么配置”“一家三口买什么保险”
 
-  live_query_if_needed:
-    如果缓存未命中，走 Agentic Search
-    Agentic Search 不直接给结论，而是拆搜索方向：
-      - 成人医疗险
-      - 成人重疾险
-      - 儿童医疗 / 重疾
-      - 老人医疗 / 防癌医疗
-      - 家庭意外险
-    每个方向交给确定性搜索工具召回候选
+  agentic_search_if_needed:
+    对每个 search task 做多路召回
+    工具执行搜索，模型只负责规划和汇总候选，不直接决定最终货架
 
-  merge candidates:
+  merge_candidates:
     合并各方向候选
     保留 hit_summary 和 hit_tags
     截断 Top50
@@ -266,128 +309,182 @@ ProductSearchGraph：
     重新检查当前可展示货架
 
   load_product_dossiers:
-    拉 Top10 深档案
+    拉 Top10 产品深档案
 
   rule_rerank:
     按召回分、货架权重、档案完整度、更新时间排序
     避免 Top3 全是同一类产品
 
-  build_shelf_response:
-    返回“可以优先看看”的候选
-    明确提示：还需要确认家庭成员年龄、预算、健康情况和已有保障
+  return ProductSearchRunResult:
+    shelfCards
+    confirmNeeded
+    searchSummary
+    productRunId
+
+Host Agent：
+  输出候选货架
+  说明这些只是可以优先查看的候选
+  提醒还需要确认家庭成员年龄、预算、已有保障和健康情况
 ```
 
-这个 `query` 的事件展示和具名产品搜索不一样。前端不需要看到 `Agentic Search` 内部拆了哪些 `prompt`，但可以看到业务阶段：
+这条路径的事件可以更丰富，但仍然是主 `Agent` 事件流：
 
 | 事件 | 前端展示 | 关键字段 |
 | --- | --- | --- |
-| `run:accepted` | 已创建搜索任务 | `runId` |
-| `query:normalized` | 正在理解家庭保障需求 | `normalizedQuery=给家庭成员配置基础保障` |
-| `router:decided` | 已识别为综合保险需求 | `routeType=product_search`、`searchBackend=agentic_search` |
-| `cache:miss` | 正在重新搜索产品 | `reason=no_similar_candidate_pool` |
-| `search:started` | 正在按家庭成员和保障类型查找候选 | `searchBackend=agentic_search` |
-| `search:done` | 已召回多类候选产品 | `candidateCount`、`hitTags` |
-| `candidate:filtered` | 正在检查当前货架状态 | `beforeCount`、`afterCount` |
-| `dossier:loaded` | 正在读取候选产品档案 | `loadedCount` |
-| `shelf:ranked` | 正在整理候选货架 | `shelfCount` |
-| `run:done` | 展示候选货架和待确认条件 | `shelfCards`、`confirmNeeded` |
+| `agent:accepted` | 已收到问题 | `agentRunId` |
+| `intent:classified` | 已识别为综合保障需求 | `intent=product_search`、`complexity=complex` |
+| `subgraph:started` | 正在拆解保障需求 | `graph=ProductSearchGraph` |
+| `product:search_planned` | 已按家庭成员和保障类型拆分搜索方向 | `searchTasks` |
+| `product:cache_hit` / `product:cache_miss` | 已复用候选 / 正在重新搜索产品 | `cacheHitType` |
+| `product:search_started` | 正在多路召回候选 | `searchBackend=agentic_search` |
+| `product:candidates_found` | 已召回多类候选产品 | `candidateCount`、`hitTags` |
+| `product:filtered` | 正在检查当前货架状态 | `beforeCount`、`afterCount` |
+| `product:dossiers_loaded` | 正在读取候选产品档案 | `loadedCount` |
+| `product:shelf_ready` | 已整理候选货架 | `shelfCards`、`confirmNeeded` |
+| `agent:done` | 完成本轮回复 | `message`、`cards` |
 
-两类 `query` 的差别不在前端接口。前端都是 `POST run -> 订阅 SSE -> 展示最终货架`。差别在后端 `router` 和召回策略：
+两类 `query` 的差别在后端能力选择，不在前端入口：
 
-| query 类型 | 例子 | `router` 判断 | 查询后端 | 结果表达 |
+| `query` 类型 | 例子 | 主 `Agent` 判断 | 调用能力 | 结果表达 |
 | --- | --- | --- | --- | --- |
-| 具名产品 | 好医保长期医疗 | 产品名强匹配 | `legacy_search` 优先 | 展示相关产品 / 计划候选 |
-| 宽泛需求 | 给全家买保险 | 综合保障需求 | `agentic_search` 优先 | 展示候选货架 + 待确认条件 |
-| 问答 / 对比 | 好医保和百万医疗有什么区别 | 先召回产品锚点，再交给问答 / 对比链路 | 视是否有产品锚点决定 | 不一定直接展示货架 |
-| 离题 | 明天天气怎么样 | `off_topic` | 不查产品 | 安全拒答或转普通问答 |
+| 具名产品 | 好医保长期医疗 | `product_lookup + simple` | `fast_search_products tool` | 展示相关产品 / 计划候选 |
+| 明确条件搜品 | 给爸妈买医疗险 | `product_search + simple` 或轻度复杂 | 优先 `fast_search_products tool` | 展示候选产品 + 待确认条件 |
+| 宽泛需求 | 给全家买保险 | `product_search + complex` | `ProductSearchGraph / subagent` | 展示候选货架 + 待确认条件 |
+| 对比 / 问答 | 好医保和百万医疗有什么区别 | `compare_or_qa` | 先取产品锚点，再走问答 / 对比能力 | 不一定展示货架 |
+| 离题 | 明天天气怎么样 | `off_topic` | 不调搜品 | 转普通回答或安全拒答 |
 
-所以，一个 `query` 的端到端路径可以压成一句话：
+一句话：前端永远面对主 `Agent`，搜品只是主 `Agent` 背后的能力调用。
+
+## 四、能力契约：tool 和 subgraph 分开
+
+搜品能力不要只有一个入口。第一版至少拆成两个契约。
+
+简单搜品工具：
 
 ```text
-前端创建 run，后端启动 ProductSearchGraph，Graph 把 query 变成候选池，再经过当前货架、产品档案和规则排序，所有阶段通过 ProductSearchEvent 写入 Redis Stream，前端只按产品事件更新 UI。
+fast_search_products(query, session_context) -> ProductShelfResult
 ```
 
-## 三、`LangGraph` 子图怎么跑
+适合：
 
-这个能力应该作为 `AgenticOne` 里的一个商品搜索子图存在。
+```text
+好医保长期医疗
+百万医疗险
+给爸妈买医疗险
+儿童重疾险
+经常骑电动车买什么意外险
+```
 
-主 `Agent` 不直接拼搜索参数，也不直接排序商品。它只把本轮用户需求交给商品搜索子图，拿回结构化货架和简短过程摘要。
+复杂搜品子图：
+
+```text
+search_products_deep(task, session_context) -> ProductSearchRunResult
+```
+
+适合：
+
+```text
+给全家买保险
+预算不高，想把大人孩子的保障都配一下
+经常出国、滑雪、潜水，买什么保险更合适
+我有高血压，还想买医疗险和重疾险
+```
+
+主 `Agent` 的调用逻辑可以很薄：
+
+```text
+if intent not in product intents:
+  use other ability
+
+if intent == product_lookup and complexity == simple:
+  call fast_search_products
+
+if intent == product_search and complexity == simple:
+  call fast_search_products
+
+if intent == product_search and complexity == complex:
+  call search_products_deep
+
+if intent == compare_or_qa:
+  resolve product anchors first
+  then call qa_or_compare ability
+```
+
+两个能力返回给主 `Agent` 的结构要统一：
+
+```python
+class ProductShelfResult(TypedDict):
+    product_run_id: str | None
+    source: Literal["fast_tool", "deep_graph"]
+    cache_hit_type: Literal["none", "exact", "semantic"]
+    shelf_cards: list[ShelfCard]
+    confirm_needed: list[str]
+    visible_summary: str
+    trace_ref: str | None
+```
+
+主 `Agent` 不需要拿到完整候选池，也不需要知道每个内部节点的状态。完整状态留在 `Redis`、内部 `state` 或审计系统里。
+
+## 五、复杂搜品子图
+
+`ProductSearchGraph` 只处理复杂搜品。它不是每个搜品 `query` 的必经之路。
 
 ```text
 Host Agent
-  -> search_products tool
+  -> search_products_deep(task, session_context)
      -> ProductSearchGraph
-        -> normalize_query
-        -> route_query
-        -> exact_cache_lookup
-        -> semantic_cache_lookup
-        -> live_query_if_needed
+        -> normalize_task
+        -> plan_search_tasks
+        -> candidate_cache_lookup
+        -> agentic_search_if_needed
+        -> merge_candidates
         -> shelf_hard_filter
         -> load_product_dossiers
         -> rule_rerank
-        -> build_shelf_response
+        -> build_product_result
         -> persist_result
-  -> terminal shelf response
+  -> ProductShelfResult
 ```
 
 子图内部可以这样组织：
 
 ```mermaid
 flowchart TD
-    A[START] --> B[normalize_query]
-    B --> C[route_query]
-    C -->|off_topic| Z[build_off_topic_response]
-    C --> D[exact_cache_lookup]
+    A[START] --> B[normalize_task]
+    B --> C[plan_search_tasks]
+    C --> D[candidate_cache_lookup]
     D -->|hit| G[hydrate_candidates_from_cache]
-    D -->|miss| E[semantic_cache_lookup]
-    E -->|hit| G
-    E -->|miss| F[live_query_if_needed]
-    F --> H[write_candidate_cache]
-    G --> I[shelf_hard_filter]
-    H --> I
-    I -->|candidate < 3 and not live queried| F
+    D -->|miss| E[agentic_search_if_needed]
+    E --> F[write_candidate_cache]
+    G --> H[merge_candidates]
+    F --> H
+    H --> I[shelf_hard_filter]
+    I -->|candidate < 3 and cache hit| E
     I --> J[load_product_dossiers]
     J --> K[rule_rerank]
-    K --> L[build_shelf_response]
+    K --> L[build_product_result]
     L --> M[persist_result]
     M --> N[END]
-    Z --> M
 ```
 
-`route_query` 至少输出两个判断：
-
-```text
-routeType:
-  product_search
-  qa_or_compare
-  off_topic
-
-searchBackend:
-  legacy_search
-  agentic_search
-```
-
-`qa_or_compare` 第一版也可以先召回候选。用户问“这种保险哪个好”“这个和百万医疗有什么区别”时，如果没有产品锚点，后面的回答很容易空转。区别只是后续不一定直接进入货架展示，也可以交给问答或对比链路。
-
-### 3.1 `State` 不是 `messages`
-
-商品搜索链路不能只靠 `messages`。候选池、缓存命中、过滤结果、档案、排序结果都应该放在结构化 `state` 里。
+子图的 `state` 不要只放 `messages`：
 
 ```python
 class ProductSearchState(TypedDict, total=False):
-    run_id: str
+    product_run_id: str
+    agent_run_id: str
     session_id: str
-    raw_query: str
-    normalized_query: str
-    query_hash: str
 
-    route_type: Literal["product_search", "qa_or_compare", "off_topic"]
-    search_backend: Literal["legacy_search", "agentic_search"]
+    raw_task: str
+    normalized_task: str
+    task_hash: str
+    search_tasks: list[SearchTask]
 
     cache_hit_type: Literal["none", "exact", "semantic"]
     cache_entry_id: str | None
 
     candidate_pool: list[Candidate]
+    merged_candidates: list[Candidate]
     filtered_candidates: list[Candidate]
     dossiers: dict[str, ProductDossier]
     ranked_shelf: list[ShelfCard]
@@ -405,10 +502,10 @@ class Candidate(TypedDict):
     recall_sources: list[str]
     hit_summary: str
     hit_tags: list[str]
-    source_backend: Literal["exact_cache", "semantic_cache", "legacy_search", "agentic_search"]
+    source_backend: Literal["exact_cache", "semantic_cache", "fast_search", "agentic_search"]
 ```
 
-`ShelfCard` 才是最终返回给前端的对象：
+`ShelfCard` 才是前端卡片对象：
 
 ```python
 class ShelfCard(TypedDict):
@@ -424,91 +521,71 @@ class ShelfCard(TypedDict):
 
 `candidate_reason` 不从缓存里拿旧文案。它应该基于当前 `query`、当前候选命中摘要和产品深档案重新生成或组装。
 
-### 3.2 节点契约
+节点契约：
 
 | 节点 | 输入 | 输出 | 失败策略 |
 | --- | --- | --- | --- |
-| `normalize_query` | `raw_query` | `normalized_query`、`query_hash` | 清洗失败就用原 `query` |
-| `route_query` | `raw_query`、`normalized_query` | `route_type`、`search_backend` | 回退 `product_search + legacy_search` |
-| `exact_cache_lookup` | `route_type + query_hash` | 候选缓存 | `miss` 继续语义缓存 |
-| `semantic_cache_lookup` | `query embedding + route_type` | 候选缓存 | `miss` 继续实时查询 |
-| `live_query_if_needed` | 路由结果 | 候选列表 | 查询失败写 `run:error` |
-| `shelf_hard_filter` | 候选列表 | 过滤后候选 | 少于 3 个且还没实时查询，则补一次实时查询 |
+| `normalize_task` | `raw_task` | `normalized_task`、`task_hash` | 清洗失败就用原任务 |
+| `plan_search_tasks` | `raw_task`、`session_context` | `search_tasks` | 规划失败回退单任务搜索 |
+| `candidate_cache_lookup` | `task_hash + search_tasks` | 候选缓存 | `miss` 继续 `agentic_search` |
+| `agentic_search_if_needed` | `search_tasks` | 候选列表 | 查询失败写 `product:error` |
+| `merge_candidates` | 多路候选 | 去重合并后的候选池 | 单路失败不影响其他路 |
+| `shelf_hard_filter` | 候选列表 | 过滤后候选 | 少于 3 个且来自缓存，则补一次实时搜索 |
 | `load_product_dossiers` | `Top10 prodNo` | 产品档案 `map` | 单个产品失败就剔除 |
 | `rule_rerank` | 候选 + 档案 | 排序货架 | 无候选则返回无结果状态 |
-| `build_shelf_response` | 排序货架 | 最终响应 | 禁止购买承诺话术 |
-| `persist_result` | 完整 `state` | `Redis run snapshot + terminal event` | 持久化失败告警，不改写搜索结果 |
+| `build_product_result` | 排序货架 | `ProductShelfResult` | 禁止购买承诺话术 |
+| `persist_result` | 完整 `state` | `Redis run snapshot + terminal event` | 持久化失败告警，不改写结果 |
 
-这个表比代码更重要。代码可以变，节点契约最好不要轻易漂。
-
-## 四、候选缓存：只缓存候选，不缓存结论
+## 六、候选缓存：tool 和 subgraph 共用
 
 `Redis` 第一版承担五个职责：
 
-1. `run` 状态；
-2. 可恢复 `SSE` 事件；
+1. 内部 `product run` 状态；
+2. 可恢复业务事件；
 3. 精确候选缓存；
 4. 语义候选缓存；
 5. `cache miss` 防击穿短锁。
 
-统一加版本前缀，方便之后整体迁移：
+统一加版本前缀：
 
 ```text
-rec:v1:run:{runId}
-rec:v1:events:{runId}
-rec:v1:cache:exact:{routeType}:{queryHash}
-rec:v1:cache:sem:{entryId}
-rec:v1:lock:{routeType}:{queryHash}
+ps:v1:run:{productRunId}
+ps:v1:events:{agentRunId}
+ps:v1:cache:exact:{searchMode}:{queryHash}
+ps:v1:cache:sem:{entryId}
+ps:v1:lock:{searchMode}:{queryHash}
 ```
 
 | `key` | 类型 | `TTL` | 内容 |
 | --- | --- | --- | --- |
-| `rec:v1:run:{runId}` | `Hash` | `24h` | `run` 状态、最终结果摘要、错误信息 |
-| `rec:v1:events:{runId}` | `Stream` | `24h` | 可恢复 `SSE` 事件 |
-| `rec:v1:cache:exact:{routeType}:{queryHash}` | `String JSON` | `6h` | 候选缓存 |
-| `rec:v1:cache:sem:{entryId}` | `Hash` | `6h` | `query embedding + payload` |
-| `rec:v1:lock:{routeType}:{queryHash}` | `String` | `30s` | 防击穿短锁 |
+| `ps:v1:run:{productRunId}` | `Hash` | `24h` | 内部搜品状态、最终结果摘要、错误信息 |
+| `ps:v1:events:{agentRunId}` | `Stream` | `24h` | 主 `Agent` 可恢复事件 |
+| `ps:v1:cache:exact:{searchMode}:{queryHash}` | `String JSON` | `6h` | 候选缓存 |
+| `ps:v1:cache:sem:{entryId}` | `Hash` | `6h` | `query embedding + payload` |
+| `ps:v1:lock:{searchMode}:{queryHash}` | `String` | `30s` | 防击穿短锁 |
 
-`run` 状态示例：
-
-```text
-HSET rec:v1:run:{runId}
-  status running
-  sessionId {sessionId}
-  rawQuery {rawQuery}
-  normalizedQuery {normalizedQuery}
-  routeType product_search
-  searchBackend legacy_search
-  cacheHitType semantic
-  candidateCount 50
-  filteredCount 23
-  shelfCount 3
-  createdAt 2026-07-02T10:00:00+08:00
-  updatedAt 2026-07-02T10:00:03+08:00
-```
-
-候选缓存的 `payload` 只保存召回信息：
+候选缓存只保存召回信息：
 
 ```json
 {
   "schemaVersion": 1,
   "entryId": "01J...",
-  "routeType": "product_search",
-  "normalizedQuery": "给父母买医疗险",
+  "searchMode": "fast_tool",
+  "normalizedQuery": "好医保长期医疗",
   "queryHash": "sha256:...",
-  "sourceBackend": "legacy_search",
+  "sourceBackend": "fast_search",
   "candidateProdNos": ["p1", "p2", "p3"],
   "hitSummaries": {
-    "p1": "命中：父母、医疗险、住院医疗",
-    "p2": "命中：中老年、百万医疗、续保"
+    "p1": "命中：好医保长期医疗、产品别名、医疗险",
+    "p2": "命中：好医保、长期医疗、升级计划"
   },
   "recallSources": {
-    "p1": ["inverted_index", "embedding"],
+    "p1": ["product_name", "alias"],
     "p2": ["embedding"]
   },
   "recallScores": {
-    "p1": 0.91,
-    "p2": 0.87
+    "p1": 0.96,
+    "p2": 0.84
   },
   "shelfVersion": "20260702-1000",
   "createdAt": "2026-07-02T10:00:00+08:00",
@@ -526,7 +603,7 @@ HSET rec:v1:run:{runId}
 已过期的货架判断
 ```
 
-写入时机也要提前：
+写入时机：
 
 ```text
 live query 成功
@@ -538,16 +615,14 @@ live query 成功
 
 不要等最终 `Top3` 排完才写缓存。缓存的是候选池，不是货架结论。
 
-### 4.1 语义缓存
-
 如果用 `Redis Stack / RediSearch`，可以给候选缓存建向量索引：
 
 ```text
-FT.CREATE idx:rec:v1:sem_cache
+FT.CREATE idx:ps:v1:sem_cache
 ON HASH
-PREFIX 1 rec:v1:cache:sem:
+PREFIX 1 ps:v1:cache:sem:
 SCHEMA
-  routeType TAG
+  searchMode TAG
   normalizedQuery TEXT
   createdAt NUMERIC
   expiresAt NUMERIC
@@ -557,11 +632,11 @@ SCHEMA
 语义查询：
 
 ```text
-FT.SEARCH idx:rec:v1:sem_cache
-  '(@routeType:{product_search})=>[KNN 3 @embedding $vec AS distance]'
+FT.SEARCH idx:ps:v1:sem_cache
+  '(@searchMode:{deep_graph})=>[KNN 3 @embedding $vec AS distance]'
   PARAMS 2 vec {query_embedding_bytes}
   SORTBY distance
-  RETURN 4 routeType normalizedQuery payload distance
+  RETURN 4 searchMode normalizedQuery payload distance
   DIALECT 2
 ```
 
@@ -569,59 +644,52 @@ FT.SEARCH idx:rec:v1:sem_cache
 
 ```text
 semantic hit if:
-  routeType 相同
+  searchMode 相同
   cosine similarity >= 0.72
   payload 未过期
 ```
 
-宽松复用的代价是必须有护栏：
+宽松复用必须配两个护栏：
 
 1. 命中后重新走 `shelf_hard_filter`；
 2. 最终卡片理由基于当前 `query` 和产品深档案重算。
 
-### 4.2 防击穿
-
 精确缓存和语义缓存都 `miss` 时，先抢短锁：
 
 ```text
-SET rec:v1:lock:{routeType}:{queryHash} {runId} NX EX 30
+SET ps:v1:lock:{searchMode}:{queryHash} {agentRunId} NX EX 30
 ```
 
 抢到锁的请求执行实时查询并写缓存。没抢到锁的请求短等 `300~800ms`，再读一次精确缓存；如果仍然 `miss`，就自己走实时查询，不要无限等待。
 
-## 五、实时查询、货架过滤、深档案
+## 七、查询、过滤、档案和排序
 
-`router` 决定走旧搜索还是 `Agentic Search`。商品搜索入口不需要知道 `Agentic Search` 内部怎么发散关键词，只把它当成一个候选召回后端。
+简单搜品和复杂搜品的召回方式不同，但后处理应该尽量一致。
 
-```python
-async def live_query_if_needed(state: ProductSearchState) -> ProductSearchState:
-    if state["cache_hit_type"] != "none":
-        return state
+```text
+fast_search_products tool:
+  normalize_query
+  exact cache
+  semantic cache
+  traditional fast search if miss
+  shelf_hard_filter
+  load_product_dossiers
+  rule_rerank
+  build ProductShelfResult
 
-    backend = state["search_backend"]
-    if backend == "legacy_search":
-        candidates = await legacy_search_tool(
-            query=state["normalized_query"],
-            route_type=state["route_type"],
-            top_k=80,
-        )
-    else:
-        candidates = await agentic_search_tool(
-            query=state["raw_query"],
-            normalized_query=state["normalized_query"],
-            route_type=state["route_type"],
-            top_k=80,
-        )
-
-    state["candidate_pool"] = normalize_candidates(candidates)[:50]
-    state["visible_steps"].append({
-        "stage": "search.done",
-        "message": f"已从 {backend} 召回候选产品",
-    })
-    return state
+ProductSearchGraph:
+  normalize_task
+  plan_search_tasks
+  candidate cache
+  agentic search if miss
+  merge candidates
+  shelf_hard_filter
+  load_product_dossiers
+  rule_rerank
+  build ProductShelfResult
 ```
 
-### 5.1 货架侧硬过滤
+### 7.1 货架侧硬过滤
 
 第一版只做货架侧过滤：
 
@@ -652,7 +720,7 @@ async def live_query_if_needed(state: ProductSearchState) -> ProductSearchState:
 还需要确认被保人年龄、地区、职业和健康情况。
 ```
 
-### 5.2 深档案
+### 7.2 深档案
 
 过滤后取 `Top10` 拉产品深档案：
 
@@ -684,7 +752,7 @@ updatedAt
 
 如果某个产品深档案拉取失败，就从最终排序中剔除。不要让模型凭搜索摘要补全产品责任。
 
-### 5.3 规则排序
+### 7.3 规则排序
 
 第一版不让 `Agent` 做最终排序。
 
@@ -710,91 +778,84 @@ finalScore =
   -> Top3 中最多保留 1 个
 ```
 
-最终返回 `Top3`。候选池保留在 `run state` 里，后续可以支持“换一批”，但第一版不开放多轮指代。
+最终返回 `Top3`。候选池保留在内部 `state` 里，后续可以支持“换一批”，但第一版不开放多轮指代。
 
-## 六、接口和前端事件
+## 八、前端事件：统一 Agent 流，不是 Product Search 流
 
-前端不应该只拿一个最终 `JSON`。自然语言搜品和传统搜索框不一样，用户需要知道系统正在理解需求、复用候选、检查货架、读取档案，最后才看到货架卡片。
-
-接口上采用三段式：
+前端只面对主 `Agent`：
 
 ```text
-POST /product-search/runs              创建搜索任务，立即返回 runId
-GET  /product-search/runs/{id}/events  订阅可恢复 SSE
-GET  /product-search/runs/{id}         查询 run 快照和最终货架
+POST /agent/sessions/{sessionId}/messages  创建本轮 Agent run
+GET  /agent/runs/{agentRunId}/events       订阅可恢复 SSE
+GET  /agent/runs/{agentRunId}              查询 run 快照
 ```
 
-### 6.1 请求时序
+搜品能力内部可以有 `productRunId`，但它不是第一版的用户入口。
+
+请求时序：
 
 ```mermaid
 sequenceDiagram
-    participant FE as 前端搜索货架
-    participant API as Product Search API
-    participant SVC as Product Search Service
-    participant G as ProductSearchGraph
+    participant FE as 前端
+    participant API as Agent API
+    participant Host as Host Agent
     participant Redis as Redis
-    participant Search as 旧搜索 / Agentic Search
+    participant Fast as fast_search_products
+    participant Graph as ProductSearchGraph
+    participant Search as Fast Search / Agentic Search
     participant Shelf as 货架服务
     participant Dossier as 产品档案服务
-    participant SSE as SSE Endpoint
+    participant SSE as Agent SSE
 
-    FE->>API: POST /product-search/runs(query)
-    API->>SVC: createProductSearchRun(...)
-    SVC->>Redis: HSET rec:v1:run:{runId}
-    SVC->>Redis: XADD run:accepted
-    API-->>FE: runId + eventsUrl
+    FE->>API: POST /agent/sessions/{sessionId}/messages(query)
+    API->>Redis: XADD agent:accepted
+    API-->>FE: agentRunId + eventsUrl
 
-    FE->>SSE: GET /product-search/runs/{runId}/events
-    SSE->>Redis: XREAD rec:v1:events:{runId}
-    SSE-->>FE: run:accepted
+    FE->>SSE: GET /agent/runs/{agentRunId}/events
+    SSE->>Redis: XREAD ps:v1:events:{agentRunId}
+    SSE-->>FE: agent:accepted
 
-    SVC->>G: invoke ProductSearchGraph(runId, query)
-    G->>Redis: XADD query:normalized
-    G->>Redis: XADD router:decided
-    G->>Redis: GET exact cache / FT.SEARCH semantic cache
+    API->>Host: invoke Host Agent(query)
+    Host->>Redis: XADD intent:classified
 
-    alt cache hit
-        G->>Redis: XADD cache:hit
-    else cache miss
-        G->>Redis: XADD cache:miss
-        G->>Search: live query
-        Search-->>G: candidate pool
-        G->>Redis: SET exact cache + HSET semantic cache
-        G->>Redis: XADD search:done
+    alt simple product query
+        Host->>Fast: fast_search_products(query)
+        Fast->>Redis: cache lookup
+        Fast->>Search: traditional fast search if needed
+        Search-->>Fast: candidate pool
+        Fast->>Shelf: shelf hard filter
+        Shelf-->>Fast: filtered candidates
+        Fast->>Dossier: batch get dossiers
+        Dossier-->>Fast: product dossiers
+        Fast-->>Host: ProductShelfResult
+    else complex product query
+        Host->>Graph: search_products_deep(task)
+        Graph->>Redis: XADD product:search_planned
+        Graph->>Redis: cache lookup
+        Graph->>Search: agentic search if needed
+        Search-->>Graph: candidate pool
+        Graph->>Shelf: shelf hard filter
+        Shelf-->>Graph: filtered candidates
+        Graph->>Dossier: batch get dossiers
+        Dossier-->>Graph: product dossiers
+        Graph-->>Host: ProductSearchRunResult
     end
 
-    G->>Shelf: shelf hard filter
-    Shelf-->>G: filtered candidates
-    G->>Redis: XADD candidate:filtered
-
-    G->>Dossier: batch get Top10 dossiers
-    Dossier-->>G: product dossiers
-    G->>Redis: XADD dossier:loaded
-
-    G->>G: rule rerank + build shelf
-    G->>Redis: HSET final run snapshot
-    G->>Redis: XADD shelf:ranked / run:done
-    SSE-->>FE: shelf cards
+    Host->>Redis: XADD product:shelf_ready
+    Host->>Redis: XADD agent:done
+    SSE-->>FE: message + shelf cards
 ```
 
-这个时序有两个重点：
-
-1. `POST` 不等货架生成完成，只返回 `runId`；
-2. 前端只消费产品事件，不消费 `LangGraph` 原始事件。
-
-### 6.2 前端状态机
-
-前端可以用一个很小的状态机消费事件：
+前端状态可以很小：
 
 ```text
 idle
-  -> creating
   -> running
      -> understanding
-     -> cache_reusing / searching
-     -> filtering
-     -> loading_dossier
-     -> ranking
+     -> searching_products
+     -> filtering_products
+     -> loading_dossiers
+     -> composing_answer
   -> done
   -> error
 ```
@@ -803,17 +864,19 @@ idle
 
 | `eventType` | 前端状态 | 展示 |
 | --- | --- | --- |
-| `run:accepted` | `running` | 创建搜索任务 |
-| `query:normalized` | `understanding` | 正在理解需求 |
-| `router:decided` | `understanding` | 已识别为商品搜索、问答或离题 |
-| `cache:hit` | `cache_reusing` | 已复用相似需求候选 |
-| `cache:miss` | `searching` | 正在重新搜索产品 |
-| `search:done` | `searching` | 已召回候选 |
-| `candidate:filtered` | `filtering` | 正在检查当前货架 |
-| `dossier:loaded` | `loading_dossier` | 正在读取产品档案 |
-| `shelf:ranked` | `ranking` | 正在整理候选货架 |
-| `run:done` | `done` | 展示产品卡片 |
-| `run:error` | `error` | 展示安全失败提示 |
+| `agent:accepted` | `running` | 已收到问题 |
+| `intent:classified` | `understanding` | 正在理解需求 |
+| `tool:started` | `searching_products` | 正在查找相关产品 |
+| `subgraph:started` | `searching_products` | 正在拆解保障需求 |
+| `product:search_planned` | `searching_products` | 已拆分搜索方向 |
+| `product:cache_hit` | `searching_products` | 已复用相似需求候选 |
+| `product:cache_miss` | `searching_products` | 正在重新搜索产品 |
+| `product:candidates_found` | `searching_products` | 已召回候选产品 |
+| `product:filtered` | `filtering_products` | 正在检查当前货架 |
+| `product:dossiers_loaded` | `loading_dossiers` | 正在读取产品档案 |
+| `product:shelf_ready` | `composing_answer` | 正在整理候选货架 |
+| `agent:done` | `done` | 展示文本和产品卡片 |
+| `agent:error` | `error` | 展示安全失败提示 |
 
 前端保留最后一个 `SSE event id`。刷新或断线后带上：
 
@@ -821,70 +884,28 @@ idle
 Last-Event-ID: 1720000000-0
 ```
 
-服务端从 `Redis Stream` 续传，直到 `run:done` 或 `run:error`。
+服务端从 `Redis Stream` 续传，直到 `agent:done` 或 `agent:error`。
 
-### 6.3 `LangGraph` 事件适配
+`LangGraph` 会产生很多运行时事件：节点开始、节点结束、工具调用、模型 `token`、子图事件、异常事件。如果直接转发给前端，用户看到的是内部调用栈，不是业务过程。
 
-`LangGraph` 会产生很多运行时事件：节点开始、节点结束、工具调用、模型 `token`、子图事件、异常事件。如果直接转发给前端，用户看到的是内部调用栈，不是商品搜索过程。
-
-中间要加一层 `ProductSearchEventAdapter`：
+中间要加一层 `AgentEventAdapter`：
 
 ```text
-LangGraph runtime events
-  -> ProductSearchEventAdapter
-  -> ProductSearchEvent
+Tool / LangGraph runtime events
+  -> AgentEventAdapter
+  -> AgentProductEvent
   -> Redis Stream
   -> SSE
   -> Frontend state machine
 ```
 
-映射规则示例：
-
-| `LangGraph runtime event` | 条件 | 产品事件 |
-| --- | --- | --- |
-| `node start` | `normalize_query` | `query:normalizing` |
-| `node end` | `normalize_query` | `query:normalized` |
-| `node end` | `route_query` | `router:decided` |
-| `node end` | `exact_cache_lookup` 或 `semantic_cache_lookup` 且命中 | `cache:hit` |
-| `node end` | 两层缓存均 `miss` | `cache:miss` |
-| `tool start` | `legacy_search_tool` / `agentic_search_tool` | `search:started` |
-| `tool end` | 搜索工具成功 | `search:done` |
-| `node end` | `shelf_hard_filter` | `candidate:filtered` |
-| `tool end` | `batch_get_product_dossier` | `dossier:loaded` |
-| `node end` | `rule_rerank` | `shelf:ranked` |
-| `graph end` | 最终货架已生成 | `run:done` |
-| `graph error` | 任意未处理异常 | `run:error` |
-
-`ProductSearchEventAdapter` 要做三件事：
-
-1. 降噪：不转发模型 `token`、工具原始入参、内部 `traceback`、`prompt`。
-2. 重排：并发工具事件按业务阶段输出，避免前端看到乱序。
-3. 补语义：给事件补上 `message`、`stage`、`candidateCount`、`cacheHitType` 这类产品字段。
-
-产品事件结构：
-
-```json
-{
-  "id": "1720000000-0",
-  "eventType": "candidate:filtered",
-  "payload": {
-    "runId": "rec_abc",
-    "stage": "filtering",
-    "message": "正在重新检查当前货架状态",
-    "beforeCount": 50,
-    "afterCount": 23,
-    "timestamp": "2026-07-02T10:00:03+08:00"
-  }
-}
-```
-
-这里不输出 `thought`。如果需要排查模型为什么选了某个后端，写内部 `trace` 或审计表，不给 C 端用户展示。
+这里不输出 `thought`。如果需要排查模型为什么选择 `tool` 还是 `subgraph`，写内部 `trace` 或审计表，不给 C 端用户展示。
 
 用户可见文案可以是：
 
 ```text
 正在理解你的保险需求
-已复用相似需求的候选池
+正在查找相关产品
 正在重新检查当前货架状态
 已读取候选产品档案
 已整理出 3 个可以优先查看的候选
@@ -898,50 +919,23 @@ LangGraph runtime events
 我先假设……
 ```
 
-这和 [[LangGraph Agent Event 消费指南]] 里的原则一致：`LangGraph` 运行时事件是原料，产品事件才是契约。
+这和 [[LangGraph Agent Event 消费指南]] 里的原则一致：运行时事件是原料，产品事件才是契约。
 
-## 七、`OneAgent` 集成方式
+## 九、失败路径和观测指标
 
-商品搜索能力不要变成主 `Agent` 里的长 `prompt`。它应该注册成一个终末工具或子图工具：
-
-```text
-search_products(query, session_id) -> ProductSearchRunResult
-```
-
-工具返回给主 `Agent` 的内容要短：
-
-```json
-{
-  "runId": "rec_abc",
-  "routeType": "product_search",
-  "cacheHitType": "semantic",
-  "shelfProdNos": ["p1", "p2", "p3"],
-  "summary": "已根据当前需求整理出 3 个候选产品，均已重新检查货架状态。"
-}
-```
-
-完整候选、档案、排序细节留在 `ProductSearchState` 和 `Redis`，不要塞进主 `messages`。如果前端需要完整货架，直接消费 `run:done` 事件，或者查询：
-
-```http
-GET /product-search/runs/{runId}
-```
-
-这也呼应 [[AgenticOne：OneAgent 范式在保险实时咨询中的应用]] 里的原则：主 `Agent` 做薄，领域能力做厚；主上下文保持干净，复杂信息放到可管理的外部状态里。
-
-## 八、失败路径和观测指标
-
-失败路径不要藏在实现里。第一版至少要把这些行为写进契约：
+失败路径不要藏在实现里。
 
 | 失败点 | 行为 |
 | --- | --- |
-| `normalize_query` 失败 | 使用原 `query` 继续 |
-| `route_query` 失败 | 回退 `product_search + legacy_search` |
+| 主 `Agent` 意图识别失败 | 回退普通问答，必要时追问 |
+| `fast_search_products` 失败 | 尝试降级到普通产品搜索结果；仍失败则返回安全失败 |
+| `ProductSearchGraph` 规划失败 | 回退单任务搜索 |
 | `Redis exact cache` 失败 | 跳过精确缓存，继续语义缓存 |
 | `Redis Vector` 失败 | 跳过语义缓存，继续实时查询 |
-| 实时查询失败 | 写 `run:error`，返回安全失败 |
+| 实时查询失败 | 写 `product:error`，主 `Agent` 输出安全失败 |
 | 货架过滤后无结果 | 返回无候选状态，不编造商品卡片 |
 | 深档案批量失败 | 剔除失败产品，少于 1 个则返回无候选 |
-| `SSE` 写事件失败 | 继续主链路，但记录告警；最终 `run snapshot` 仍要写 |
+| `SSE` 写事件失败 | 继续主链路，但记录告警；最终 `agent run snapshot` 仍要写 |
 
 无候选文案：
 
@@ -949,27 +943,31 @@ GET /product-search/runs/{runId}
 当前货架里没有找到足够匹配的候选产品。你可以换一种描述，或者补充被保人年龄、地区、预算和健康情况。
 ```
 
-线上指标也要按链路分段看：
+线上指标要分开看：
 
 | 指标 | 目的 |
 | --- | --- |
+| `product_intent_rate` | 主 `Agent` 有多少请求进入搜品 |
+| `fast_tool_rate` | 简单搜品占比 |
+| `deep_graph_rate` | 复杂搜品占比 |
 | `exact_cache_hit_rate` | 精确缓存是否有效 |
 | `semantic_cache_hit_rate` | 语义缓存是否真的复用 |
 | `live_query_rate` | 缓存未命中的压力 |
 | `filter_empty_rate` | 货架过滤是否过严或缓存污染 |
 | `dossier_load_fail_rate` | 产品档案服务稳定性 |
-| `product_search_p50/p95` | 整体延迟 |
-| `search_p50/p95` | 实际查询耗时 |
-| `redis_vector_p50/p95` | 语义缓存耗时 |
+| `fast_tool_p50/p95` | 快搜工具延迟 |
+| `deep_graph_p50/p95` | 复杂搜品子图延迟 |
 | `shelf_card_ctr` | 候选货架是否被点击 |
 | `query_rewrite_rate` | 用户是否频繁重新提问 |
-| `run_error_rate` | 线上错误率 |
+| `agent_run_error_rate` | 主链路错误率 |
 
 上线前最小测试集：
 
 ```text
+好医保长期医疗
 给爸妈买医疗险
 孩子重疾险怎么选
+给全家买保险
 出国去日本旅游买什么保险
 经常骑电动车买什么意外险
 预算不高想买个寿险
@@ -979,18 +977,22 @@ GET /product-search/runs/{runId}
 
 测试必须覆盖：
 
-1. 精确缓存命中；
-2. 语义缓存命中；
-3. 缓存未命中后走旧搜索；
-4. 缓存未命中后走 `Agentic Search`；
-5. 货架下架后，缓存命中仍被过滤；
-6. 深档案失败时，不生成虚假卡片；
-7. `SSE` 断线后能从 `Last-Event-ID` 续传。
+1. 具名产品走 `fast_search_products tool`；
+2. 宽泛需求走 `ProductSearchGraph / subagent`；
+3. 精确缓存命中；
+4. 语义缓存命中；
+5. 缓存未命中后走传统 fast search；
+6. 缓存未命中后走 `Agentic Search`；
+7. 货架下架后，缓存命中仍被过滤；
+8. 深档案失败时，不生成虚假卡片；
+9. `SSE` 断线后能从 `Last-Event-ID` 续传；
+10. 主 `Agent` 不把完整候选池塞进 `messages`。
 
-## 九、第一版不做什么
+## 十、第一版不做什么
 
 这些能力先不放进第一版：
 
+- 把搜品做成独立用户入口；
 - `template cache`；
 - 用户画像强过滤；
 - 年龄、健康、职业、预算等投保适配判断；
@@ -999,21 +1001,21 @@ GET /product-search/runs/{runId}
 - 展示模型原始思考链；
 - 缓存最终货架文案。
 
-这不是说它们不重要。真正的推荐系统，迟早要接画像、保障缺口、核保和业务策略。但第一版先把“候选复用、当前货架校验、深档案卡片、可恢复事件”这条主链路打稳。
+这不是说它们不重要。真正的推荐系统，迟早要接画像、保障缺口、核保和业务策略。但第一版先把“主 `Agent` 调用搜品能力、候选复用、当前货架校验、深档案卡片、可恢复事件”这条链路打稳。
 
 前一篇 [[从对话到交互式音画同步动画讲解：一次保险产品介绍 AIGC 链路的工程化实践]] 里有个判断：`LLM` 做导演，后端做确定性制片，前端消费事件。
 
-商品搜索链路也是同一件事，只是对象从动画变成了货架：
+搜品链路也是同一件事，只是对象从动画变成了货架：
 
 ```text
-Agent 负责：
-  query normalize / router / 选择查询后端 / 生成候选理由摘要
+主 Agent 负责：
+  理解用户 query / 判断是否搜品 / 选择 tool 或 subgraph / 组织最终回复
 
-确定性后端负责：
-  cache / 货架过滤 / 深档案 / 规则排序 / SSE replay / 审计
+搜品能力负责：
+  fast search / agentic search / cache / 货架过滤 / 深档案 / 规则排序
 
 前端负责：
-  展示阶段过程和最终货架
+  展示主 Agent 的阶段过程、文本和产品卡片
 ```
 
-保险商品搜索 `Agent` 的难点，不是让模型多说几句像样的话，而是把模型的灵活性压进一条硬链路里。候选可以来自 `Agent`，货架必须回到事实。
+搜品能力不站在门口接待所有用户。它坐在主 `Agent` 的工具箱里。简单问题拿快工具，复杂问题开子图；货架可以灵活召回，但最终必须回到事实。
