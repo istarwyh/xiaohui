@@ -1,9 +1,9 @@
 ---
-title: 保险推荐 Agent 召回缓存链路：从 Query Normalize 到 Redis Vector
+title: 保险推荐 Agent 工程架构：从用户需求到可交互货架
 created: 2026-07-02T00:00:00+08:00
 modified: 2026-07-02
 published: 2026-07-02
-description: 基于 OneAgent / LangGraph DeepAgent、Redis Vector、候选缓存和旧搜索接口，设计一条可以真实落地的保险产品推荐 Agent 召回缓存链路。
+description: 基于 OneAgent / LangGraph DeepAgent、Redis Vector、候选缓存、货架过滤、产品档案和 SSE 事件协议，设计一条可以真实落地的保险推荐 Agent 工程架构。
 tags:
   - AI Agent
   - OneAgent
@@ -13,9 +13,11 @@ tags:
   - 搜索
 ---
 
-这篇不是重新讨论“推荐 Agent 要不要发散关键词”。那个方向已经确定了：`Agentic Search` 是一种新的实际查询后端，但第一版先不展开它内部怎么做。
+这篇不是重新讨论“推荐 Agent 要不要发散关键词”。那个方向已经确定了：`Agentic Search` 可以成为新的实际查询后端，但第一版先不展开它内部怎么做。
 
-现在要落的是推荐入口这条链路：
+现在真正要落的是一条完整的推荐 Agent 工程链路：用户说一句保险需求，系统理解意图、复用候选、必要时实时检索、重新检查当前货架、拉产品档案、生成可展示的候选货架，并把中间过程通过事件流给前端。
+
+第一版的主路径可以压缩成：
 
 ```text
 query normalize
@@ -30,7 +32,7 @@ query normalize
   -> 返回货架卡片 + 阶段理由
 ```
 
-这里的核心判断是：**缓存只复用候选，不复用结论；Agent 可以参与理解和查询，但最终货架必须重新过当前货架事实。**
+这里的核心判断是：**推荐 Agent 不是一个“想一想该推荐什么”的黑盒，而是一条可缓存、可过滤、可取证、可排序、可观测的货架生产链路。** 缓存只复用候选，不复用结论；Agent 可以参与理解和查询，但最终货架必须重新过当前货架事实。
 
 ---
 
@@ -66,7 +68,59 @@ query normalize
 
 ---
 
-## 二、LangGraph 子图
+## 二、整体架构：从用户需求到可交互货架
+
+如果只看 cache，会误以为这套系统是在优化搜索性能。其实 cache 只是中间层，真正的产品形态是“推荐 Agent 生产一个可交互货架”。
+
+整体架构如下：
+
+```mermaid
+flowchart LR
+    FE[前端推荐面板] --> API[Recommendation API]
+    FE --> SSE[SSE Event Endpoint]
+
+    API --> SVC[Recommendation Service]
+    SVC --> G[OneAgent / LangGraph RecommendationGraph]
+
+    G --> N[Query Normalizer]
+    G --> R[Query Router]
+    G --> C[Candidate Cache Adapter]
+    G --> Q[Live Query Adapter]
+    G --> F[Shelf Filter]
+    G --> D[Product Dossier Loader]
+    G --> K[Rule Reranker]
+    G --> B[Shelf Response Builder]
+
+    C --> Redis[(Redis<br/>run / events / exact cache / vector cache)]
+    Q --> Legacy[旧搜索接口<br/>inverted index + embedding]
+    Q --> Agentic[Agentic Search 后端]
+    F --> Shelf[货架服务]
+    D --> Dossier[产品档案 / 产品报告服务]
+    B --> Redis
+
+    G --> E[Product Event Adapter]
+    E --> Redis
+    SSE --> Redis
+```
+
+这张图里有几个边界：
+
+| 模块 | 作用 | 边界 |
+|---|---|---|
+| `Recommendation API` | 创建推荐 run、返回订阅地址 | 不等待完整推荐生成 |
+| `RecommendationGraph` | 用 `LangGraph` 编排推荐生命周期 | 不直接把运行时事件暴露给前端 |
+| `Candidate Cache Adapter` | 查 exact / semantic cache | 只返回候选池，不返回最终推荐话术 |
+| `Live Query Adapter` | 按 router 调旧搜索或 `Agentic Search` | 不关心前端展示 |
+| `Shelf Filter` | 重新校验当前货架状态 | cache hit 也必须执行 |
+| `Product Dossier Loader` | 拉最终候选深档案 | 没有档案就不生成卡片 |
+| `Product Event Adapter` | 把 `LangGraph` 事件翻译成产品事件 | 不透出模型原始思考链 |
+| `Redis` | 存 run、events、cache、vector、lock | 不承载业务推荐判断 |
+
+这才是文章的主题：**推荐 Agent 的工程架构**。召回缓存链路只是其中的“候选复用层”。
+
+---
+
+## 三、LangGraph 子图
 
 这个能力应该作为 `AgenticOne` 里的一个推荐子图存在。主 `Agent` 不直接写搜索参数，也不直接排序商品；它只把本轮用户需求交给推荐子图，拿回结构化货架和简短过程摘要。
 
@@ -126,7 +180,7 @@ searchBackend:
 
 `qa_or_compare` 第一版也先召回候选，因为很多用户会问“这种保险哪个好”“这个和百万医疗有什么区别”，不先定产品，后面的问答很容易空转。区别只是它后续不一定直接进入推荐货架，也可以交给问答/对比链路。
 
-### 2.1 RecommendationState
+### 3.1 RecommendationState
 
 `LangGraph state` 不要只放 `messages`。推荐链路至少需要这些字段：
 
@@ -181,7 +235,7 @@ class ShelfCard(TypedDict):
 
 注意，`candidate_reason` 不是从缓存里拿旧文案。它应该基于当前 query、当前候选命中摘要和产品深档案重新生成或组装。
 
-### 2.2 Node 契约
+### 3.2 Node 契约
 
 | 节点 | 输入 | 输出 | 失败策略 |
 |---|---|---|---|
@@ -198,7 +252,7 @@ class ShelfCard(TypedDict):
 
 ---
 
-## 三、Redis 落地
+## 四、Redis 落地
 
 `Redis` 第一版同时承担 5 个职责：
 
@@ -208,7 +262,7 @@ class ShelfCard(TypedDict):
 4. semantic candidate cache；
 5. cache miss 防击穿短锁。
 
-### 3.1 Key 设计
+### 4.1 Key 设计
 
 统一加版本前缀，方便之后整体迁移：
 
@@ -246,7 +300,7 @@ HSET rec:v1:run:{runId}
   updatedAt 2026-07-02T10:00:03+08:00
 ```
 
-### 3.2 CandidateCachePayload
+### 4.2 CandidateCachePayload
 
 缓存只保存候选池，不保存最终货架文案。
 
@@ -297,7 +351,7 @@ HSET rec:v1:cache:sem:{entryId}
 EXPIRE rec:v1:cache:sem:{entryId} 21600
 ```
 
-### 3.3 Redis Vector Index
+### 4.3 Redis Vector Index
 
 如果用 `Redis Stack / RediSearch`，建一个候选缓存向量索引：
 
@@ -338,7 +392,7 @@ semantic hit if:
 1. cache hit 后重新走 `shelf_hard_filter`；
 2. 最终卡片理由基于当前 query 和产品深档案重算，不复用旧理由。
 
-### 3.4 防击穿
+### 4.4 防击穿
 
 exact 和 semantic 都 miss 时，先抢短锁：
 
@@ -350,7 +404,7 @@ SET rec:v1:lock:{routeType}:{queryHash} {runId} NX EX 30
 
 ---
 
-## 四、实际查询与缓存回写
+## 五、实际查询与缓存回写
 
 `router` 已经决定了走旧搜索还是 `Agentic Search`。推荐入口不需要知道 `Agentic Search` 内部怎么发散关键词，只把它当成一个候选召回后端。
 
@@ -396,9 +450,9 @@ live query 成功
 
 ---
 
-## 五、货架过滤、深档案和规则排序
+## 六、货架过滤、深档案和规则排序
 
-### 5.1 货架侧硬过滤
+### 6.1 货架侧硬过滤
 
 第一版只做货架侧过滤：
 
@@ -427,7 +481,7 @@ live query 成功
 还需要确认被保人年龄、地区、职业和健康情况。
 ```
 
-### 5.2 深档案
+### 6.2 深档案
 
 过滤后取 Top10 拉深档案：
 
@@ -459,7 +513,7 @@ updatedAt
 
 如果某个产品深档案拉取失败，就从最终排序中剔除。不要让模型凭搜索摘要补全产品责任。
 
-### 5.3 纯规则 rerank
+### 6.3 纯规则 rerank
 
 第一版不让 `Agent` 做最终排序。规则排序公式：
 
@@ -489,7 +543,175 @@ finalScore =
 
 ---
 
-## 六、SSE 事件和可见过程
+## 七、前端交互与事件消费
+
+前端不应该只拿一个最终 JSON。推荐 Agent 的体验和普通搜索不一样，用户需要知道系统正在理解需求、复用候选、检查货架、读取产品档案，最后才看到货架卡片。
+
+所以接口上采用“创建 run + 订阅事件 + 查询快照”的三段式：
+
+```text
+POST /recommendation/runs        创建推荐任务，立即返回 runId
+GET  /recommendation/runs/{id}/events   订阅可恢复 SSE
+GET  /recommendation/runs/{id}          查询 run 快照和最终货架
+```
+
+### 7.1 请求时序
+
+```mermaid
+sequenceDiagram
+    participant FE as 前端推荐面板
+    participant API as Recommendation API
+    participant SVC as Recommendation Service
+    participant G as RecommendationGraph
+    participant Redis as Redis
+    participant Search as 旧搜索 / Agentic Search
+    participant Shelf as 货架服务
+    participant Dossier as 产品档案服务
+    participant SSE as SSE Endpoint
+
+    FE->>API: POST /recommendation/runs(query)
+    API->>SVC: createRecommendationRun(...)
+    SVC->>Redis: HSET rec:v1:run:{runId}
+    SVC->>Redis: XADD run:accepted
+    API-->>FE: runId + eventsUrl
+
+    FE->>SSE: GET /recommendation/runs/{runId}/events
+    SSE->>Redis: XREAD rec:v1:events:{runId}
+    SSE-->>FE: run:accepted
+
+    SVC->>G: invoke RecommendationGraph(runId, query)
+    G->>Redis: XADD query:normalized
+    G->>Redis: XADD router:decided
+    G->>Redis: GET exact cache / FT.SEARCH semantic cache
+
+    alt cache hit
+        G->>Redis: XADD cache:hit
+    else cache miss
+        G->>Redis: XADD cache:miss
+        G->>Search: live query
+        Search-->>G: candidate pool
+        G->>Redis: SET exact cache + HSET semantic cache
+        G->>Redis: XADD search:done
+    end
+
+    G->>Shelf: shelf hard filter
+    Shelf-->>G: filtered candidates
+    G->>Redis: XADD candidate:filtered
+
+    G->>Dossier: batch get Top10 dossiers
+    Dossier-->>G: product dossiers
+    G->>Redis: XADD dossier:loaded
+
+    G->>G: rule rerank + build shelf
+    G->>Redis: HSET final run snapshot
+    G->>Redis: XADD shelf:ranked / run:done
+    SSE-->>FE: shelf cards
+```
+
+这个时序有两个体验重点：
+
+1. `POST` 不等推荐完成，只返回 `runId`；
+2. 前端只消费产品事件，不消费 `LangGraph` 原始事件。
+
+### 7.2 前端状态机
+
+前端可以用一个很小的状态机消费事件：
+
+```text
+idle
+  -> creating
+  -> running
+     -> understanding
+     -> cache_reusing / searching
+     -> filtering
+     -> loading_dossier
+     -> ranking
+  -> done
+  -> error
+```
+
+事件到 UI 的映射：
+
+| eventType | 前端状态 | 展示 |
+|---|---|---|
+| `run:accepted` | `running` | 创建推荐任务 |
+| `query:normalized` | `understanding` | 正在理解需求 |
+| `router:decided` | `understanding` | 已识别为推荐/问答/离题 |
+| `cache:hit` | `cache_reusing` | 已复用相似需求候选 |
+| `cache:miss` | `searching` | 正在重新搜索产品 |
+| `search:done` | `searching` | 已召回候选 |
+| `candidate:filtered` | `filtering` | 正在检查当前货架 |
+| `dossier:loaded` | `loading_dossier` | 正在读取产品档案 |
+| `shelf:ranked` | `ranking` | 正在整理候选货架 |
+| `run:done` | `done` | 展示产品卡片 |
+| `run:error` | `error` | 展示安全失败提示 |
+
+前端保留最后一个 SSE event id。刷新或断线后带上：
+
+```http
+Last-Event-ID: 1720000000-0
+```
+
+服务端从 `Redis Stream` 续传，直到 `run:done` 或 `run:error`。
+
+### 7.3 LangGraph Events 如何消费
+
+`LangGraph` 会产生很多 runtime event：节点开始、节点结束、工具调用、模型 token、子图事件、异常事件。如果直接转发给前端，用户看到的是内部调用栈，不是推荐过程。
+
+正确做法是加一层 `RecommendationEventAdapter`：
+
+```text
+LangGraph runtime events
+  -> RecommendationEventAdapter
+  -> ProductRecommendationEvent
+  -> Redis Stream
+  -> SSE
+  -> Frontend state machine
+```
+
+映射规则示例：
+
+| LangGraph runtime event | 条件 | 产品事件 |
+|---|---|---|
+| node start | `normalize_query` | `query:normalizing` |
+| node end | `normalize_query` | `query:normalized` |
+| node end | `route_query` | `router:decided` |
+| node end | `exact_cache_lookup` 或 `semantic_cache_lookup` 且命中 | `cache:hit` |
+| node end | 两层 cache 均 miss | `cache:miss` |
+| tool start | `legacy_search_tool` / `agentic_search_tool` | `search:started` |
+| tool end | search tool 成功 | `search:done` |
+| node end | `shelf_hard_filter` | `candidate:filtered` |
+| tool end | `batch_get_product_dossier` | `dossier:loaded` |
+| node end | `rule_rerank` | `shelf:ranked` |
+| graph end | final shelf ready | `run:done` |
+| graph error | 任意未处理异常 | `run:error` |
+
+`RecommendationEventAdapter` 要做三件事：
+
+1. **降噪。** 不转发模型 token、工具原始入参、内部 traceback、prompt。
+2. **重排。** 并发工具事件按业务阶段输出，避免前端看到乱序。
+3. **补语义。** 给事件补上 `message`、`stage`、`candidateCount`、`cacheHitType` 这类产品字段。
+
+产品事件结构：
+
+```json
+{
+  "id": "1720000000-0",
+  "eventType": "candidate:filtered",
+  "payload": {
+    "runId": "rec_abc",
+    "stage": "filtering",
+    "message": "正在重新检查当前货架状态",
+    "beforeCount": 50,
+    "afterCount": 23,
+    "timestamp": "2026-07-02T10:00:03+08:00"
+  }
+}
+```
+
+这里不输出 `thought`。如果需要排查模型为什么选了某个后端，写入内部 trace 或审计表，不给 C 端用户展示。
+
+### 7.4 可见过程
 
 用户需要看到过程，但不需要看到模型原始思考链。可以展示的是“阶段 + 理由摘要”。
 
@@ -505,6 +727,7 @@ EXPIRE rec:v1:events:{runId} 86400
 | eventType | payload |
 |---|---|
 | `run:accepted` | `runId`、`sessionId` |
+| `query:normalizing` | `rawQuery` |
 | `query:normalized` | `normalizedQuery` |
 | `router:decided` | `routeType`、`searchBackend` |
 | `cache:hit` | `hitType`、`matchedQuery`、`candidateCount` |
@@ -539,9 +762,9 @@ EXPIRE rec:v1:events:{runId} 86400
 
 ---
 
-## 七、接口形态
+## 八、接口形态
 
-### 7.1 创建推荐 run
+### 8.1 创建推荐 run
 
 ```http
 POST /recommendation/runs
@@ -572,7 +795,7 @@ Content-Type: application/json
 3. 后台调度 `RecommendationGraph`；
 4. 立刻返回可订阅地址。
 
-### 7.2 订阅事件
+### 8.2 订阅事件
 
 ```http
 GET /recommendation/runs/{runId}/events
@@ -581,7 +804,7 @@ Last-Event-ID: 1720000000-0
 
 服务端从 `rec:v1:events:{runId}` replay。`Last-Event-ID` 不属于当前 run 时直接返回续传错误，不做模糊容错。
 
-### 7.3 查询结果快照
+### 8.3 查询结果快照
 
 ```http
 GET /recommendation/runs/{runId}
@@ -591,7 +814,7 @@ GET /recommendation/runs/{runId}
 
 ---
 
-## 八、OneAgent 集成方式
+## 九、OneAgent 集成方式
 
 推荐能力不要变成主 `Agent` 里的长 prompt。它应该注册成一个终末工具或子图工具：
 
@@ -615,7 +838,7 @@ recommend_products(query, session_id) -> RecommendationRunResult
 
 ---
 
-## 九、失败路径
+## 十、失败路径
 
 | 失败点 | 行为 |
 |---|---|
@@ -636,7 +859,7 @@ recommend_products(query, session_id) -> RecommendationRunResult
 
 ---
 
-## 十、验收指标
+## 十一、验收指标
 
 第一版看线上指标，但必须同时保留链路分段指标，否则只看转化率很难定位问题。
 
@@ -678,7 +901,7 @@ recommend_products(query, session_id) -> RecommendationRunResult
 
 ---
 
-## 十一、第一版不做什么
+## 十二、第一版不做什么
 
 这些能力先不放进第一版：
 
@@ -694,7 +917,7 @@ recommend_products(query, session_id) -> RecommendationRunResult
 
 ---
 
-## 十二、和前一篇动画讲解链路的关系
+## 十三、和前一篇动画讲解链路的关系
 
 前一篇 [[从对话到交互式音画同步动画讲解：一次保险产品介绍 AIGC 链路的工程化实践]] 里有一个原则：`LLM` 做导演，后端做确定性制片，前端消费事件。
 
