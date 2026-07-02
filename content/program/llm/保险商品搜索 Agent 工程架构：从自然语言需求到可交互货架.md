@@ -3,7 +3,7 @@ title: 保险商品搜索 Agent 工程架构：从自然语言需求到可交互
 created: 2026-07-02T00:00:00+08:00
 modified: 2026-07-02
 published: 2026-07-02
-description: 基于 OneAgent / LangGraph DeepAgent、Redis Vector、候选缓存、货架过滤、产品档案和 SSE 事件协议，设计一条可以真实落地的保险自然语言商品搜索 Agent 工程架构。
+description: 设计一条可落地的保险自然语言商品搜索 Agent 链路：由 OneAgent / LangGraph 编排搜索子图，Redis 负责状态、事件和候选缓存，货架服务重新校验当前可售事实，产品档案服务提供最终卡片依据，前端通过 SSE 消费可恢复事件。
 tags:
   - AI Agent
   - OneAgent
@@ -13,13 +13,78 @@ tags:
   - 搜索
 ---
 
-这篇原本想写“推荐 Agent”，写着写着才发现，第一版真正要做的其实不是推荐，而是保险商品搜索。
+这篇只写给一类人：要把保险自然语言搜品能力落到线上链路里的工程同学。
 
-更准确地说，它是一个支持自然语言需求的商品搜索 Agent。用户说一句保险需求，系统理解意图、复用候选、必要时实时检索、重新检查当前货架、拉产品档案、生成可展示的候选货架，并把中间过程通过事件流给前端。
+它不是一篇推荐算法设计，也不是给业务看的概念稿，更不是一篇 `LangGraph` 入门。这里要回答的是一个更具体的问题：用户说一句“想给爸妈买个医疗险”，系统怎样稳定地产生一个可以展示、可以追踪、可以刷新续传的商品货架。
 
-真正的“推荐”还要再往后走一步：结合用户画像、保障缺口、预算、年龄、地区、职业、健康告知和业务策略，判断“该不该给这个人”。当前链路先解决“能不能用自然语言找到一组合适候选”。
+我一开始也想把它叫“推荐 `Agent`”。后来越写越觉得不对。第一版真正要做的不是推荐，而是搜索。
 
-第一版的主路径可以压缩成：
+推荐要判断“这个人该不该买这款”。那需要用户画像、年龄、地区、职业、健康告知、预算、保障缺口、业务策略，甚至还要接核保和合规口径。本文讨论的第一版先不碰这些。它只解决一件事：
+
+```text
+自然语言需求
+  -> 候选产品池
+  -> 当前货架校验
+  -> 产品深档案
+  -> 规则排序
+  -> 可交互货架
+```
+
+所以这条链路的名字应该更朴素一点：保险商品搜索 `Agent`。
+
+它可以借助 `LLM` 理解用户需求，也可以用 `Agentic Search` 做更聪明的召回，但最终展示给用户的货架，不能是模型“想出来”的。它必须重新经过当前货架、产品档案、规则排序和事件协议。
+
+一句话概括：
+
+> 保险商品搜索 `Agent` 不是一个会聊天的推荐黑盒，而是一条可缓存、可过滤、可取证、可排序、可观测的货架生产链路。
+
+## 一、先把边界钉住
+
+第一版的输出是候选货架，不是正式投保建议。
+
+用户能看到的是：
+
+```text
+可以优先看看这几款
+候选理由是
+还需要确认这些条件
+```
+
+不要写成：
+
+```text
+最适合你
+建议购买
+保证可买
+一定能赔
+```
+
+这不是文字保守，而是系统边界。第一版没有做年龄、地区、职业、健康告知和预算强过滤，就不能假装自己已经完成了个性化投保判断。
+
+这条链路里，每一层只做自己的事：
+
+| 层 | 职责 | 不做什么 |
+| --- | --- | --- |
+| `OneAgent / LangGraph` | 编排商品搜索子图，处理需求理解、路由、缓存、查询、过滤、取档案、排序 | 不把所有候选和档案塞进主 `messages` |
+| `Redis` | 保存 `run` 状态、可恢复事件、精确缓存、语义缓存、短锁 | 不承载最终业务判断 |
+| 旧搜索 / `Agentic Search` | 召回候选产品池 | 不直接决定最终展示货架 |
+| 货架服务 | 判断产品当前是否可展示、可售、在当前渠道内 | 第一版不做用户级投保适配 |
+| 产品档案服务 | 提供卡片理由和风险提示所需的产品事实 | 不接收模型编造字段 |
+| 前端 | 消费产品事件，展示阶段过程和最终货架 | 不理解保险搜品业务逻辑 |
+
+这里有几个硬规则，后面所有细节都围绕它们展开：
+
+1. 缓存只复用候选池，不复用最终话术。
+2. `cache hit` 之后也必须重新走货架过滤。
+3. 最终卡片只能依赖搜索命中摘要和产品深档案。
+4. 第一版不让 `Agent` 做最终排序。
+5. 前端只消费产品事件，不消费 `LangGraph` 原始运行时事件。
+
+把这五条守住，系统不会因为加了 `Agent` 就变成一团雾。
+
+## 二、主链路：先候选，后货架
+
+主路径不要从“模型怎么想”开始，而要从“系统怎么生产货架”开始。
 
 ```text
 query normalize
@@ -27,54 +92,16 @@ query normalize
   -> exact candidate cache
   -> semantic candidate cache
   -> cache hit 复用 candidate pool
-  -> cache miss 按 router 走实际查询
+  -> cache miss 走实际查询
   -> 重新执行货架侧硬过滤
   -> 拉产品深档案
   -> 纯规则轻量 rerank
-  -> 返回货架卡片 + 阶段理由
+  -> 返回货架卡片 + 阶段事件
 ```
 
-这里的核心判断是：**保险商品搜索 Agent 不是一个“想一想该推荐什么”的黑盒，而是一条可缓存、可过滤、可取证、可排序、可观测的货架生产链路。** 缓存只复用候选，不复用结论；Agent 可以参与理解和查询，但最终货架必须重新过当前货架事实。
+这里最容易误解的是缓存。缓存不是为了绕过业务链路，而是为了少做一次候选召回。缓存命中后，仍然要重新检查当前货架。产品可能下架，渠道可能关闭，运营可能屏蔽，档案也可能更新。
 
----
-
-## 一、系统边界
-
-第一版不是一个“LLM 自由推荐商品”的接口，而是一条有缓存、有状态、有事件、有审计的自然语言商品搜索链路。
-
-| 层 | 职责 | 不做什么 |
-|---|---|---|
-| `OneAgent / LangGraph` | 编排商品搜索子图，做 query normalize、router、cache lookup、实际查询、过滤、取档案、排序 | 不把所有候选和档案塞进主 `messages` |
-| `Redis` | 保存 run 状态、SSE 事件、exact cache、semantic vector cache、短锁 | 不承载最终业务判断 |
-| 旧搜索 / `Agentic Search` | 提供实际候选召回 | 不直接决定最终货架展示 |
-| 货架服务 | 判断产品当前是否可展示、可售、在当前渠道内 | 第一版不按用户年龄/健康/预算做强过滤 |
-| 产品档案服务 | 返回产品深档案，支撑卡片理由和风险提示 | 不接收模型编造字段 |
-| 前端 | 消费阶段事件和最终货架 | 不理解保险商品搜索逻辑 |
-
-第一版的表达也要收紧。用户看到的是候选产品清单，不是正式投保建议：
-
-```text
-可以优先看看这几款
-候选理由是
-还需要你确认这些条件
-```
-
-不要写：
-
-```text
-最适合你
-建议购买
-保证可买
-一定赔
-```
-
----
-
-## 二、整体架构：从自然语言需求到可交互货架
-
-如果只看 cache，会误以为这套系统是在优化搜索性能。其实 cache 只是中间层，真正的产品形态是“商品搜索 Agent 生产一个可交互货架”。
-
-整体架构如下：
+整体架构可以画成这样：
 
 ```mermaid
 flowchart LR
@@ -82,7 +109,7 @@ flowchart LR
     FE --> SSE[SSE Event Endpoint]
 
     API --> SVC[Product Search Service]
-    SVC --> G[OneAgent / LangGraph ProductSearchGraph]
+    SVC --> G[ProductSearchGraph]
 
     G --> N[Query Normalizer]
     G --> R[Query Router]
@@ -93,11 +120,11 @@ flowchart LR
     G --> K[Rule Reranker]
     G --> B[Shelf Response Builder]
 
-    C --> Redis[(Redis<br/>run / events / exact cache / vector cache)]
-    Q --> Legacy[旧搜索接口<br/>inverted index + embedding]
-    Q --> Agentic[Agentic Search 后端]
+    C --> Redis[(Redis<br/>run / events / cache / lock)]
+    Q --> Legacy[旧搜索接口]
+    Q --> Agentic[Agentic Search]
     F --> Shelf[货架服务]
-    D --> Dossier[产品档案 / 产品报告服务]
+    D --> Dossier[产品档案服务]
     B --> Redis
 
     G --> E[Product Event Adapter]
@@ -105,26 +132,27 @@ flowchart LR
     SSE --> Redis
 ```
 
-这张图里有几个边界：
+各模块的边界要写清楚：
 
 | 模块 | 作用 | 边界 |
-|---|---|---|
-| `Product Search API` | 创建搜索 run、返回订阅地址 | 不等待完整货架生成 |
+| --- | --- | --- |
+| `Product Search API` | 创建搜索 `run`，返回订阅地址 | 不等待完整货架生成 |
 | `ProductSearchGraph` | 用 `LangGraph` 编排搜索生命周期 | 不直接把运行时事件暴露给前端 |
-| `Candidate Cache Adapter` | 查 exact / semantic cache | 只返回候选池，不返回最终展示话术 |
-| `Live Query Adapter` | 按 router 调旧搜索或 `Agentic Search` | 不关心前端展示 |
-| `Shelf Filter` | 重新校验当前货架状态 | cache hit 也必须执行 |
-| `Product Dossier Loader` | 拉最终候选深档案 | 没有档案就不生成卡片 |
+| `Candidate Cache Adapter` | 查精确缓存和语义缓存 | 只返回候选池，不返回最终展示话术 |
+| `Live Query Adapter` | 按路由调用旧搜索或 `Agentic Search` | 不关心前端展示 |
+| `Shelf Filter` | 重新校验当前货架状态 | `cache hit` 也必须执行 |
+| `Product Dossier Loader` | 拉最终候选的产品深档案 | 没有档案就不生成卡片 |
+| `Rule Reranker` | 做轻量确定性排序 | 不调用模型重排 |
 | `Product Event Adapter` | 把 `LangGraph` 事件翻译成产品事件 | 不透出模型原始思考链 |
-| `Redis` | 存 run、events、cache、vector、lock | 不承载推荐决策 |
+| `Redis` | 存 `run`、事件、缓存、向量索引、短锁 | 不承载推荐决策 |
 
-这才是文章的主题：**保险自然语言商品搜索 Agent 的工程架构**。召回缓存链路只是其中的“候选复用层”。
+这样分层之后，`Agent` 的位置就清楚了。它不是货架的“裁判”，更像一个搜索任务编排器：理解需求，选择召回后端，组织中间状态，然后把确定性工作交给对应服务。
 
----
+## 三、`LangGraph` 子图怎么跑
 
-## 三、LangGraph 子图
+这个能力应该作为 `AgenticOne` 里的一个商品搜索子图存在。
 
-这个能力应该作为 `AgenticOne` 里的一个商品搜索子图存在。主 `Agent` 不直接写搜索参数，也不直接排序商品；它只把本轮用户需求交给商品搜索子图，拿回结构化货架和简短过程摘要。
+主 `Agent` 不直接拼搜索参数，也不直接排序商品。它只把本轮用户需求交给商品搜索子图，拿回结构化货架和简短过程摘要。
 
 ```text
 Host Agent
@@ -143,7 +171,7 @@ Host Agent
   -> terminal shelf response
 ```
 
-商品搜索子图内部结构：
+子图内部可以这样组织：
 
 ```mermaid
 flowchart TD
@@ -167,7 +195,7 @@ flowchart TD
     Z --> M
 ```
 
-`route_query` 输出两个东西：
+`route_query` 至少输出两个判断：
 
 ```text
 routeType:
@@ -180,11 +208,11 @@ searchBackend:
   agentic_search
 ```
 
-`qa_or_compare` 第一版也先召回候选，因为很多用户会问“这种保险哪个好”“这个和百万医疗有什么区别”，不先定产品，后面的问答很容易空转。区别只是它后续不一定直接进入搜索货架，也可以交给问答/对比链路。
+`qa_or_compare` 第一版也可以先召回候选。用户问“这种保险哪个好”“这个和百万医疗有什么区别”时，如果没有产品锚点，后面的回答很容易空转。区别只是后续不一定直接进入货架展示，也可以交给问答或对比链路。
 
-### 3.1 ProductSearchState
+### 3.1 `State` 不是 `messages`
 
-`LangGraph state` 不要只放 `messages`。商品搜索链路至少需要这些字段：
+商品搜索链路不能只靠 `messages`。候选池、缓存命中、过滤结果、档案、排序结果都应该放在结构化 `state` 里。
 
 ```python
 class ProductSearchState(TypedDict, total=False):
@@ -221,7 +249,7 @@ class Candidate(TypedDict):
     source_backend: Literal["exact_cache", "semantic_cache", "legacy_search", "agentic_search"]
 ```
 
-`ShelfCard` 是最终返回给前端的对象：
+`ShelfCard` 才是最终返回给前端的对象：
 
 ```python
 class ShelfCard(TypedDict):
@@ -235,36 +263,34 @@ class ShelfCard(TypedDict):
     dossier_source: str
 ```
 
-注意，`candidate_reason` 不是从缓存里拿旧文案。它应该基于当前 query、当前候选命中摘要和产品深档案重新生成或组装。
+`candidate_reason` 不从缓存里拿旧文案。它应该基于当前 `query`、当前候选命中摘要和产品深档案重新生成或组装。
 
-### 3.2 Node 契约
+### 3.2 节点契约
 
 | 节点 | 输入 | 输出 | 失败策略 |
-|---|---|---|---|
-| `normalize_query` | `raw_query` | `normalized_query`、`query_hash` | 清洗失败就用原 query |
-| `route_query` | `raw_query`、`normalized_query` | `route_type`、`search_backend` | router 失败回退 `product_search + legacy_search` |
-| `exact_cache_lookup` | `route_type + query_hash` | candidate cache payload | miss 继续走 semantic |
-| `semantic_cache_lookup` | query embedding + `route_type` | candidate cache payload | miss 继续 live query |
-| `live_query_if_needed` | router 输出 | candidate list | 搜索失败写 `run:error` |
-| `shelf_hard_filter` | candidate list | filtered candidates | 少于 3 个且还没 live query，则补 live query |
-| `load_product_dossiers` | Top10 `prodNo` | dossiers map | 单个产品失败就剔除，不影响其他候选 |
-| `rule_rerank` | candidates + dossiers | ranked shelf | 无候选则返回无结果卡片 |
-| `build_shelf_response` | ranked shelf | final response | 禁止购买承诺话术 |
-| `persist_result` | full state | Redis run snapshot + terminal event | 持久化失败要告警，但不改写搜索结果 |
+| --- | --- | --- | --- |
+| `normalize_query` | `raw_query` | `normalized_query`、`query_hash` | 清洗失败就用原 `query` |
+| `route_query` | `raw_query`、`normalized_query` | `route_type`、`search_backend` | 回退 `product_search + legacy_search` |
+| `exact_cache_lookup` | `route_type + query_hash` | 候选缓存 | `miss` 继续语义缓存 |
+| `semantic_cache_lookup` | `query embedding + route_type` | 候选缓存 | `miss` 继续实时查询 |
+| `live_query_if_needed` | 路由结果 | 候选列表 | 查询失败写 `run:error` |
+| `shelf_hard_filter` | 候选列表 | 过滤后候选 | 少于 3 个且还没实时查询，则补一次实时查询 |
+| `load_product_dossiers` | `Top10 prodNo` | 产品档案 `map` | 单个产品失败就剔除 |
+| `rule_rerank` | 候选 + 档案 | 排序货架 | 无候选则返回无结果状态 |
+| `build_shelf_response` | 排序货架 | 最终响应 | 禁止购买承诺话术 |
+| `persist_result` | 完整 `state` | `Redis run snapshot + terminal event` | 持久化失败告警，不改写搜索结果 |
 
----
+这个表比代码更重要。代码可以变，节点契约最好不要轻易漂。
 
-## 四、Redis 落地
+## 四、候选缓存：只缓存候选，不缓存结论
 
-`Redis` 第一版同时承担 5 个职责：
+`Redis` 第一版承担五个职责：
 
-1. run 状态；
-2. 可恢复 SSE 事件；
-3. exact candidate cache；
-4. semantic candidate cache；
-5. cache miss 防击穿短锁。
-
-### 4.1 Key 设计
+1. `run` 状态；
+2. 可恢复 `SSE` 事件；
+3. 精确候选缓存；
+4. 语义候选缓存；
+5. `cache miss` 防击穿短锁。
 
 统一加版本前缀，方便之后整体迁移：
 
@@ -276,13 +302,13 @@ rec:v1:cache:sem:{entryId}
 rec:v1:lock:{routeType}:{queryHash}
 ```
 
-| key | 类型 | TTL | 内容 |
-|---|---|---|---|
-| `rec:v1:run:{runId}` | Hash | 24h | run 状态、最终结果摘要、错误信息 |
-| `rec:v1:events:{runId}` | Stream | 24h | SSE replay 事件 |
-| `rec:v1:cache:exact:{routeType}:{queryHash}` | String JSON | 6h | candidate cache payload |
-| `rec:v1:cache:sem:{entryId}` | Hash | 6h | query embedding + cache payload |
-| `rec:v1:lock:{routeType}:{queryHash}` | String | 30s | cache miss 防击穿 |
+| `key` | 类型 | `TTL` | 内容 |
+| --- | --- | --- | --- |
+| `rec:v1:run:{runId}` | `Hash` | `24h` | `run` 状态、最终结果摘要、错误信息 |
+| `rec:v1:events:{runId}` | `Stream` | `24h` | 可恢复 `SSE` 事件 |
+| `rec:v1:cache:exact:{routeType}:{queryHash}` | `String JSON` | `6h` | 候选缓存 |
+| `rec:v1:cache:sem:{entryId}` | `Hash` | `6h` | `query embedding + payload` |
+| `rec:v1:lock:{routeType}:{queryHash}` | `String` | `30s` | 防击穿短锁 |
 
 `run` 状态示例：
 
@@ -302,9 +328,7 @@ HSET rec:v1:run:{runId}
   updatedAt 2026-07-02T10:00:03+08:00
 ```
 
-### 4.2 CandidateCachePayload
-
-缓存只保存候选池，不保存最终货架文案。
+候选缓存的 `payload` 只保存召回信息：
 
 ```json
 {
@@ -333,29 +357,31 @@ HSET rec:v1:run:{runId}
 }
 ```
 
-写 exact cache：
+它不保存：
 
 ```text
-SET rec:v1:cache:exact:{routeType}:{queryHash} {payload_json} EX 21600
+最终 Top3
+最终卡片文案
+购买建议
+模型推理过程
+已过期的货架判断
 ```
 
-写 semantic cache：
+写入时机也要提前：
 
 ```text
-HSET rec:v1:cache:sem:{entryId}
-  routeType product_search
-  normalizedQuery "给父母买医疗险"
-  queryHash "sha256:..."
-  embedding <float32-bytes>
-  payload {payload_json}
-  createdAt 1782976800
-  expiresAt 1782998400
-EXPIRE rec:v1:cache:sem:{entryId} 21600
+live query 成功
+  -> normalize candidate
+  -> 截断 Top50
+  -> 写 exact cache
+  -> 写 semantic cache
 ```
 
-### 4.3 Redis Vector Index
+不要等最终 `Top3` 排完才写缓存。缓存的是候选池，不是货架结论。
 
-如果用 `Redis Stack / RediSearch`，建一个候选缓存向量索引：
+### 4.1 语义缓存
+
+如果用 `Redis Stack / RediSearch`，可以给候选缓存建向量索引：
 
 ```text
 FT.CREATE idx:rec:v1:sem_cache
@@ -380,7 +406,7 @@ FT.SEARCH idx:rec:v1:sem_cache
   DIALECT 2
 ```
 
-第一版选择宽松复用：
+第一版可以宽松复用：
 
 ```text
 semantic hit if:
@@ -389,26 +415,24 @@ semantic hit if:
   payload 未过期
 ```
 
-宽松复用必须配两个护栏：
+宽松复用的代价是必须有护栏：
 
-1. cache hit 后重新走 `shelf_hard_filter`；
-2. 最终卡片理由基于当前 query 和产品深档案重算，不复用旧理由。
+1. 命中后重新走 `shelf_hard_filter`；
+2. 最终卡片理由基于当前 `query` 和产品深档案重算。
 
-### 4.4 防击穿
+### 4.2 防击穿
 
-exact 和 semantic 都 miss 时，先抢短锁：
+精确缓存和语义缓存都 `miss` 时，先抢短锁：
 
 ```text
 SET rec:v1:lock:{routeType}:{queryHash} {runId} NX EX 30
 ```
 
-抢到锁的请求执行 live query 并写 cache。没抢到的请求最多短等 300~800ms，再读一次 exact cache；仍 miss 就自己走 live query，避免无限等待。
+抢到锁的请求执行实时查询并写缓存。没抢到锁的请求短等 `300~800ms`，再读一次精确缓存；如果仍然 `miss`，就自己走实时查询，不要无限等待。
 
----
+## 五、实时查询、货架过滤、深档案
 
-## 五、实际查询与缓存回写
-
-`router` 已经决定了走旧搜索还是 `Agentic Search`。商品搜索入口不需要知道 `Agentic Search` 内部怎么发散关键词，只把它当成一个候选召回后端。
+`router` 决定走旧搜索还是 `Agentic Search`。商品搜索入口不需要知道 `Agentic Search` 内部怎么发散关键词，只把它当成一个候选召回后端。
 
 ```python
 async def live_query_if_needed(state: ProductSearchState) -> ProductSearchState:
@@ -438,23 +462,7 @@ async def live_query_if_needed(state: ProductSearchState) -> ProductSearchState:
     return state
 ```
 
-候选 cache 写入时机：
-
-```text
-live query 成功
-  -> normalize candidate
-  -> 截断 Top50
-  -> 写 exact cache
-  -> 写 semantic cache
-```
-
-不要等最终 Top3 排完才写 cache。缓存的是召回候选池，越早写越符合它的职责。
-
----
-
-## 六、货架过滤、深档案和规则排序
-
-### 6.1 货架侧硬过滤
+### 5.1 货架侧硬过滤
 
 第一版只做货架侧过滤：
 
@@ -477,15 +485,17 @@ live query 成功
 既往症
 ```
 
-原因不是这些不重要，而是用户当前选择了“信息不足时先直推”。既然不问槽位，就不能假装已经做了个性化投保校验。最终文案要提醒：
+原因很简单：用户当前选择了“信息不足时先直推”。既然不问槽位，就不能假装已经做了个性化投保校验。
+
+最终文案要把未确认条件说出来：
 
 ```text
 还需要确认被保人年龄、地区、职业和健康情况。
 ```
 
-### 6.2 深档案
+### 5.2 深档案
 
-过滤后取 Top10 拉深档案：
+过滤后取 `Top10` 拉产品深档案：
 
 ```text
 batch_get_product_dossier(prodNos[0:10])
@@ -508,16 +518,16 @@ sourceVersion
 updatedAt
 ```
 
-最终货架卡片只允许使用这两类事实：
+最终货架卡片只允许使用两类事实：
 
 1. 搜索命中摘要；
 2. 产品深档案。
 
 如果某个产品深档案拉取失败，就从最终排序中剔除。不要让模型凭搜索摘要补全产品责任。
 
-### 6.3 纯规则 rerank
+### 5.3 规则排序
 
-第一版不让 `Agent` 做最终排序。规则排序公式：
+第一版不让 `Agent` 做最终排序。
 
 ```text
 finalScore =
@@ -528,9 +538,9 @@ finalScore =
 ```
 
 | 因子 | 来源 |
-|---|---|
-| `normalizedRecallScore` | 搜索或 cache 中的召回分 |
-| `shelfWeight` | 货架/运营侧权重 |
+| --- | --- |
+| `normalizedRecallScore` | 搜索或缓存中的召回分 |
+| `shelfWeight` | 货架或运营侧权重 |
 | `dossierCompleteness` | 深档案字段完整度 |
 | `freshnessWeight` | 产品档案更新时间或货架版本 |
 
@@ -541,23 +551,21 @@ finalScore =
   -> Top3 中最多保留 1 个
 ```
 
-最终返回 Top3。候选池保留在 `run state` 里，后续做“换一批”时再用，但第一版不开放多轮指代。
+最终返回 `Top3`。候选池保留在 `run state` 里，后续可以支持“换一批”，但第一版不开放多轮指代。
 
----
+## 六、接口和前端事件
 
-## 七、前端交互与事件消费
+前端不应该只拿一个最终 `JSON`。自然语言搜品和传统搜索框不一样，用户需要知道系统正在理解需求、复用候选、检查货架、读取档案，最后才看到货架卡片。
 
-前端不应该只拿一个最终 JSON。自然语言商品搜索的体验和传统搜索框不一样，用户需要知道系统正在理解需求、复用候选、检查货架、读取产品档案，最后才看到货架卡片。
-
-所以接口上采用“创建 run + 订阅事件 + 查询快照”的三段式：
+接口上采用三段式：
 
 ```text
-POST /product-search/runs        创建搜索任务，立即返回 runId
-GET  /product-search/runs/{id}/events   订阅可恢复 SSE
-GET  /product-search/runs/{id}          查询 run 快照和最终货架
+POST /product-search/runs              创建搜索任务，立即返回 runId
+GET  /product-search/runs/{id}/events  订阅可恢复 SSE
+GET  /product-search/runs/{id}         查询 run 快照和最终货架
 ```
 
-### 7.1 请求时序
+### 6.1 请求时序
 
 ```mermaid
 sequenceDiagram
@@ -610,12 +618,12 @@ sequenceDiagram
     SSE-->>FE: shelf cards
 ```
 
-这个时序有两个体验重点：
+这个时序有两个重点：
 
 1. `POST` 不等货架生成完成，只返回 `runId`；
 2. 前端只消费产品事件，不消费 `LangGraph` 原始事件。
 
-### 7.2 前端状态机
+### 6.2 前端状态机
 
 前端可以用一个很小的状态机消费事件：
 
@@ -632,13 +640,13 @@ idle
   -> error
 ```
 
-事件到 UI 的映射：
+事件到 `UI` 的映射：
 
-| eventType | 前端状态 | 展示 |
-|---|---|---|
+| `eventType` | 前端状态 | 展示 |
+| --- | --- | --- |
 | `run:accepted` | `running` | 创建搜索任务 |
 | `query:normalized` | `understanding` | 正在理解需求 |
-| `router:decided` | `understanding` | 已识别为商品搜索/问答/离题 |
+| `router:decided` | `understanding` | 已识别为商品搜索、问答或离题 |
 | `cache:hit` | `cache_reusing` | 已复用相似需求候选 |
 | `cache:miss` | `searching` | 正在重新搜索产品 |
 | `search:done` | `searching` | 已召回候选 |
@@ -648,7 +656,7 @@ idle
 | `run:done` | `done` | 展示产品卡片 |
 | `run:error` | `error` | 展示安全失败提示 |
 
-前端保留最后一个 SSE event id。刷新或断线后带上：
+前端保留最后一个 `SSE event id`。刷新或断线后带上：
 
 ```http
 Last-Event-ID: 1720000000-0
@@ -656,11 +664,11 @@ Last-Event-ID: 1720000000-0
 
 服务端从 `Redis Stream` 续传，直到 `run:done` 或 `run:error`。
 
-### 7.3 LangGraph Events 如何消费
+### 6.3 `LangGraph` 事件适配
 
-`LangGraph` 会产生很多 runtime event：节点开始、节点结束、工具调用、模型 token、子图事件、异常事件。如果直接转发给前端，用户看到的是内部调用栈，不是商品搜索过程。
+`LangGraph` 会产生很多运行时事件：节点开始、节点结束、工具调用、模型 `token`、子图事件、异常事件。如果直接转发给前端，用户看到的是内部调用栈，不是商品搜索过程。
 
-正确做法是加一层 `ProductSearchEventAdapter`：
+中间要加一层 `ProductSearchEventAdapter`：
 
 ```text
 LangGraph runtime events
@@ -673,26 +681,26 @@ LangGraph runtime events
 
 映射规则示例：
 
-| LangGraph runtime event | 条件 | 产品事件 |
-|---|---|---|
-| node start | `normalize_query` | `query:normalizing` |
-| node end | `normalize_query` | `query:normalized` |
-| node end | `route_query` | `router:decided` |
-| node end | `exact_cache_lookup` 或 `semantic_cache_lookup` 且命中 | `cache:hit` |
-| node end | 两层 cache 均 miss | `cache:miss` |
-| tool start | `legacy_search_tool` / `agentic_search_tool` | `search:started` |
-| tool end | search tool 成功 | `search:done` |
-| node end | `shelf_hard_filter` | `candidate:filtered` |
-| tool end | `batch_get_product_dossier` | `dossier:loaded` |
-| node end | `rule_rerank` | `shelf:ranked` |
-| graph end | final shelf ready | `run:done` |
-| graph error | 任意未处理异常 | `run:error` |
+| `LangGraph runtime event` | 条件 | 产品事件 |
+| --- | --- | --- |
+| `node start` | `normalize_query` | `query:normalizing` |
+| `node end` | `normalize_query` | `query:normalized` |
+| `node end` | `route_query` | `router:decided` |
+| `node end` | `exact_cache_lookup` 或 `semantic_cache_lookup` 且命中 | `cache:hit` |
+| `node end` | 两层缓存均 `miss` | `cache:miss` |
+| `tool start` | `legacy_search_tool` / `agentic_search_tool` | `search:started` |
+| `tool end` | 搜索工具成功 | `search:done` |
+| `node end` | `shelf_hard_filter` | `candidate:filtered` |
+| `tool end` | `batch_get_product_dossier` | `dossier:loaded` |
+| `node end` | `rule_rerank` | `shelf:ranked` |
+| `graph end` | 最终货架已生成 | `run:done` |
+| `graph error` | 任意未处理异常 | `run:error` |
 
 `ProductSearchEventAdapter` 要做三件事：
 
-1. **降噪。** 不转发模型 token、工具原始入参、内部 traceback、prompt。
-2. **重排。** 并发工具事件按业务阶段输出，避免前端看到乱序。
-3. **补语义。** 给事件补上 `message`、`stage`、`candidateCount`、`cacheHitType` 这类产品字段。
+1. 降噪：不转发模型 `token`、工具原始入参、内部 `traceback`、`prompt`。
+2. 重排：并发工具事件按业务阶段输出，避免前端看到乱序。
+3. 补语义：给事件补上 `message`、`stage`、`candidateCount`、`cacheHitType` 这类产品字段。
 
 产品事件结构：
 
@@ -711,38 +719,9 @@ LangGraph runtime events
 }
 ```
 
-这里不输出 `thought`。如果需要排查模型为什么选了某个后端，写入内部 trace 或审计表，不给 C 端用户展示。
+这里不输出 `thought`。如果需要排查模型为什么选了某个后端，写内部 `trace` 或审计表，不给 C 端用户展示。
 
-### 7.4 可见过程
-
-用户需要看到过程，但不需要看到模型原始思考链。可以展示的是“阶段 + 理由摘要”。
-
-事件写入 `Redis Stream`：
-
-```text
-XADD rec:v1:events:{runId} * eventType run:accepted payload {...}
-EXPIRE rec:v1:events:{runId} 86400
-```
-
-事件类型：
-
-| eventType | payload |
-|---|---|
-| `run:accepted` | `runId`、`sessionId` |
-| `query:normalizing` | `rawQuery` |
-| `query:normalized` | `normalizedQuery` |
-| `router:decided` | `routeType`、`searchBackend` |
-| `cache:hit` | `hitType`、`matchedQuery`、`candidateCount` |
-| `cache:miss` | `reason` |
-| `search:started` | `searchBackend` |
-| `search:done` | `candidateCount` |
-| `candidate:filtered` | `beforeCount`、`afterCount`、`filterSummary` |
-| `dossier:loaded` | `loadedCount` |
-| `shelf:ranked` | `shelfCount` |
-| `run:done` | final shelf |
-| `run:error` | safe error message |
-
-用户可见文案示例：
+用户可见文案可以是：
 
 ```text
 正在理解你的保险需求
@@ -760,65 +739,11 @@ EXPIRE rec:v1:events:{runId} 86400
 我先假设……
 ```
 
-这和 [[LangGraph Agent Event 消费指南]] 里的原则一致：`LangGraph` runtime event 是原料，产品事件才是契约。
+这和 [[LangGraph Agent Event 消费指南]] 里的原则一致：`LangGraph` 运行时事件是原料，产品事件才是契约。
 
----
+## 七、`OneAgent` 集成方式
 
-## 八、接口形态
-
-### 8.1 创建搜索 run
-
-```http
-POST /product-search/runs
-Content-Type: application/json
-```
-
-```json
-{
-  "sessionId": "s_123",
-  "query": "想给爸妈买个医疗险"
-}
-```
-
-返回：
-
-```json
-{
-  "runId": "rec_abc",
-  "status": "running",
-  "eventsUrl": "/product-search/runs/rec_abc/events"
-}
-```
-
-创建接口只负责：
-
-1. 生成 `runId`；
-2. 写 `rec:v1:run:{runId}`；
-3. 后台调度 `ProductSearchGraph`；
-4. 立刻返回可订阅地址。
-
-### 8.2 订阅事件
-
-```http
-GET /product-search/runs/{runId}/events
-Last-Event-ID: 1720000000-0
-```
-
-服务端从 `rec:v1:events:{runId}` replay。`Last-Event-ID` 不属于当前 run 时直接返回续传错误，不做模糊容错。
-
-### 8.3 查询结果快照
-
-```http
-GET /product-search/runs/{runId}
-```
-
-返回 `run` 当前状态和最终货架。这个接口给刷新、排查和降级使用。
-
----
-
-## 九、OneAgent 集成方式
-
-商品搜索能力不要变成主 `Agent` 里的长 prompt。它应该注册成一个终末工具或子图工具：
+商品搜索能力不要变成主 `Agent` 里的长 `prompt`。它应该注册成一个终末工具或子图工具：
 
 ```text
 search_products(query, session_id) -> ProductSearchRunResult
@@ -836,22 +761,28 @@ search_products(query, session_id) -> ProductSearchRunResult
 }
 ```
 
-完整候选、档案、排序细节留在 `ProductSearchState` 和 `Redis`，不要塞进主 `messages`。如果前端需要完整货架，直接消费 `run:done` 事件或查询 `GET /product-search/runs/{runId}`。
+完整候选、档案、排序细节留在 `ProductSearchState` 和 `Redis`，不要塞进主 `messages`。如果前端需要完整货架，直接消费 `run:done` 事件，或者查询：
 
----
+```http
+GET /product-search/runs/{runId}
+```
 
-## 十、失败路径
+这也呼应 [[AgenticOne：OneAgent 范式在保险实时咨询中的应用]] 里的原则：主 `Agent` 做薄，领域能力做厚；主上下文保持干净，复杂信息放到可管理的外部状态里。
+
+## 八、失败路径和观测指标
+
+失败路径不要藏在实现里。第一版至少要把这些行为写进契约：
 
 | 失败点 | 行为 |
-|---|---|
-| `normalize_query` 失败 | 使用原 query 继续 |
+| --- | --- |
+| `normalize_query` 失败 | 使用原 `query` 继续 |
 | `route_query` 失败 | 回退 `product_search + legacy_search` |
-| Redis exact cache 失败 | 跳过 exact，继续 semantic |
-| Redis Vector 失败 | 跳过 semantic，继续 live query |
-| live query 失败 | 写 `run:error`，返回安全失败 |
+| `Redis exact cache` 失败 | 跳过精确缓存，继续语义缓存 |
+| `Redis Vector` 失败 | 跳过语义缓存，继续实时查询 |
+| 实时查询失败 | 写 `run:error`，返回安全失败 |
 | 货架过滤后无结果 | 返回无候选状态，不编造商品卡片 |
-| 深档案批量失败 | 剔除失败产品，少于 1 个则无候选 |
-| SSE 写事件失败 | 继续主链路，但记录告警；最终 run snapshot 仍要写 |
+| 深档案批量失败 | 剔除失败产品，少于 1 个则返回无候选 |
+| `SSE` 写事件失败 | 继续主链路，但记录告警；最终 `run snapshot` 仍要写 |
 
 无候选文案：
 
@@ -859,22 +790,18 @@ search_products(query, session_id) -> ProductSearchRunResult
 当前货架里没有找到足够匹配的候选产品。你可以换一种描述，或者补充被保人年龄、地区、预算和健康情况。
 ```
 
----
-
-## 十一、验收指标
-
-第一版看线上指标，但必须同时保留链路分段指标，否则只看转化率很难定位问题。
+线上指标也要按链路分段看：
 
 | 指标 | 目的 |
-|---|---|
-| `exact_cache_hit_rate` | exact cache 是否有效 |
-| `semantic_cache_hit_rate` | semantic cache 是否真的复用 |
-| `live_query_rate` | cache miss 压力 |
+| --- | --- |
+| `exact_cache_hit_rate` | 精确缓存是否有效 |
+| `semantic_cache_hit_rate` | 语义缓存是否真的复用 |
+| `live_query_rate` | 缓存未命中的压力 |
 | `filter_empty_rate` | 货架过滤是否过严或缓存污染 |
 | `dossier_load_fail_rate` | 产品档案服务稳定性 |
 | `product_search_p50/p95` | 整体延迟 |
 | `search_p50/p95` | 实际查询耗时 |
-| `redis_vector_p50/p95` | semantic cache 耗时 |
+| `redis_vector_p50/p95` | 语义缓存耗时 |
 | `shelf_card_ctr` | 候选货架是否被点击 |
 | `query_rewrite_rate` | 用户是否频繁重新提问 |
 | `run_error_rate` | 线上错误率 |
@@ -893,17 +820,15 @@ search_products(query, session_id) -> ProductSearchRunResult
 
 测试必须覆盖：
 
-1. exact cache 命中；
-2. semantic cache 命中；
-3. cache miss 后走旧搜索；
-4. cache miss 后走 `Agentic Search`；
-5. 货架下架后 cache hit 仍被过滤；
-6. 深档案失败时不生成虚假卡片；
-7. SSE 断线后能从 `Last-Event-ID` 续传。
+1. 精确缓存命中；
+2. 语义缓存命中；
+3. 缓存未命中后走旧搜索；
+4. 缓存未命中后走 `Agentic Search`；
+5. 货架下架后，缓存命中仍被过滤；
+6. 深档案失败时，不生成虚假卡片；
+7. `SSE` 断线后能从 `Last-Event-ID` 续传。
 
----
-
-## 十二、第一版不做什么
+## 九、第一版不做什么
 
 这些能力先不放进第一版：
 
@@ -915,15 +840,11 @@ search_products(query, session_id) -> ProductSearchRunResult
 - 展示模型原始思考链；
 - 缓存最终货架文案。
 
-这不是能力不重要，而是第一版先把“候选复用 + 当前货架校验 + 深档案卡片 + 可恢复事件”这条主链路打稳。等这条链路可观测、可回放、能解释，再往上叠画像、核保和真正的推荐决策。
+这不是说它们不重要。真正的推荐系统，迟早要接画像、保障缺口、核保和业务策略。但第一版先把“候选复用、当前货架校验、深档案卡片、可恢复事件”这条主链路打稳。
 
----
+前一篇 [[从对话到交互式音画同步动画讲解：一次保险产品介绍 AIGC 链路的工程化实践]] 里有个判断：`LLM` 做导演，后端做确定性制片，前端消费事件。
 
-## 十三、和前一篇动画讲解链路的关系
-
-前一篇 [[从对话到交互式音画同步动画讲解：一次保险产品介绍 AIGC 链路的工程化实践]] 里有一个原则：`LLM` 做导演，后端做确定性制片，前端消费事件。
-
-商品搜索链路也是同一件事：
+商品搜索链路也是同一件事，只是对象从动画变成了货架：
 
 ```text
 Agent 负责：
@@ -936,4 +857,4 @@ Agent 负责：
   展示阶段过程和最终货架
 ```
 
-真正可上线的商品搜索 `Agent`，不应该把“想一想给什么商品”直接暴露成产品能力。它需要一条硬链路，把模型的灵活性压进候选、缓存、过滤、档案、排序和事件协议里。真正的推荐系统，可以在这条搜索货架之后，再接画像、保障缺口、核保和业务策略。
+保险商品搜索 `Agent` 的难点，不是让模型多说几句像样的话，而是把模型的灵活性压进一条硬链路里。候选可以来自 `Agent`，货架必须回到事实。
