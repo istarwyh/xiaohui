@@ -1,7 +1,7 @@
 ---
 published: 2026-06-30
 created: 2026-05-08
-modified: 2026-07-01
+modified: 2026-07-04
 ---
 
 # CLAUDE.md
@@ -51,6 +51,7 @@ A personal knowledge base and blog managed with Obsidian, published to [xiaohui.
 - Uses Obsidian double-links (`[[...]]`) to connect related concepts
 - Technical content: AI, TDD, functional programming
 - Humanistic content: literature, history, social observation
+- For technical essays, prefer business-practice writing over concept-explanation writing: start from a real use case, implementation constraint, or production judgment before naming the abstraction.
 
 ## Expression Rules
 
@@ -59,13 +60,15 @@ The first priority is to remove obvious `AI` flavor. The writing should sound li
 Treat the following as hard constraints unless the user explicitly asks for a formal report:
 
 - Do not use generic openings such as `在这个 AI 加速发展的时代`, `随着技术的发展`, `这个问题没有标准答案`, `我们需要辩证地看`.
-- Do not rely on label-and-explain scaffolding such as `问题：...`, `核心原因：...`, `关键在于：...`, `从三个方面来看`.
+- Do not rely on label-and-explain scaffolding such as `问题：...`, `核心原因：...`, `关键在于：...`, `从三个方面来看`; avoid colon-led explanation by default, and use colons only when the sentence genuinely needs one.
 - Avoid stock transitions such as `值得注意的是`, `不可否认的是`, `与此同时`, `总的来说`, `综上所述`, `更重要的是`.
-- Avoid formulaic balance: `一方面...另一方面...`, `既要...也要...`, `不是 A，而是 B`, unless the contrast is sharp and necessary.
+- Avoid formulaic balance: `一方面...另一方面...`, `既要...也要...`, `不是 A，而是 B`, unless the contrast is sharp and necessary. If many paragraphs use this structure, rewrite them into direct judgments, examples, or process descriptions.
 - Cut decorative abstractions such as `本质上`, `底层逻辑`, `核心是`, `赋能`, `闭环`, `沉淀`, `抓手`, `范式迁移`, `价值共创`.
 - Do not manufacture three-part parallel slogans. If a sentence sounds ready for a keynote slide, rewrite it.
 - Do not end with forced elevation such as `技术的终点依然是人`, `答案或许就在路上`, `这才是真正的成长`.
 - Do not smooth every edge. A human draft can have a short sentence, a pause, a small doubt, or an unresolved tension.
+- For public technical articles, make the reader feel the method can be used: explain what was built, what constraint forced the design, how the system behaves, or what operational lesson was learned. Do not stop at explaining why a concept is correct.
+- Replace concept taxonomy with user-helpful detail when possible. A sentence about `Agentic Search` is stronger when it says what the `Agent` actually receives, opens, compares, rejects, or verifies.
 
 Prefer this direction instead:
 
@@ -84,6 +87,8 @@ Before finalizing prose, do a strict anti-`AI` pass:
 
 - Delete any sentence that merely sounds reasonable but adds no observation.
 - Replace at least one abstract claim with a concrete detail if the paragraph feels airy.
+- Remove unnecessary colons and repeated `不是 A，而是 B` contrasts.
+- For technical essays, check whether the piece moved from concept explanation toward business practice, implementation detail, or reader-useful judgment.
 - Remove summary endings unless the ending says something more exact than the body already said.
 - Check whether the piece could have been written without having lived through anything. If yes, add lived texture or cut.
 - Read the first and last paragraph especially hard: most `AI` flavor leaks from safe openings and over-neat endings.

@@ -21,6 +21,9 @@ content/.obsidian/cache
 # Local article image copies; upload final images to OSS instead
 content/**/_v_images/
 
+# Local slide deck working files
+content/slide-deck/
+
 private/
 .replit
 replit.nix
