@@ -8,15 +8,30 @@
   gap: 0.5rem;
 }
 
+.page-footer .breadcrumb-container {
+  margin-top: 0;
+  color: var(--gray);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .breadcrumb-element {
-  p {
-    margin: 0;
-    margin-left: 0.5rem;
-    padding: 0;
-    line-height: normal;
-  }
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
+
+  a,
+  span {
+    line-height: normal;
+  }
+
+  span[aria-current="page"] {
+    color: var(--gray);
+  }
+
+  .breadcrumb-spacer {
+    margin-left: 0.5rem;
+    color: var(--gray);
+  }
 }

@@ -4,6 +4,11 @@ import * as Component from "./quartz/components"
 const isHomePage = (page: { fileData: { slug?: string } }) =>
   page.fileData.slug === "index" || page.fileData.slug === "en"
 
+const bottomBreadcrumbs = Component.ConditionalRender({
+  component: Component.Breadcrumbs(),
+  condition: (page) => !isHomePage(page),
+})
+
 // components shared across all pages
 export const sharedPageComponents: SharedLayout = {
   head: Component.Head(),
@@ -26,10 +31,6 @@ export const sharedPageComponents: SharedLayout = {
 export const defaultContentPageLayout: PageLayout = {
   beforeBody: [
     Component.ConditionalRender({
-      component: Component.Breadcrumbs(),
-      condition: (page) => !isHomePage(page),
-    }),
-    Component.ConditionalRender({
       component: Component.TerminalHome(),
       condition: isHomePage,
     }),
@@ -46,6 +47,7 @@ export const defaultContentPageLayout: PageLayout = {
       condition: (page) => !isHomePage(page),
     }),
   ],
+  afterBody: [bottomBreadcrumbs],
   left: [
     Component.PageTitle(),
     Component.MobileOnly(Component.Spacer()),
@@ -90,10 +92,6 @@ export const defaultContentPageLayout: PageLayout = {
 export const defaultListPageLayout: PageLayout = {
   beforeBody: [
     Component.ConditionalRender({
-      component: Component.Breadcrumbs(),
-      condition: (page) => !isHomePage(page),
-    }),
-    Component.ConditionalRender({
       component: Component.TerminalHome(),
       condition: isHomePage,
     }),
@@ -106,6 +104,7 @@ export const defaultListPageLayout: PageLayout = {
       condition: (page) => !isHomePage(page),
     }),
   ],
+  afterBody: [bottomBreadcrumbs],
   left: [
     Component.PageTitle(),
     Component.MobileOnly(Component.Spacer()),
