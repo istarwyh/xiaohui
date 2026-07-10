@@ -1,7 +1,7 @@
 ---
 published: 2026-06-30
 created: 2026-05-08
-modified: 2026-07-04
+modified: 2026-07-10
 ---
 
 # CLAUDE.md
@@ -92,3 +92,16 @@ Before finalizing prose, do a strict anti-`AI` pass:
 - Remove summary endings unless the ending says something more exact than the body already said.
 - Check whether the piece could have been written without having lived through anything. If yes, add lived texture or cut.
 - Read the first and last paragraph especially hard: most `AI` flavor leaks from safe openings and over-neat endings.
+
+Harder anti-`AI` tests:
+
+- A paragraph that only gives a correct attitude is not enough. It needs at least one of: scene, object, action, cost, failure, constraint, quoted speech, or a judgment whose source can be felt.
+- Do not fake human texture. If the source material does not contain lived detail, do not invent private memories. Use observable details instead: a screen, a meeting sentence, a log line, a product behavior, a reader's likely confusion, a decision cost.
+- Reduce hedge words such as `可能`, `某种程度上`, `也许`, `可以说`, `需要注意`, `并不意味着`. Keep them only when the uncertainty itself matters.
+- Avoid abstract nouns as lazy subjects. Sentences beginning with `价值`, `意义`, `本质`, `时代`, `技术`, `系统`, `能力`, `认知` must earn their place by quickly landing on a person, object, behavior, or consequence.
+- Do not use first-person confession as decoration. `我以前...`, `我发现...`, `我意识到...` must be followed by a concrete trigger, not a generic conclusion.
+- Do not let a clean structure replace thought. If headings can be swapped into any other article without damage, rewrite the headings or remove them.
+- Keep one sharp edge when the draft has one. Do not sand every judgment into a polite universal statement.
+- Do not over-explain a metaphor. Let the image do work, then move on.
+- Technical prose must expose the work surface: input, output, constraints, failure modes, tradeoffs, verification, rollback, or operational consequence. If none of these appears, the article is probably explaining a concept rather than sharing usable knowledge.
+- A final paragraph should not lift the topic into the sky. End on a remaining problem, a concrete detail, a cost, a decision, or a sentence that could not be pasted into a motivational poster.
