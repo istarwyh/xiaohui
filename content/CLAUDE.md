@@ -60,7 +60,7 @@ The first priority is to remove obvious `AI` flavor. The writing should sound li
 Treat the following as hard constraints unless the user explicitly asks for a formal report:
 
 - Do not use generic openings such as `在这个 AI 加速发展的时代`, `随着技术的发展`, `这个问题没有标准答案`, `我们需要辩证地看`.
-- Do not rely on label-and-explain scaffolding such as `问题：...`, `核心原因：...`, `关键在于：...`, `从三个方面来看`; avoid colon-led explanation by default, and use colons only when the sentence genuinely needs one.
+- Do not rely on label-and-explain scaffolding such as `问题：...`, `核心原因：...`, `关键在于：...`, `我的判断是：...`. Treat `xxxx：xxxx` as a strong `AI`-flavor signal in Chinese prose. Rewrite it into natural sentence movement, paragraph breaks, examples, or direct judgment unless the colon is structurally necessary.
 - Avoid stock transitions such as `值得注意的是`, `不可否认的是`, `与此同时`, `总的来说`, `综上所述`, `更重要的是`.
 - Avoid formulaic balance: `一方面...另一方面...`, `既要...也要...`, `不是 A，而是 B`, unless the contrast is sharp and necessary. If many paragraphs use this structure, rewrite them into direct judgments, examples, or process descriptions.
 - Cut decorative abstractions such as `本质上`, `底层逻辑`, `核心是`, `赋能`, `闭环`, `沉淀`, `抓手`, `范式迁移`, `价值共创`.
