@@ -1,7 +1,7 @@
 ---
 published: 2026-06-30
 created: 2026-05-08
-modified: 2026-07-10
+modified: 2026-07-11
 ---
 
 # CLAUDE.md
@@ -52,6 +52,14 @@ A personal knowledge base and blog managed with Obsidian, published to [xiaohui.
 - Technical content: AI, TDD, functional programming
 - Humanistic content: literature, history, social observation
 - For technical essays, prefer business-practice writing over concept-explanation writing: start from a real use case, implementation constraint, or production judgment before naming the abstraction.
+
+## Article Editing Review Agent
+
+- After creating or substantially editing any article-level Markdown prose, run the `prose-style-editor` subagent before finalizing.
+- Use it to remove weak transition sentences, reader-instruction sentences, label-and-explain scaffolding, unnecessary colon-shaped Chinese prose, empty summaries, and polite report-generator language.
+- Treat this review as part of the normal editing workflow, not as an optional polish step. Apply its useful cuts before committing.
+- If the current runtime cannot directly load Claude subagents, use `.claude/agents/prose-style-editor.md` as the prompt for a separate review pass or multi-agent review task.
+- The subagent prompt lives at `.claude/agents/prose-style-editor.md`.
 
 ## Expression Rules
 
