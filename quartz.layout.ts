@@ -20,7 +20,7 @@ export const sharedPageComponents: SharedLayout = {
       成长时间线: "/journey",
       GitHub: "https://github.com/istarwyh",
       赛博农耕: "/Cyber-Farmer",
-      成长会员: "/membership",
+      "Agent 诊断": "/consulting",
       RSS订阅: "/rss",
       AI加速我: "https://aispeeds.me",
     },
