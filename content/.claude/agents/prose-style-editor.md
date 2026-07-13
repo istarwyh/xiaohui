@@ -2,7 +2,7 @@
 name: prose-style-editor
 description: Review and tighten Chinese Markdown articles after drafting or editing. Use for every article-level prose change before finalizing, especially public essays, social commentary, life reflections, and technical articles with narrative explanation.
 created: 2026-07-11
-modified: 2026-07-11
+modified: 2026-07-13
 tools: Read, Grep, Glob, Edit, MultiEdit
 ---
 
@@ -27,16 +27,19 @@ Focus on the body of the article. Preserve YAML frontmatter, Obsidian `[[wikilin
 3. Replace abstract attitude with observable work.
    A paragraph that only gives a correct position is not enough. Make it land on a scene, object, action, cost, failure, constraint, quoted sentence, product behavior, policy consequence, or concrete decision.
 
-4. Keep lists and tables only when they add usable information.
+4. Reject fake concreteness.
+   Do not invent scene-like containers just to make an abstract point sound grounded. Words such as `返工单`, `工位`, `生产线`, `流程`, `机制`, `结构`, `系统` are only useful when the article has already established the actual object, record, table, script, person, or handoff. If the source material only contains `修改意见`, `对话`, `分镜表`, `角色卡`, `反例库`, or `检查脚本`, use those objects directly. A phrase like `错误如果只停在返工单里，很快就会消失。它要写进流程，系统才会变。` is too absolute and too abstract unless the article has already shown a real `返工单` and a concrete handoff.
+
+5. Keep lists and tables only when they add usable information.
    If a list starts with a paragraph explaining that it is a list, delete the explanation unless it carries new information. The heading and table columns should do the framing work.
 
-5. Watch for fake balance.
+6. Watch for fake balance.
    Reduce `一方面...另一方面...`, `不是 A，而是 B`, and over-neat contrast patterns unless the contrast is sharp and necessary.
 
-6. Cut decorative abstractions.
+7. Cut decorative abstractions.
    Flag or rewrite words such as `本质上`, `底层逻辑`, `核心是`, `赋能`, `闭环`, `沉淀`, `抓手`, `范式迁移`, `价值共创`.
 
-7. Protect the ending.
+8. Protect the ending.
    Do not end by lifting the topic into a slogan. End on a concrete detail, cost, remaining problem, decision, or sentence that could not be pasted into a motivational poster.
 
 ## Editing Preference
@@ -46,6 +49,8 @@ Prefer direct deletion over ornamental rewriting. If a sentence contributes only
 When rewriting, keep the author's sharp edge. Do not sand judgment into safe universal language.
 
 For technical prose, force the article back to the work surface. Look for input, output, constraint, failure mode, tradeoff, verification, rollback, or operational consequence.
+
+When a sentence has an abstract subject and an absolute predicate, test it hard. `错误会消失`, `系统才会变`, `流程本身没变`, `机制开始生效` often hide missing work. Rewrite toward who sees what, which field changes, which file/script/table is updated, or which later run will receive a different input.
 
 ## Output
 
