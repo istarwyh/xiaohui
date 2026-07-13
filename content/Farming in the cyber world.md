@@ -1,6 +1,6 @@
 ---
 created: 2024-11-17T20:57:23+08:00
-modified: 2026-06-21
+modified: 2026-07-13
 published: 2024-11-17T20:57:23+08:00
 ---
 
@@ -60,6 +60,7 @@ OceanBase `AI` 黑客松二等奖领奖照片：
 - 围绕 `Harness Engineering` 提效与工程化实践，面向阿里国际 Accio 团队、蚂蚁集团平台体验技术部智能工程技术团队、阿里集团 ATH 事业群心流团队、平安健康险团队进行技术分享，并在蚂蚁集团“技术夜校”完成 `Harness` 开放麦专场；另受邀将于高德大群直播分享
 - 在阿里集团奇点学堂分享 `AI Coding` 工具与实战案例，面向财富与保险事业群 HR 团队、蚂蚁保产品团队、蚂蚁保 `BI` 团队分享 `Claude Code` 工作提效、入门与进阶课程，并建设 [AI Speeds](https://aispeeds.me) 分享 `Claude Code` 最佳实践与超级个体方法
 - 面向钱塘征信团队分享 C 端 `AIGC` 实践、`Agent` 上下文工程与应用架构
+- 2026 年 6 月 25 日，在 CCF TF 第 179 期“智能体加速金融创新”分享保险快查 `Agent Native` 实践，CCF 公众号发布[活动回顾](https://mp.weixin.qq.com/s/hrxFK6xPFgREx4mUOX7msg)
 
 ## 我能给您带来什么
 

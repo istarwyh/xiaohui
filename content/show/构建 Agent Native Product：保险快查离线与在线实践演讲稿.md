@@ -1,7 +1,7 @@
 ---
 title: 构建 Agent Native Product：保险快查离线与在线实践演讲稿
 created: 2026-06-21
-modified: 2026-06-21
+modified: 2026-07-13
 published: 2026-06-21
 tags:
   - AI Agent
@@ -14,6 +14,8 @@ tags:
 # 构建 `Agent Native Product`：保险快查离线与在线实践演讲稿
 
 这是一版面向技术同学的 30 分钟演讲逐字稿。正文以可直接朗读为主；每个需要展开的概念后，用“展开阅读”引用当前知识库中的相关文章。
+
+2026 年 6 月 25 日，我在 CCF TF 第 179 期“智能体加速金融创新”做了这场分享。CCF 公众号后来发布了[活动回顾](https://mp.weixin.qq.com/s/hrxFK6xPFgREx4mUOX7msg)，把这场分享概括为“保险快查 `Agent Native` 实践”，并提到保险咨询里的长上下文、多条件约束、强合规，以及离线 `Token` 沉淀认知、在线 `Token` 调度认知的做法。
 
 ## 开场
 
