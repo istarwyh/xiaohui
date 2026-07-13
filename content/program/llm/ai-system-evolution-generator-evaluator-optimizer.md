@@ -1,7 +1,7 @@
 ---
 title: AI 系统如何进化：生成器、评估器、优化器与漫剧生产链路
 created: 2026-07-06T00:00:00+08:00
-modified: 2026-07-06T00:00:00+08:00
+modified: 2026-07-13T18:17:34+08:00
 published: 2026-07-06T00:00:00+08:00
 description: 从生成器、评估器、优化器三个对象出发，区分闭环优化、进化和自进化，并用 AI 漫剧生产链路说明这些概念如何落到业务流程里。
 tags:
@@ -63,7 +63,7 @@ aliases:
 
 生成器决定系统能尝试什么。评估器决定系统能看见什么。优化器决定系统会留下什么。
 
-![生成器、评估器、优化器形成反馈回路](_v_images/20260706-ai-system-evolution-generator-evaluator-optimizer.png)
+![生成器、评估器、优化器形成反馈回路](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260706-ai-system-evolution-generator-evaluator-optimizer.png)
 
 ## 三
 
@@ -111,7 +111,7 @@ aliases:
 
 这就是进化。不是系统突然懂了什么大道理，而是过去的失败，变成了未来任务的一部分。
 
-![闭环优化、进化、自进化的三层关系](_v_images/20260706-ai-system-evolution-levels.png)
+![闭环优化、进化、自进化的三层关系](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260706-ai-system-evolution-levels.png)
 
 ## 五
 
@@ -164,7 +164,7 @@ aliases:
 
 这说明漫剧生产已经不是「写一句提示词，生成一集」。
 
-![AI 漫剧从剧本到剪辑的生产链路](_v_images/20260706-ai-comic-drama-production-pipeline.png)
+![AI 漫剧从剧本到剪辑的生产链路](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260706-ai-comic-drama-production-pipeline.png)
 
 它更像一条不断返工的生产线。
 
