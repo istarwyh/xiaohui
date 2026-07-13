@@ -9,6 +9,26 @@ const bottomBreadcrumbs = Component.ConditionalRender({
   condition: (page) => !isHomePage(page),
 })
 
+const sidebarPrimaryActions = Component.Flex({
+  components: [
+    {
+      Component: Component.Search(),
+      grow: true,
+    },
+    { Component: Component.RssLink() },
+  ],
+})
+
+const sidebarReadingControls = Component.Flex({
+  components: [{ Component: Component.Darkmode() }, { Component: Component.ReaderMode() }],
+  gap: "0.8rem",
+})
+
+const sidebarThemeControls = Component.Flex({
+  components: [{ Component: Component.Darkmode() }],
+  gap: "0.8rem",
+})
+
 // components shared across all pages
 export const sharedPageComponents: SharedLayout = {
   head: Component.Head(),
@@ -51,17 +71,7 @@ export const defaultContentPageLayout: PageLayout = {
   left: [
     Component.PageTitle(),
     Component.MobileOnly(Component.Spacer()),
-    Component.Flex({
-      components: [
-        {
-          Component: Component.Search(),
-          grow: true,
-        },
-        { Component: Component.RssLink() },
-        { Component: Component.Darkmode() },
-        { Component: Component.ReaderMode() },
-      ],
-    }),
+    sidebarPrimaryActions,
     Component.LanguageSwitcher(),
     Component.ConditionalRender({
       component: Component.DesktopOnly(Component.TableOfContents()),
@@ -71,6 +81,7 @@ export const defaultContentPageLayout: PageLayout = {
       component: Component.QuoteExhibit(),
       condition: (page) => page.fileData.slug === "index",
     }),
+    sidebarReadingControls,
   ],
   right: [
     Component.Graph({
@@ -108,17 +119,9 @@ export const defaultListPageLayout: PageLayout = {
   left: [
     Component.PageTitle(),
     Component.MobileOnly(Component.Spacer()),
-    Component.Flex({
-      components: [
-        {
-          Component: Component.Search(),
-          grow: true,
-        },
-        { Component: Component.RssLink() },
-        { Component: Component.Darkmode() },
-      ],
-    }),
+    sidebarPrimaryActions,
     Component.LanguageSwitcher(),
+    sidebarThemeControls,
   ],
   right: [],
 }
