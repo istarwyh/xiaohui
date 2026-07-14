@@ -3,7 +3,7 @@ name: absorb
 description: |
   Absorb new content into the xiaohui.cool blog knowledge base. When the user pastes a paragraph, article, link, personal experience, or any piece of information they want to "absorb", this skill searches the existing blog and decides the best placement across three layers: portfolio (what I can do), journey (why I became this person), and knowledge (what I have learned). Always use this skill when the user says "absorb", "吸收", "纳入博客", "整理进笔记", "放到博客里", or asks where new material should go in the blog.
 created: 2026-05-13
-modified: 2026-07-13
+modified: 2026-07-14
 ---
 
 # Absorb — Content Absorption into xiaohui.cool
