@@ -459,8 +459,8 @@ document.addEventListener("nav", () => {
     const data = shareData()
     const url = data.url ?? canonicalUrl()
     const canvas = document.createElement("canvas")
-    const width = 1200
-    const height = 720
+    const width = 1144
+    const height = 632
     canvas.width = width
     canvas.height = height
 
@@ -470,14 +470,14 @@ document.addEventListener("nav", () => {
     const ink = "#111827"
     const muted = "#4b5563"
     const accent = "#2563eb"
-    const panel = "#ffffff"
     const border = "#e5e7eb"
-    const cardX = 28
-    const cardY = 44
-    const cardWidth = width - cardX * 2
-    const cardHeight = height - cardY * 2
-    const dividerX = 456
-    const textX = 510
+    const panel = "#ffffff"
+    const cardX = 0
+    const cardY = 0
+    const cardWidth = width
+    const cardHeight = height
+    const dividerX = 428
+    const textX = 482
     const textRightPadding = 56
     const textWidth = cardX + cardWidth - textRightPadding - textX
     const qrBoxSize = 356
@@ -485,13 +485,13 @@ document.addEventListener("nav", () => {
     const qrBoxX = cardX + 52
     const qrBoxY = (height - qrBoxSize) / 2
     const qrPadding = (qrBoxSize - qrImageSize) / 2
-    const titleY = 166
+    const titleY = 122
     const titleLineHeight = 64
 
-    context.fillStyle = "#f5f7fb"
+    context.fillStyle = panel
     context.fillRect(0, 0, width, height)
 
-    drawRoundedRect(context, cardX, cardY, cardWidth, cardHeight, 30)
+    drawRoundedRect(context, 1, 1, width - 2, height - 2, 30)
     context.fillStyle = panel
     context.fill()
     context.strokeStyle = border

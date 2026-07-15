@@ -108,7 +108,7 @@ const config: QuartzConfig = {
       }),
       Plugin.AgentIndex({
         siteDescription:
-          "晓灰的公开数字花园，聚焦 AI Agent、MCP、软件工程、学习、社会观察与个人思考。",
+          "晓灰的公开数字花园，聚焦 AI Agent、MCP、软件工程、Agent 投资系统、学习、社会观察与个人思考。",
       }),
       Plugin.CustomOgImages({
         colorScheme: "lightMode",

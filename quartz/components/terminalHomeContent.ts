@@ -43,34 +43,35 @@ export const identityBadges: BadgeItem[] = [
   { text: "蚂蚁 P7 · Agent 专家" },
   { text: "百万 MAU「保险快查」Agent 负责人" },
   { text: "MCPAdvisor 作者" },
+  { text: "Agent 投资系统建设中" },
 ]
 
-// 手选 pillar content：代表「晓灰 = AI Agent 实践者」的核心叙事
+// 手选 pillar content：保留 Agent 工程身份，同时露出 Agent 投资系统的新主线
 export const featuredItems: FeaturedItem[] = [
   {
-    slug: "program/llm/相比层出不穷的 Agent 框架，不变的 Agent Protocol 是什么",
-    title: "相比层出不穷的 Agent 框架，不变的 Agent Protocol 是什么",
-    desc: "★ 超越 Agent Runtime 的不变协议",
+    slug: "agent-investing",
+    title: "Agent 投资系统",
+    desc: "技术、投资与个人决策系统",
   },
   {
-    slug: "program/llm/从Claude Code到 OneAgent：如何做好上下文工程",
-    title: "从 Claude Code 到 OneAgent：上下文工程年度总结",
-    desc: "★ 我的 Agent 方法论",
+    slug: "invest/投资认识论-概率认知与仓位映射",
+    title: "投资认识论：概率认知与仓位映射",
+    desc: "把判断转成概率和仓位",
+  },
+  {
+    slug: "invest/债权经济学投资框架",
+    title: "债权经济学投资框架",
+    desc: "先问钱从哪里来",
   },
   {
     slug: "program/llm/从RAG到DeepResearch：复杂业务报告生成的上下文工程",
     title: "从 RAG 到 Deep Research：复杂业务报告生成的上下文工程",
-    desc: "Agent 架构思考",
+    desc: "可追溯研究链路",
   },
   {
     slug: "program/practices/如何打造可靠的Agent系统",
     title: "如何打造可靠的 Agent 系统",
-    desc: "工程化经验",
-  },
-  {
-    slug: "program/llm/如何快速创建领域Agent - OneAgent + MCPs 范式",
-    title: "OneAgent + MCPs：如何快速创建领域 Agent",
-    desc: "蚂蚁保领域 Agent 落地实践",
+    desc: "先可靠，再自动化",
   },
 ]
 
@@ -135,7 +136,7 @@ const zhHomeContent: TerminalHomeContent = {
   copy: {
     titlebar: "xiaohui@blog:~",
     whoamiLine: "晓灰 · 赛博农夫 · 写代码也写字",
-    whoamiDim: "一个关于 AI Agent、工程实践与思考的数字花园",
+    whoamiDim: "一个关于 AI Agent、工程实践、投资系统与长期学习的数字花园",
     aboutLabel: "关于我",
     journeyPitch: "比作品集更重要的是成长路径：求学、工程、业务、Agent，以及每次认知升级。",
     journeyLinkText: "查看晓灰的成长时间线",

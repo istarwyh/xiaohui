@@ -38,6 +38,7 @@ export const sharedPageComponents: SharedLayout = {
     links: {
       关于我: "/Farming-in-the-cyber-world",
       成长时间线: "/journey",
+      "Agent 投资": "/agent-investing",
       GitHub: "https://github.com/istarwyh",
       赛博农耕: "/Cyber-Farmer",
       "Agent 诊断": "/consulting",
