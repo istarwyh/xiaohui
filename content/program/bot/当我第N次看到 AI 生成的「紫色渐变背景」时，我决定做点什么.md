@@ -1,6 +1,6 @@
 ---
 created: 2026-01-24T11:27:45+08:00
-modified: 2026-01-24T11:27:45+08:00
+modified: 2026-07-22T12:49:11+08:00
 published: 2026-01-24T11:27:45+08:00
 ---
 
@@ -117,6 +117,7 @@ python scripts/run.py ask_gemini.py \
 
 ## 相关链接
 
+- **`Kill AI Slop`**: https://killaislop.com/ — `AI Slop` 前端图鉴和检查清单，专门拆蓝紫渐变、玻璃卡片、渐变标题、徽章滥用这类模板味。
 - **Agent-Plugins 仓库**: https://github.com/istarwyh/agent-plugins
 - **Gemini-Plugin**: https://github.com/istarwyh/agent-plugins/tree/master/plugins/gemini-plugin
 - **Frontend-Design Skill**: https://github.com/anthropics/claude-code/tree/main/plugins/frontend-design
