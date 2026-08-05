@@ -6,6 +6,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOOK_DIR="$ROOT/.git/hooks"
+NODE_BIN_DIR="$(dirname "$(command -v node)")"
 mkdir -p "$HOOK_DIR"
 
 # ---------------------------------------------------------------------------
@@ -19,6 +20,9 @@ cat > "$HOOK_DIR/pre-commit" <<'HOOK'
 #!/usr/bin/env bash
 # Auto-installed by scripts/install-hooks.sh
 set -e
+HOOK
+printf 'export PATH=%q:"$PATH"\n\n' "$NODE_BIN_DIR" >> "$HOOK_DIR/pre-commit"
+cat >> "$HOOK_DIR/pre-commit" <<'HOOK'
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
@@ -58,6 +62,9 @@ cat > "$HOOK_DIR/pre-push" <<'HOOK'
 #!/usr/bin/env bash
 # Auto-installed by scripts/install-hooks.sh
 set -e
+HOOK
+printf 'export PATH=%q:"$PATH"\n\n' "$NODE_BIN_DIR" >> "$HOOK_DIR/pre-push"
+cat >> "$HOOK_DIR/pre-push" <<'HOOK'
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
