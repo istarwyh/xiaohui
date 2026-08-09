@@ -1,6 +1,6 @@
 ---
 created: 2026-06-16
-modified: 2026-07-14
+modified: 2026-08-09
 published: 2026-06-16
 ---
 
@@ -109,14 +109,11 @@ Agent Runtime 是 Agent 的执行环境，负责：接收输入 → 调用 LLM �
 
 ### 1.4 最小生命周期：一个 Agent 任务到底经历了什么
 
-
-不管采用哪种框架，生产级 Agent Runtime 都绕不开同一个生命周期：
+一次任务进入生产环境后，会依次经过创建、领取、执行、暂停或取消，再提交终态。
 
 ![](https://oss-ata.alibaba.com/article/2026/06/31036aa5-cb92-4a50-8668-3372f0ac51ea.png)
 
-这里最关键的概念是 **Run**。Thread/Session 描述长期上下文，Run 描述一次具体执行。没有 Run 这个边界，就很难定义超时、取消、Trace、成本、权限审批和最终结果。
-
-从协议角度看，这条生命周期可以被映射成一组稳定对象：
+`Thread/Session` 描述长期上下文，`Run` 描述一次具体执行。超时、取消、`Trace`、成本、权限审批和最终结果都需要绑定到明确的 `Run`。
 
 | Protocol 对象 | Runtime 含义 | 典型来源 |
 |---------------|--------------|----------|
@@ -128,9 +125,75 @@ Agent Runtime 是 Agent 的执行环境，负责：接收输入 → 调用 LLM �
 | **Event** | 进展增量 | SSE event、status update、artifact update |
 | **Checkpoint / State** | 可恢复状态 | LangGraph Checkpoint、State Snapshot |
 
-后文的八个维度，本质上就是解释这些对象如何被 Runtime 实现。
+`WORKING -> CANCELED` 之间可能隔着三台机器：取消请求落到 `API-2`，`Run` 实际由 `Worker-7` 执行，后者又派生了三个子 `Agent`。一条状态箭头没有说明信号怎样找到它们，也没有说明迟到结果如何被拒绝。
 
-为了避免后文变成框架名词堆叠，全文可以按这条任务生命周期阅读：
+下面用 `LangGraph Agent Server` 作参照，把一次请求经过的持久化、调度、执行和事件传递边界画出来。这不是所有 `Runtime` 必须照搬的实现。
+
+```text
+Client
+  │ POST /threads/{thread_id}/runs
+  ▼
+API Server ── 创建 Run、保存输入和状态 ──► PostgreSQL
+  │
+  └── 发送唤醒信号 ──► Redis / Message Broker
+                              │
+                              ▼
+                         Queue Worker
+                              │ 领取 Run、获得 lease、加载 graph
+                              │
+                              ├──► LLM / Tool / Subagent
+                              ├──► PostgreSQL：checkpoint、状态、artifact
+                              └──► Redis PubSub：event、cancel signal、heartbeat
+                                                   │
+                                                   ▼
+                                            API Server ── SSE ──► Client
+```
+
+请求不是先完整上传到 `Redis`，再由每个进程复制一份状态。`API Server` 先创建可持久化的 `Run`；消息系统只负责叫醒 `Worker`、传递取消信号和转发实时事件，`Worker` 再根据 `run_id` 到数据库读取完整输入。`Redis` 丢掉一条临时通知不应该等于丢掉任务，`SSE` 断开也不应该等于任务消失。
+
+`Run` 执行相关的信息会出现在三个位置，但只有一处能承担故障恢复：
+
+| 状态位置 | 保存什么 | 不应该承担什么 |
+|----------|----------|----------------|
+| **持久化事实源** | `Thread`、`Run`、输入、状态机、`Checkpoint`、父子任务关系、取消版本 | 依赖某个进程存活的临时执行对象 |
+| **临时协调层** | 队列唤醒、`PubSub`、流式事件、`heartbeat`、短期租约元数据 | 用户数据和唯一一份 `Run` 状态 |
+| **Worker 本地状态** | 当前图实例、协程句柄、本地 `CancellationToken`、尚未提交的结果 | 跨故障恢复所需的唯一状态 |
+
+一次 `Run` 会经过下面几个阶段。
+
+1. `API Server` 校验请求，创建 `Run`，把输入和初始状态写入持久化存储。只有这一步成功，客户端才拿到稳定的 `run_id`。
+2. `Worker` 从队列领取任务并获得一次执行租约。多实例环境需要保证同一次 `RunAttempt` 只归一个 `Worker` 所有；`Agent Server` 用 `PostgreSQL MVCC` 约束这一点，而不是靠一把长时间持有的分布式锁。
+3. `Worker` 执行模型、工具和子 `Agent`，在步骤边界保存 `Checkpoint`，同时发布事件。实时事件可以走临时 `PubSub`；如果协议承诺断线补收，还要额外持久化事件片段。已完成的状态提交不能只存在事件流里。
+4. 执行需要人类输入时进入 `INPUT_REQUIRED`；收到用户取消时先进入 `CANCEL_REQUESTED`。前者等待 `resume`，后者要求整个任务树停止产生新工作。两者都不等于直接杀掉某条 `HTTP` 连接。
+5. 完成、失败或取消时，`Worker` 以带版本条件的写入提交终态。提交失败或版本已经变化，就丢弃这份迟到结果，不能把它覆盖到已经取消的 `Run` 上。
+
+`INPUT_REQUIRED` 和 `CANCEL_REQUESTED` 必须显式进入状态机：
+
+```text
+SUBMITTED ──► PENDING / QUEUED ──► RUNNING ──► COMPLETED
+                                      │
+                                      ├──► INPUT_REQUIRED ──► RUNNING
+                                      ├──► CANCEL_REQUESTED ──► INTERRUPTED / CANCELED
+                                      ├──► FAILED
+                                      └──► TIMED_OUT
+```
+
+用户按下取消到任务进入终态之间存在时间差。模型请求可能仍在网络中，工具可能正在写外部系统，子 `Agent` 也可能运行在另一台机器上。此时前端显示取消已受理，调度器停止创建新工作，审计记录仍未结束的调用和副作用。
+
+取消也不是让每个节点都查询一次 `Redis`。持有该 `Run` 的 `Worker` 收到取消通知后更新本地 `CancellationToken`，执行循环在以下安全边界检查它：
+
+- 进入下一个节点或下一轮 `ReAct Loop` 前
+- 调用模型、工具之前和返回之后
+- 创建子 `Agent` 之前
+- 写入 `Checkpoint`、`Artifact` 或最终答案之前
+
+关键写入需要携带 `Worker` 启动时读取的 `run_version` 或 `cancel_epoch`。如果取消操作已经把版本从 7 推进到 8，数据库就拒绝版本 7 产生的模型结果、工具结果和最终答案。`PubSub` 缩短通知延迟，条件更新负责拒绝迟到提交。
+
+这仍然不能自动撤销外部副作用。任务在取消前已经发出的邮件、创建的订单、提交的代码不会因为 `Run` 变成 `CANCELED` 而消失。工具边界还要提供超时、幂等键、事务或补偿动作。生产系统能够承诺的是停止创建新工作、阻止迟到结果提交、记录无法撤销的副作用，而不是让每个远程调用在同一毫秒物理停止。
+
+故障恢复沿用同一套边界。`Worker` 定期上报 `heartbeat`；租约过期后，清扫任务把 `Run` 重新入队，新 `Worker` 从最近的持久化 `Checkpoint` 继续。这里保证的是“一次尝试只由一个 `Worker` 持有”，不等于外部副作用天然具备端到端 `exactly-once`。如果所有计算节点同时宕机，只要持久化事实源仍在，服务恢复后就能重新调度；如果数据库和备份也一起丢失，任何协议都无法凭空恢复执行历史。
+
+#### 生命周期与后文章节
 
 | 生命周期阶段 | 主要协议对象 | 后文对应部分 |
 |--------------|--------------|--------------|
@@ -166,7 +229,7 @@ Agent Runtime 是 Agent 的执行环境，负责：接收输入 → 调用 LLM �
 
 | 框架 | 全称 | 核心定位 | 版本基准 |
 |------|------|---------|---------|
-| **LangGraph** | LangGraph + LangGraph Platform | 图执行引擎 + Agent Server | 0.3.x |
+| **LangGraph** | LangGraph + LangGraph Platform | 图执行引擎 + Agent Server | 1.2.x |
 | **Deep Agents** | Deep Agents SDK（built on LangGraph） | 面向复杂任务的 Agent Harness | 2026.06 |
 | **OpenAI** | Assistants API + Responses API + Agents SDK | 托管式 Agent Runtime | 2025.04 |
 | **AutoGen** | AutoGen 0.4（Core + AgentChat） | 多 Agent 对话框架 | 0.4.x |
@@ -294,18 +357,17 @@ while not done:
 
 Deep Agents 的位置很特殊：它不重新发明 Runtime Loop，而是把 LangGraph 的 durable execution、streaming、checkpointing、人机协作能力包装成一个默认可用的 harness。对协议设计来说，这意味着外部对象仍然是 Thread/Run/Event/Artifact，但内部多了 todo list、virtual filesystem、subagent task、skill、backend 这些更贴近复杂任务的中间对象。
 
-从协议角度看，这个循环就是 `Task/Run` 状态机的内部实现：
+`Task/Run` 状态机需要把每轮执行后的可观察状态暴露给客户端：
 
 ```sh
-SUBMITTED ──► WORKING ──► INPUT_REQUIRED ──► WORKING ──► COMPLETED
-                  │              │
-                  │              └── 等待 Message / Resume / Authorization
-                  │
-                  ├──► FAILED
-                  └──► CANCELED
+RUNNING ──► COMPLETED
+   │
+   ├──► INPUT_REQUIRED ──► RESUME ──► RUNNING
+   ├──► CANCEL_REQUESTED ──► INTERRUPTED / CANCELED
+   └──► FAILED / TIMED_OUT
 ```
 
-A2A 把这类状态显式放进 Task；OpenAI 把它放进 Run；LangGraph Server 则通过 Thread/Run stream 暴露生命周期事件。对象名不同，但协议都需要向客户端回答同一个问题：**这次执行现在处于什么状态，客户端下一步能做什么？**
+`A2A` 把这类状态显式放进 `Task`；`OpenAI` 把它放进 `Run`；`LangGraph Server` 则通过 `Thread/Run stream` 暴露生命周期事件。对象名不同，但协议都需要向客户端回答同一个问题：**这次执行现在处于什么状态，客户端下一步能做什么？**
 
 ![](https://oss-ata.alibaba.com/article/2026/06/be52f98c-8276-4bed-b0af-4621a2dad8f6.png)
 
@@ -510,14 +572,19 @@ OpenAI Assistants 把 Thread 和 Run 显式暴露出来；LangGraph 把 Thread �
 
 #### 4.1 通用概念
 
-中断与恢复定义了 Agent 执行如何暂停（通常等待人类输入）以及如何从暂停点继续。这是 Human-in-the-Loop 的基础设施。
+`interrupt/resume`、`cancel` 和 `rollback` 都会停止当前执行，但它们保留的状态和允许的后续动作不同。
 
-**子概念**：
+- `interrupt / resume` 保留继续执行的意图，任务在等一个值、一次审批或一份授权。
+- `cancel` 撤销继续执行的意图，任务要停止创建新工作并进入终态。
+- `rollback` 不只停止执行，还丢弃这次 `Run` 产生的内部状态；外部副作用仍要单独补偿。
 
-- 中断触发 (Interrupt Trigger)：什么条件下暂停——到达特定节点、需要工具审批、主动请求人类输入
-- 中断状态 (Interrupt State)：暂停时保存了什么——完整状态快照、对话历史、什么都没保存
-- 中断载荷 (Interrupt Payload)：暴露给人类的信息——"Agent 想调用这个工具，你同意吗？"
-- 恢复机制 (Resume Mechanism)：人类如何提供输入并让 Agent 继续——提交数据、选择选项、直接回复
+| 对象 | `Runtime` 需要记录什么 |
+|------|------------------------|
+| **中断点** | 哪个节点、工具审批或业务条件触发暂停 |
+| **中断状态** | 状态快照是否已经持久化，是否依赖原进程继续存活 |
+| **中断载荷** | 向人类暴露的问题、待审批动作和候选项 |
+| **返回路由** | 输入对应的 `Thread`、`Run` 和 `interrupt_id` |
+| **取消传播** | 当前 `Worker`、并行分支和远程子 `Agent` 的停止状态 |
 
 #### 4.2 跨框架映射
 
@@ -545,9 +612,9 @@ Agent 恢复 ◄── 从快照加载状态 ◄── 接收人类输入 ◄─
 
 ![](https://oss-ata.alibaba.com/article/2026/06/c8c7d93b-cd7e-4dbe-bc83-b84684420aa8.png)
 
-**关键约束**：真正的中断/恢复**需要状态持久化**。如果框架没有持久化能力（Claude SDK、Agents SDK），就只能做同步的"ask and wait"——进程不能退出，用户必须立即回复。
+`ask and wait` 如果只保存在内存里，进程退出时，中断点和待提交载荷会一起丢失；部署、扩容或故障后，输入也无法路由回原来的执行点。
 
-LangGraph 的方案是最完整的：
+`LangGraph` 把中断载荷写入 `Checkpoint`，再通过 `Command` 把恢复值送回中断点：
 
 ```python
 # 节点内主动中断，传递任意载荷
@@ -567,7 +634,61 @@ def review_node(state):
 graph.invoke(Command(resume="发布"), config)
 ```
 
-#### 4.4 设计决策分析
+#### 4.4 `LangGraph interrupt()` 到底做了什么
+
+`interrupt()` 不是每经过一个节点就查询一次 `Redis`，也不是把正在运行的 `Python` 栈冻结到数据库。节点第一次调用它时，内部先查看当前任务的 `scratchpad` 里有没有对应的 `resume` 值：有就直接返回；没有就抛出 `GraphInterrupt`。图引擎捕获这个特殊控制信号，把中断载荷和图状态交给 `Checkpointer`，本次执行到此结束。
+
+恢复时，调用方使用相同的 `thread_id` 再次执行图，并传入 `Command(resume=value)`。`LangGraph` 从 `Checkpoint` 加载状态，重新进入发生中断的节点；当代码再次走到同一个 `interrupt()` 时，才从 `scratchpad` 取出 `resume` 值并返回。
+
+**`resume` 会从中断节点开头重新执行，不会从调用 `interrupt()` 的那一行 `Python` 代码原地续跑。**
+
+```python
+def review_node(state):
+    audit_log("ready_for_review")  # resume 后会再次执行
+    approved = interrupt({"draft": state["draft"]})
+    publish()                       # 只有批准后才执行
+    return {"approved": approved}
+```
+
+因此 `interrupt()` 之前的副作用必须幂等，或者被拆到已经完成并保存 `Checkpoint` 的前一个节点。多个动态中断还要保持调用顺序稳定，否则旧 `Checkpoint` 中保存的第一个恢复值，可能在新代码里落到另一个中断点上。
+
+#### 4.5 四种名字相近、行为不同的控制动作
+
+`interrupt` 出现在四类 `API` 中，但它们停止的对象、保留的状态和允许的后续动作并不相同。
+
+| 动作 | 目的 | 运行时行为 | 后续动作 |
+|------|------|------------|----------|
+| **节点内 `interrupt(payload)`** | 业务审批或补充输入 | 抛出 `GraphInterrupt`，保存图状态和载荷 | 相同 `thread_id` + `Command(resume=...)` |
+| **`interrupt_before / interrupt_after`** | 调试断点 | 在节点前后暂停，依赖 `Checkpointer` | 以 `None` 继续到下一个断点 |
+| **`runs.cancel(action="interrupt")`** | 用户终止部署中的 `Run` | 停止执行该 `Run` 的 `Worker`，状态变为 `interrupted`，保留已完成 `Checkpoint` | 检查、审计，或从某个快照分支执行 |
+| **`runs.cancel(action="rollback")`** | 放弃本次 `Run` 的内部痕迹 | 停止执行，删除该 `Run` 及其 `Checkpoint`，线程状态回到运行前 | 无法再恢复或检查该 `Run` |
+
+节点内 `interrupt()` 是“我还要继续，但需要一个值”；取消接口的 `action="interrupt"` 是“这次 `Run` 不再继续，但把现场留下”。后者保留内部状态，不代表已经发出的邮件、订单或远程请求会被回滚。
+
+#### 4.6 跨进程取消不是逐节点查 `Redis`
+
+当 `API Server` 和执行任务的 `Worker` 不在同一个进程时，取消需要一条控制链：
+
+```text
+POST /runs/{run_id}/cancel
+        │
+        ├──► 持久化 CANCEL_REQUESTED，推进 cancel_epoch
+        └──► Redis / Broker 通知 run_id 对应的 Worker
+                                      │
+                                      ▼
+                             本地 CancellationToken
+                                      │
+                                      ▼
+                         安全边界停止 + 带版本条件提交终态
+```
+
+`LangGraph Agent Server` 使用 `Redis string + PubSub` 把取消请求路由给持有该 `Run` 的 `Worker`。因此取消请求落到任意一个无状态 `API Server` 都可以处理，不需要命中创建任务时的那台机器。`Redis` 在这里是控制信号的快速通道，`Run` 和用户数据仍以持久化存储为准。
+
+`PubSub` 通知可能晚于模型或工具返回。`Worker` 在创建子任务、写入 `Checkpoint` 和提交终态前检查本地令牌，关键写入再携带 `cancel_epoch` 做条件更新；数据库中的版本已经变化时，本次写入直接失败。
+
+底层模型客户端或工具支持取消时，可以进一步终止网络请求；不支持时，只能等待调用返回，再丢弃结果。直接杀进程可以更快，却会留下未关闭资源、半完成写入和难以判断的外部副作用，通常只适合作为超时后的最后手段。
+
+#### 4.7 设计决策分析
 
 | 方案 | 优势 | 劣势 |
 |------|------|------|
@@ -576,13 +697,9 @@ graph.invoke(Command(resume="发布"), config)
 | **AutoGen：HandoffTermination** | 用 Handoff 统一了人机和 Agent 间交互 | 状态需手动保存，恢复不是从断点继续 |
 | **Claude SDK：interrupt()** | 极简——发信号停止 | 没有恢复，只能重新开始 |
 
-#### 4.5 本章结论
+#### 4.8 本章结论
 
-中断/恢复回答“任务暂停后能否从原位置继续”。它不是独立能力，而是状态管理的直接延伸：只有 Runtime 能保存精确状态，才可能几小时后从同一个断点继续。
-
-中断/恢复是各框架实现差距最大的维度。LangGraph 的方案领先，是因为它把 Checkpoint 和 Interrupt 深度整合；其他框架要么只支持工具审批，要么只能做同步等待或重新开始。
-
-因此 Human-in-the-Loop 的基础设施不是一个 ask-user API，而是“状态快照 + 中断载荷 + 恢复指令 + 权限上下文”的组合能力。
+原生 `interrupt()` 处理一张图内部的暂停和恢复。部署中的用户取消还要持久化 `CANCEL_REQUESTED`、通知对应 `Worker`、更新本地取消令牌，并用条件写拒绝迟到结果；子 `Agent` 跨出当前服务后，这些动作还必须被序列化成跨服务协议。
 
 ---
 
@@ -779,7 +896,7 @@ OpenAI Agents SDK 把 Guardrails、Human-in-the-loop、Tracing 做成 Runtime �
 |------|-------------------|------------------|------------|---------|------------|
 | **传输** | SSE | SSE / 轮询 | Python AsyncGen | Python AsyncGen | Python AsyncGen |
 | **粒度** | 9 种 StreamMode 可组合 | 固定事件类型 | StreamEvent | 消息级 | 事件级 |
-| **可恢复** | **支持**（Last-Event-ID + Redis Stream） | 不支持 | 不支持 | 不支持 | 不支持 |
+| **可恢复** | **支持**（`Thread stream`；`Run stream` 需开启持久化） | 不支持 | 不支持 | 不支持 | 不支持 |
 | **自定义事件** | `get_stream_writer()` | 不支持 | 不支持 | 不支持 | 不支持 |
 | **子图/子 Agent** | `stream_subgraphs=True` | N/A | 不支持 | Topic 订阅 | N/A |
 
@@ -792,16 +909,9 @@ OpenAI Agents SDK 把 Guardrails、Human-in-the-loop、Tracing 做成 Runtime �
 | **Library（进程内）** | Python AsyncGenerator | 不需要（进程内不会断连） | Agents SDK、Claude SDK、AutoGen |
 | **Server（跨网络）** | SSE / WebSocket | **必须考虑**（网络会断） | LangGraph Platform、OpenAI Assistants |
 
-LangGraph Platform 的可恢复流是目前唯一完整的实现：
+`LangGraph Deployment` 把实时传输和断线补收拆成了两件事。运行中的输出通过 `Redis PubSub` 从 `Worker` 转给 `API Server`，普通 `join_stream` 不会补发订阅前的输出；创建 `Run` 时开启 `stream_resumable=true`，服务端才会持久化流片段，客户端随后用 `Last-Event-ID` 补收。`Thread stream` 也支持按最后事件 ID 恢复。
 
-- Producer：将事件持久化到 Redis Stream（`XADD`）
-- Consumer：先 Catch-up 回放历史事件（`XREAD`），再 Live Tail 实时事件
-- 客户端通过 `Last-Event-ID` 标识断点位置
-- 服务端配置 `stream_resumable: true` + `on_disconnect: "continue"`
-
-![](https://oss-ata.alibaba.com/article/2026/06/d616c1ab-86a4-4a9f-a1a9-1d500fecf466.png)
-
-*可恢复 SSE 的关键是先基于 Last-Event-ID 回放历史事件，再切换到实时 Live Tail。*
+`PubSub` 是实时通道，不是事件日志。只接上 `SSE + Redis PubSub`，能做到水平扩容后的实时转发，做不到断线期间的完整回放。协议一旦承诺可恢复流，必须再回答事件片段存在哪里、保存多久、如何去重。
 
 #### 7.4 `SSE` 的句柄边界：指向 `Run`，不指向连接
 
@@ -820,12 +930,12 @@ POST /runs/{runId}/cancel
 -> 取消该 Run
 ```
 
-这里的 `runId` 像一个受控句柄。创建接口登记 `Run`、状态机、事件日志和取消能力；消费方拿 `runId` 订阅事件、查询快照、取消任务。`SSE` 只是其中一种传输绑定，断线后仍然能用 `Last-Event-ID` 回到同一条事件日志上。
+这里的 `runId` 像一个受控句柄。创建接口登记 `Run`、状态机、事件日志和取消能力；消费方拿 `runId` 订阅事件、查询快照、取消任务。`SSE` 只是其中一种传输绑定；开启可恢复流后，断线客户端才能用 `Last-Event-ID` 回到持久化的事件片段上。
 
 内部仍然可以有连接表，但它应该是短命的订阅关系：
 
 ```text
-runId -> durable event log / state snapshot / cancel token
+runId -> persisted stream chunks (optional) / state snapshot / cancel state
 runId -> subscribers[]
 ```
 
@@ -833,7 +943,7 @@ runId -> subscribers[]
 
 普通通知通道不必这么做。如果连接断开就代表业务结束，没有后台状态、没有重放、没有取消、没有快照，直接用当前用户的 `SSE` 通道会更简单。只有创建和消费需要分离时，句柄才值当。任务先创建，客户端随后订阅、断线重连、取消或查快照。
 
-落地时有几件事不能省。`runId` 不要可猜；每次订阅、查询、取消都要校验权限；终态后的事件日志和快照要有 `TTL`；水平扩容时事件日志不能只放在单机内存里，除非明确依赖粘性会话；长连接需要心跳，不然网关可能安静地切断连接。
+落地时有几件事不能省。`runId` 不要可猜；每次订阅、查询、取消都要校验权限；开启可恢复流时，终态后的事件片段和快照要有 `TTL`；水平扩容时这些片段不能只放在单机内存里；长连接需要心跳，不然网关可能安静地切断连接。
 
 `SSE` 服务可以句柄化，但句柄应该落在 `Run/Task` 这种业务执行对象上，不落在某条 `HTTP` 连接或 `Response` 对象上。连接只是观察者，`Run` 才是被观察、被取消、被恢复的资源。
 
@@ -843,7 +953,7 @@ runId -> subscribers[]
 
 流式能力与部署形态高度相关。进程内 `Agent` 可以用 `AsyncGenerator`；跨网络部署后，客户端断线、服务端继续执行、之后补收事件会反复发生，`SSE` 和可恢复流就不再是可选项。
 
-别把 `streaming` 写成 `token` 打字机。事件日志要能持久化、能按 `Last-Event-ID` 补收；`SSE` 的句柄落在 `Run/Task` 上，连接只负责订阅。
+别把 `streaming` 写成 `token` 打字机。若接口承诺断线恢复，事件片段要能持久化、能按 `Last-Event-ID` 补收；`SSE` 的句柄落在 `Run/Task` 上，连接只负责订阅。
 
 ---
 
@@ -893,13 +1003,36 @@ runId -> subscribers[]
 | **群聊选择** | 最灵活，适合开放式协作 | 难以调试，选择器可能震荡 | 头脑风暴、多角色讨论 |
 | **发布-订阅** | 解耦、可扩展、支持分布式 | 复杂度高，调试困难 | 大规模 Agent 集群 |
 
-#### 8.5 本章结论
+#### 8.5 中断能传播多远，取决于子 `Agent` 是什么
 
-多 Agent 协作回答“多个 Agent 或 Runtime 如何围绕同一个任务分工”。它建立在执行模型、工具协议和状态隔离之上，但目前也是最不该过早押注的维度。
+“取消主 `Agent` 时，怎样取消每一个子 `Agent`”没有一个只靠递归调用就能成立的答案。先要看这些子 `Agent` 是否仍在同一个 `Runtime` 边界内。
 
-多 Agent 是最碎片化的方向。更准确地说，图式 Runtime 能用图结构承载多种协作模式，对话框架会把群聊选择做成原生表面，代码式 SDK 会把 Handoff 做成原生表面；这些模式服务于不同执行假设，不会很快统一。
+| 运行边界 | 子任务是什么 | 原生中断能力 | 还缺什么 |
+|----------|--------------|--------------|----------|
+| **同一张 `CompiledGraph` 内的子图** | 同一次图执行里的嵌套节点 | 子图默认继承父图 `Checkpointer`；子图里的 `interrupt()` 会向顶层传播 | 中断前副作用幂等、并行中断按 `interrupt_id` 恢复 |
+| **同一部署中的独立 `Run`** | 由队列中另一个 `Worker` 执行的子任务 | 服务端能按 `run_id` 路由恢复或取消 | 显式记录父子 `Run`，取消时遍历任务树 |
+| **`RemoteGraph` 或其他远程服务** | 跨 `HTTP/gRPC` 创建的另一项任务 | 本地 `GraphInterrupt` 无法穿过网络自动暂停远端进程 | 把中断、恢复和取消序列化成协议消息，两端都持久化关联 `ID` |
 
-对大多数业务来说，先把单 Agent 的 Thread、Run、State、Tool、Event 和 Artifact 边界做好，再引入必要的 Handoff 或 Subagent task，比一开始设计复杂群聊拓扑更稳。
+通过 `HTTP` 创建的独立 `Run` 不会接收父进程里的 `GraphInterrupt`。父任务必须持久化下面这些关联字段，才能把恢复值和取消命令路由到远端：
+
+```text
+root_run_id
+└── run_id / parent_run_id
+    ├── child_run_id / child_thread_id
+    ├── interrupt_id
+    ├── status
+    └── cancel_epoch
+```
+
+`interrupt_id` 让一份人类回复回到准确的暂停点；`root_run_id` 和 `parent_run_id` 让调度器找到整棵任务树；`cancel_epoch` 用来拒绝树上任何旧版本的迟到提交。这些 `ID` 如果只放在父 `Agent` 的上下文里，父进程一挂，恢复和取消都会失去路由依据。
+
+根任务取消时，调度器先把根 `Run` 标记为 `CANCEL_REQUESTED` 并推进版本，再查询所有非终态后代，对每个独立子 `Run` 发送幂等取消命令。活着的子任务在安全边界停止；已经完成的子任务保留结果；失联的子任务在租约超时后回收。根任务只有在子任务全部进入终态，或超时后被明确标记为 `orphaned`，才能结束收拢过程。
+
+取消无法让所有子 `Agent` 同时物理停止。收到取消后，调度器拒绝创建新子任务和提交旧版本结果；存活的子任务最终进入终态，失联任务则在超时后标记为 `orphaned`。已经发生的外部副作用进入审计记录，并在工具支持时执行补偿。
+
+#### 8.6 本章结论
+
+对大多数业务来说，先把单 `Agent` 的 `Thread`、`Run`、`State`、`Tool`、`Event` 和 `Artifact` 边界做好，再引入必要的 `Handoff` 或 `Subagent task`，比一开始设计复杂群聊拓扑更稳。子任务跨出当前进程以后，父子 `Run` 关系和控制协议应当先于协作拓扑落地，否则系统能派活，却收不回来。
 
 ---
 
@@ -1018,10 +1151,12 @@ Agent 需要同时具备可观测性和可评测性。可观测性需要 OpenTel
 | **Agent Card / Metadata** | 告诉别人我是谁、会什么、怎么调用 | Agent 注册、能力描述、权限声明、版本管理 | 2、6、8 |
 | **Thread / Context** | 承载多轮上下文和参与者 | 会话管理、历史保存、上下文裁剪、参与者隔离 | 3 |
 | **Message / Part** | 表达用户、Agent、工具的通信内容 | 多模态输入、结构化数据、文件引用、消息追加 | 3、6 |
-| **Task / Run** | 表达一次可管理的执行 | 调度、状态机、取消、超时、预算、重试 | 2、4、5 |
+| **Task / Run** | 表达一次可管理的执行 | 持久队列、`RunAttempt`、租约、状态机、超时、预算、重试 | 2、4、5 |
 | **Step / Run Step** | 表达执行内部的可观测步骤 | LLM 调用、工具调用、Handoff、Guardrail 记录 | 2、9 |
 | **Event Stream** | 表达进展增量 | SSE、Last-Event-ID、事件持久化、多通道流 | 7 |
 | **Interrupt / Input Required** | 表达需要人类或外部系统继续 | Checkpoint、resume、审批、授权、表单输入 | 4 |
+| **Cancel / Cancel Requested** | 提交取消请求，并区分 `CANCEL_REQUESTED` 与最终 `CANCELED` | 持久化取消状态、控制信号、`CancellationToken`、版本栅栏 | 1、4 |
+| **Run Relationship** | 表达根任务、父任务和远程子任务的归属 | 任务树、级联取消、定向恢复、孤儿任务回收 | 8 |
 | **Artifact** | 表达任务产物 | 文件管理、产物版本、增量产出、可追溯链接 | 3、7、9 |
 | **Todo / Plan** | 表达长任务的显式计划 | 任务分解、进度跟踪、计划更新、上下文压缩 | 2、8 |
 | **Workspace / Backend** | 表达 Agent 可读写的工作区 | virtual filesystem、shell、store、权限、隔离 | 2、3、6 |
@@ -1029,11 +1164,9 @@ Agent 需要同时具备可观测性和可评测性。可观测性需要 OpenTel
 | **Trace / Span** | 表达执行因果链 | 观测埋点、成本归因、状态关联、审计 | 9 |
 | **Error** | 表达失败和下一步可能动作 | Error-as-Data、异常边界、回滚、重试策略 | 5 |
 
-这张表说明：Agent Protocol 不是 Runtime 之外的"接口文档"，而是 Runtime 架构的反向约束。一个 Runtime 如果无法稳定表达这些对象，就很难被前端、控制台、评测系统、审计系统和其他 Agent 复用。
+前端、控制台、评测系统和审计系统依赖的是稳定的 `Run`、事件、产物和错误对象，而不是 `Runtime` 内部的类名。缺少这些对象时，一次执行无法被跨系统查询、恢复和审计。
 
 ### 10.1 一个好的 Agent Runtime Protocol 应该满足什么
-
-综合 A2A、AITP、ACP、LangGraph Server API、OpenAI Assistants 和 AG-UI 的设计，可以抽象出 9 条协议设计原则：
 
 1. **任务对象一等化**：不能只有 request/response，必须有可查询、可取消、可恢复的 Task/Run
 2. **上下文对象一等化**：Thread/Context 不能只是 messages 数组，还要承载参与者、能力和元数据
@@ -1044,6 +1177,8 @@ Agent 需要同时具备可观测性和可评测性。可观测性需要 OpenTel
 7. **发现与能力声明分离**：Agent metadata 负责发现，Capability 负责表达可选增强能力
 8. **协议绑定可替换**：同一语义对象可以绑定到 REST、SSE、JSON-RPC、gRPC 或消息队列
 9. **观测语义内建**：Trace/Span/Event ID 应该从协议层贯穿到 Runtime 内部
+10. **通知可以丢，任务不能丢**：`PubSub` 丢失后，新的 `Worker` 仍能从持久化 `Run` 状态判断任务应该执行、取消还是恢复
+11. **独立子任务必须保存归属关系**：每个子 `Run` 写入 `root_run_id` 和 `parent_run_id`；否则父进程退出后，取消、恢复和审计都会失去路由依据
 
 ### 10.2 Protocol 与 Runtime 的边界
 
@@ -1123,25 +1258,22 @@ Runtime 则负责：
 
 ### 11.4 如果我从零设计 Agent Runtime Protocol
 
-
-*从零设计 Agent Runtime Protocol 时，外部协议对象应该保持稳定，内部 Runtime 能力则围绕调度、状态、流式、中断、工具、控制面和观测面高内聚实现。*
-
 ![](https://oss-ata.alibaba.com/article/2026/06/99129467-ebaa-4f82-bdfe-2e74144e3014.png)
-
-对图中每个维度，我觉得如果按下面选择从头来最好：
 
 | 维度 | 我的选择 | 理由 |
 |------|---------|------|
 | **协议对象** | Agent / Thread / Run / Step / Message / Event / Artifact / Checkpoint | 这些是外部系统真正依赖的稳定边界 |
-| **执行模型** | 混合：图式 Runtime 做复杂工作流，代码式 Runtime 做简单任务，编排协议按场景选择 | LangGraph 的 `@entrypoint`/`@task` 方向正确——图式能力为底，代码式表面为简 |
-| **状态管理** | Checkpoint-based，自动 per-step 快照 | 这是中断恢复、错误回滚、调试回放的前提 |
+| **执行模型** | 混合：图式 Runtime 做复杂工作流，代码式 Runtime 做简单任务，编排协议按场景选择 | 复杂工作流需要显式分支、并发控制和 `Checkpoint`；简单任务保留普通函数入口 |
+| **任务调度** | 持久化 `Run` + 短期队列信号 + `lease/heartbeat` | 任务不会因消息丢失而消失，`Worker` 宕机后可以重新领取 |
+| **状态管理** | 持久化事实与临时协调分层，自动 `per-step Checkpoint` | 数据库负责恢复，消息系统负责低延迟通知，不让 `Redis` 成为唯一状态 |
 | **工具协议** | 统一 Tool API + Adapter | 不再写框架特定的 Tool wrapper |
-| **流式输出** | SSE + 可恢复流（Redis Stream） | 生产环境断线恢复是刚需 |
-| **中断/恢复** | 通用 `interrupt(payload)` + `resume(value)` | 参考 LangGraph 但简化 `Command` 的复杂度 |
-| **错误恢复** | Error-as-Data 默认，系统错误才 raise | 让 LLM 自主处理工具错误 |
-| **多 Agent** | Sub-graph 做紧耦合，消息协议做松耦合 | 避免把所有 Agent 都塞进同一种编排模型 |
+| **流式输出** | `SSE` + 持久化事件片段 + `Last-Event-ID` | 客户端重连时携带 `Last-Event-ID`，服务端补发遗漏事件；存储不绑定某一种消息系统 |
+| **中断/恢复** | 通用 `interrupt(payload, interrupt_id)` + `resume(interrupt_id, value)` | 让输入回到准确的暂停点，不把恢复和取消混成一个动作 |
+| **取消** | `cancel(run_id, cancel_epoch)` + 协作式检查 + 提交栅栏 | 通知负责尽快唤醒 `Worker`；`cancel_epoch` 已变化时，数据库拒绝迟到结果和终态写入 |
+| **错误恢复** | Error-as-Data 默认，系统错误才 raise | 工具业务错误以结构化结果返回执行循环，运行时异常则把当前 `RunAttempt` 标记为失败 |
+| **多 Agent** | `Subgraph` 做紧耦合，父子 `Run` + 消息协议做跨服务协作 | 图内中断交给 Runtime，跨服务暂停和取消交给显式协议 |
 | **可观测性** | OpenTelemetry Span 作为一等原语 | 每个节点执行自动生成 Span，不依赖特定平台 |
-| **控制面** | 权限、Guardrail、预算、取消内建 | Agent 能产生真实副作用时，控制面就是安全边界 |
+| **控制面** | 权限、Guardrail、预算、取消内建 | 写文件、发请求或创建订单前检查权限、预算和取消状态，并记录审批结果与外部副作用 ID |
 | **工作区** | Workspace/Sandbox 一等化 | 文件、浏览器、代码仓库都属于 Runtime 状态 |
 
 ### 11.5 “用哪个框架”不重要，重点是“我需要什么 Runtime 能力”
@@ -1183,6 +1315,12 @@ Agent 框架还会继续变化。今天是 LangGraph、OpenAI Agents SDK、AutoG
 - LangGraph Platform 文档：https://langchain-ai.github.io/langgraph/cloud/
 - Python SDK：https://github.com/langchain-ai/langgraph-sdk
 - Interrupts 文档：https://docs.langchain.com/oss/python/langgraph/interrupts
+- Subgraphs 文档：https://docs.langchain.com/oss/python/langgraph/use-subgraphs
+- Agent Server 架构：https://docs.langchain.com/langsmith/agent-server
+- Agent Server 扩展与故障恢复：https://docs.langchain.com/langsmith/scalability-and-resilience
+- Agent Server 数据平面：https://docs.langchain.com/langsmith/data-plane
+- Run 取消与回滚：https://docs.langchain.com/langsmith/cancel-run
+- Agent Server Streaming API：https://docs.langchain.com/langsmith/streaming
 
 ### Deep Agents
 - Deep Agents overview：https://docs.langchain.com/oss/python/deepagents/overview
