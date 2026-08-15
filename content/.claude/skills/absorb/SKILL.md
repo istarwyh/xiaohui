@@ -3,7 +3,7 @@ name: absorb
 description: |
   Absorb new content into the xiaohui.cool blog knowledge base. When the user pastes a paragraph, article, link, personal experience, or any piece of information they want to "absorb", this skill searches the existing blog and decides the best placement across three layers: portfolio (what I can do), journey (why I became this person), and knowledge (what I have learned). Always use this skill when the user says "absorb", "吸收", "纳入博客", "整理进笔记", "放到博客里", or asks where new material should go in the blog.
 created: 2026-05-13
-modified: 2026-07-14
+modified: 2026-08-15
 ---
 
 # Absorb — Content Absorption into xiaohui.cool
@@ -92,3 +92,4 @@ Do not proceed without confirmation unless the user explicitly asks you to act a
 - Do not update profile/portfolio surfaces without credible proof of capability, responsibility, or public recognition.
 - Preserve the user's ideas; adapt structure and style without rewriting away the original meaning.
 - Do not add transition glue just because the text feels too abrupt. If a bridge sentence, summary sentence, or "this means..." sentence adds no new object, action, cost, or judgment, delete it instead of making the prose smoother.
+- Organize articles by the movement of perception and judgment, not by covering every related fact or giving each named object its own section. Read `rules/writing-rules.md` before drafting or substantially editing prose.
