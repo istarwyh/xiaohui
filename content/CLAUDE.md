@@ -1,7 +1,7 @@
 ---
 published: 2026-06-30
 created: 2026-05-08
-modified: 2026-07-11
+modified: 2026-08-15
 ---
 
 # CLAUDE.md
@@ -33,6 +33,7 @@ A personal knowledge base and blog managed with Obsidian, published to [xiaohui.
 - **Images**: Hosted on Alibaba Cloud OSS (`xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com`)
 - **Formatting**: Prettier configured — 2 spaces, no tabs, no semicolons, single quotes, 120 char width, LF line endings, no prose wrap
 - **Language**: Primarily Chinese with English technical terms; wrap English technical terms in backticks
+- **Skill metadata**: Repository-local skill Markdown must retain `created` and `modified` frontmatter. When updating a skill or one of its rule files, preserve `created` and set `modified` to the current date. This repository convention takes precedence over generic skill validators that reject those fields.
 
 ## Commit Guidelines
 
