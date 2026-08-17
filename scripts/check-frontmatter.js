@@ -32,6 +32,14 @@ const REQUIRED_GROUPS = {
 }
 // Accept full ISO-8601 datetimes or date-only.
 const ISO_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/
+const IGNORED_PATH_PREFIXES = ["content/slide-deck/"]
+
+function isIgnoredPath(file) {
+  const normalized = file.split(path.sep).join("/")
+  return IGNORED_PATH_PREFIXES.some(
+    (prefix) => normalized === prefix.slice(0, -1) || normalized.startsWith(prefix),
+  )
+}
 
 function getStagedMarkdown() {
   try {
@@ -39,6 +47,7 @@ function getStagedMarkdown() {
     return out
       .split("\n")
       .filter((p) => p.endsWith(".md") && p.startsWith("content/"))
+      .filter((p) => !isIgnoredPath(p))
       .filter((p) => fs.existsSync(p))
   } catch {
     return []
@@ -51,6 +60,7 @@ function getAllMarkdown(root = "content") {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       if (e.name.startsWith(".") || e.name === "node_modules" || e.name === "public") continue
       const p = path.join(dir, e.name)
+      if (isIgnoredPath(p)) continue
       if (e.isDirectory()) walk(p)
       else if (e.name.endsWith(".md")) out.push(p)
     }

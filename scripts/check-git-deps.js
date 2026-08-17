@@ -2,34 +2,33 @@
 
 /**
  * Post-install script to verify platform-specific git dependencies
- * Checks for @napi-rs/simple-git native modules based on the current platform
+ * Checks that @napi-rs/simple-git can load its native module for the current
+ * platform and CPU architecture.
  */
 
-import os from "os"
+import os from "node:os"
 import { createRequire } from "module"
 
 const require = createRequire(import.meta.url)
 
-const platformModules = {
-  darwin: "@napi-rs/simple-git-darwin-x64",
-  linux: "@napi-rs/simple-git-linux-x64-gnu",
-  win32: "@napi-rs/simple-git-win32-x64-msvc",
+const nativeModules = {
+  "darwin-arm64": "@napi-rs/simple-git-darwin-arm64",
+  "darwin-x64": "@napi-rs/simple-git-darwin-x64",
+  "linux-x64": "@napi-rs/simple-git-linux-x64-gnu",
+  "win32-x64": "@napi-rs/simple-git-win32-x64-msvc",
 }
 
 const platform = os.platform()
-const expectedModule = platformModules[platform]
-
-if (!expectedModule) {
-  console.log(`⚠️  Platform '${platform}' may not have native git support. Using fallback.`)
-  process.exit(0)
-}
+const arch = os.arch()
+const target = `${platform}-${arch}`
+const expectedModule = nativeModules[target]
 
 try {
-  require(expectedModule)
-  console.log(`✅ Native git module for ${platform} loaded successfully`)
+  require("@napi-rs/simple-git")
+  console.log(`✅ Native git binding for ${target} loaded successfully`)
 } catch (error) {
-  console.log(`ℹ️  Platform-specific git module (${expectedModule}) not needed or using fallback`)
-  // Don't fail the install - optional dependency can fail gracefully
+  const suggestion = expectedModule ? ` Run \`npm install\` to restore ${expectedModule}.` : ""
+  console.error(`❌ Failed to load @napi-rs/simple-git for ${target}.${suggestion}`)
+  console.error(error)
+  process.exit(1)
 }
-
-process.exit(0)

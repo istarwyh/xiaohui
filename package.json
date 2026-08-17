@@ -24,7 +24,7 @@
     "build:cf": "npm run build",
     "backfill:dates": "node ./scripts/backfill-frontmatter-dates.js",
     "check:frontmatter": "node ./scripts/check-frontmatter.js --all",
-    "postinstall": "node ./scripts/check-git-deps.js && bash ./scripts/install-hooks.sh || true"
+    "postinstall": "node ./scripts/check-git-deps.js && (bash ./scripts/install-hooks.sh || true)"
   },
   "engines": {
     "npm": ">=9.3.1",
@@ -125,6 +125,7 @@
     "typescript": "^6.0.3"
   },
   "optionalDependencies": {
+    "@napi-rs/simple-git-darwin-arm64": "0.1.22",
     "@napi-rs/simple-git-darwin-x64": "0.1.22",
     "@napi-rs/simple-git-linux-x64-gnu": "0.1.22",
     "@napi-rs/simple-git-win32-x64-msvc": "0.1.22"
