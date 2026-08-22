@@ -1,20 +1,35 @@
 ---
-title: DeepSeek Harness：把 Agent Runtime 拆成一棵可热插拔的插件树
+title: DeepSeek Harness：让每个人拥有自己的 AI 工作台
 aliases:
+  - DeepSeek Harness：把 Agent Runtime 拆成一棵可热插拔的插件树
   - DeepSeek Harness 架构
   - Cordis Agent Harness
+  - DeepSeek Harness AI 工作台
 created: 2026-08-17
-modified: 2026-08-17
+modified: 2026-08-22
 published: 2026-08-17
 tags:
   - AI Agent
   - Agent Harness
   - Agent Runtime
   - Cordis
-description: 从使用、插件装配、Turn/Step 时序、SessionEvent 与工具管线出发，分析 DeepSeek Harness 的架构取舍、适用场景及其在 Agent Harness 演进中的位置。
+  - AI Workbench
+description: DeepSeek Harness 把模型、工具、会话、审批、沙箱与界面拆成可组合插件，开发者可以据此组装面向个人或垂直业务的 AI 工作台。
 ---
 
-执行一条命令，就能在本地启动一个可以读写文件、运行命令、维护计划、调用子 `Agent` 的完整应用：
+这两天写 DeepSeek Harness 插件时，我发现扩展边界没有停在工具注册。会话界面、审批和运行状态也在插件树里。
+
+过去给 Codex 一类通用 `Agent` 安装 `Skill`，主要是在既有宿主里增加操作方法。DeepSeek Harness 把宿主本身也变成了扩展面。
+
+| 扩展方式 | 改变的东西 |
+| --- | --- |
+| `Skill` | 教模型怎样完成一类任务 |
+| `Tool / MCP` | 让模型接触哪些外部系统 |
+| `Harness Plugin` | 扩展应用的运行方式与呈现 |
+
+同一个运行时可以被组合成编程台、数据库分析台、投研终端、保险工作台或设计画布。插件把二次开发推进到界面和业务流程，是否成为产品仍取决于数据、权限、验证与运维。
+
+安装 `Node.js` 后，可以启动本地 `Web UI`：
 
 ```bash
 npx @deepseek-ai/dsh web
@@ -22,7 +37,7 @@ npx @deepseek-ai/dsh web
 
 浏览器打开 `http://127.0.0.1:3080`，在 **Settings → Models** 中配置模型，在 **Choose workspace** 中选择工作目录，随后就能把任务交给它。界面看起来和其他编程 `Agent` 没有太大差别。
 
-真正有意思的东西藏在另一条命令里：
+另一条命令会直接打印它的装配结果：
 
 ```bash
 npx @deepseek-ai/dsh --profile web --dump-config
@@ -32,7 +47,7 @@ npx @deepseek-ai/dsh --profile web --dump-config
 
 截至 2026 年 8 月，DeepSeek Harness 仍处于 `developer preview`，官方明确提醒会出现破坏兼容性的修改。它目前更适合研究架构、开发插件和验证新的 `Agent Runtime` 组合，不宜因为热度直接作为稳定生产基座。
 
-## Harness 比 Agent Loop 多了什么
+## AI 工作台维护的不只是一段 Agent Loop
 
 最小的 `Agent Loop` 并不复杂：模型读取消息，决定是否调用工具，把工具结果放回上下文，再请求模型。几十行代码就能写出来。
 
@@ -335,7 +350,104 @@ tool/call 写日志
 
 最后两类场景不是绝对不能使用 DeepSeek Harness，而是 Cordis 只解决进程内组合。外部仍要部署、数据库、队列、审计和供应链安全承接。
 
-## Agent Harness 的沿革
+## 插件生态正在把 Harness 变成工作台
+
+官方已经把通用底座拆成几十组插件包。模型、文件系统、终端、沙箱、`Skill`、压缩、子 `Agent`、会话、凭据、存储、计划、工作流和 `Web UI` 都有独立的能力接缝。社区可以复用既有日志和循环，在公开的 `Service`、`Event` 与界面扩展点上增加实现，再用 `Bundle` 组合成可安装的 `Profile`。[官方 Packages 清单](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/README.md) 展示了这条 `API` 脊柱。
+
+### 生态先争夺界面和工具
+
+截至 2026 年 8 月 22 日，独立社区目录 [DSH Directory](https://dsh.directory/plugins) 页面列出 651 条通过静态 `Bundle` 合约识别的插件记录。它的分类快照很偏科：
+
+| 主要分类 | 数量 | 占比 | 社区正在补什么 |
+| --- | ---: | ---: | --- |
+| `Tools` | 262 | 40.2% | 浏览器、视觉、外部 API、数据库、通知和编辑器能力 |
+| `User Interface` | 241 | 37.0% | 侧边栏、`TUI`、主题、可视化、成本面板和插件市场 |
+| `Sessions` | 44 | 6.8% | 回退、分支、导入、分享和跨实例协作 |
+| `Scheduling` | 37 | 5.7% | 多 `Agent`、工作流、任务板、定时与后台执行 |
+| `Storage` | 26 | 4.0% | 长期记忆、知识库、检索和上下文观测 |
+| `Skills` | 22 | 3.4% | 可复用的知识和方法包 |
+| `Models & Providers` | 19 | 2.9% | 模型接入、路由、订阅复用和降级 |
+| `Sandboxes / Agent Loops` | 0 | 0% | 尚未形成可见的第三方供给 |
+
+`Tools` 与 `User Interface` 合计约占 77%。目录中没有条目落入 `Sandboxes / Agent Loops` 主分类；当前可见供给首先集中在用户能看见的入口和 `Agent` 能接触的对象。
+
+这组数字只能描述生态形状，不能代表安装量和质量。目录由社区独立维护，`Bundle detected` 只说明某个提交符合静态包契约，不是安全或兼容性认证；原始 [GitHub dsh-plugin Topic](https://github.com/topics/dsh-plugin) 还混有大量只添加了标签、并非可安装 Bundle 的项目。
+
+### 基础通用插件先把宿主做完整
+
+现有项目主要补齐任何领域都会使用的工作台能力：
+
+| 横向能力 | 代表方向 | 对工作台的改变 |
+| --- | --- | --- |
+| 操作界面 | `dsh-better-sidebar`、`dsh-tui`、`dsh-at-file` | 文件、终端、`Git`、子 `Agent` 和上下文选择进入同一屏幕 |
+| 多模态与检索 | `ModLens`、`dsh-vision-router`、`modsearch` | 给纯文本模型补充视觉、`OCR`、定位、搜索和引用 |
+| 模型接入 | `Codex`、`ChatGPT OAuth`、`Claude CLI`、`NewAPI Provider` | 模型成为同一工作台中的可替换资源 |
+| `Session` 与恢复 | `Turn Rewind`、`Chat Import`、`Message Edit` | 对话可以回退、分支、迁移和继续执行 |
+| `Memory` 与 `Context` | `dsh-context`、`dsh-memento`、`dsh-mnemon` | 查看上下文组成，跨会话保存经过约束的长期记忆 |
+| 协作与治理 | `Agent Teams`、`Taskboard`、`Auto Review`、`Plannotator` | 长任务可以分工、排队、复核和接受结构化反馈 |
+| 分发与运维 | 插件市场、插件管理器、成本面板、通知器 | 用户不用手改 `cordis.patch.yml`，开发者开始经营组合与升级 |
+
+模型接入插件增长得很快，但它们很难成为长期壁垒。同一个 `Profile` 可以把 DeepSeek 换成 Codex、Claude 或本地 `OpenAI-compatible` 服务，界面和业务流程仍然保留。领域数据、权限规则、验证方法和交互细节更难被替换。
+
+### 垂直插件已经露出产品轮廓
+
+少数项目已经越过“增加一个工具”，开始同时定义领域对象、专属界面、工作流和校验规则。
+
+| 领域 | 已出现的项目 | 已经进入的产品层 |
+| --- | --- | --- |
+| 数据分析 | [`dsh-data-agent`](https://github.com/omdsh-dev/dsh-data-agent) | 专用 `Preset`、数据库连接界面、`SQL` 工具、只读保护与分析流程 |
+| `Excel` | [`dsh-excel-chat`](https://github.com/hccccc01333/dsh-excel-chat) | 单元格、公式、样式、表格和图表操作，编辑后自动检查公式健康度 |
+| 金融与会计 | [`dsh-finance`](https://github.com/zhang787jun/dsh-finance) | 日记账、对账、报表、差异分析、月结、`SOX` 测试与人工审批边界 |
+| 股票与量化 | [`dsh-us-stocks`](https://dsh.directory/plugins/realyujie/dsh-us-stocks)、[`dsh-quant`](https://dsh.directory/plugins/pengpengyi92/dsh-quant) | 行情、财务数据、因子、回测、风险和图表渲染 |
+| 设计 | `Superdesign`、`OpenPencil`、`GenUI` | 读取设计系统、生成分支方案、画布预览和交互式产物 |
+| `HarmonyOS` 开发 | [`Harmony NEXT`](https://dsh.directory/plugins/linhay/harmony-next.skills) | 离线 `API` 库、`DevEco / HDC`、模拟器自动化、`Trace` 审计和测试工程 |
+
+`dsh-data-agent` 很接近一款真正的垂直工作台。它不把全部编程工具塞给模型，而是用专用 `Preset` 保留文件工具和 `sqlcmd`，再把数据库连接、只读策略和结果呈现放进会话界面。
+
+金融插件也暴露了垂直产品与通用工具的差别。计算收益率只是函数；生成日记账、核对借贷平衡、准备审计底稿，并把“生成建议”与“正式过账和签字”隔开，才是会计工作流。领域中的名词、审批权和失败代价都进入了插件设计。
+
+单个股票行情插件还不是投研产品。把实时数据、组合记忆、研究流程、风险计算、图表、引用和人工复核装进同一个 `Profile`，打开页面时直接看到自选股、研究任务和证据，才开始接近一款投研产品。
+
+### 从插件到产品还有几层
+
+我把当前生态粗略分成五级：
+
+| 阶段 | 交付物 | 用户买到什么 |
+| --- | --- | --- |
+| `L0` | 主题、皮肤、状态标签 | 更顺眼或更有趣的宿主 |
+| `L1` | 单一工具、API、模型 Provider | 一项新增能力 |
+| `L2` | `Skill + Tool + Prompt` | 一组领域方法和动作 |
+| `L3` | 领域 UI、数据对象、工作流、校验 | 可以完成具体工作的业务台 |
+| `L4` | 身份、权限、审计、部署、计费、组织协作 | 可以采购和运营的软件产品 |
+
+从目录的主要分类和公开说明看，可见供给仍集中在 `L0` 到 `L2`。`Data Agent`、`Excel` 和 `Finance` 已经碰到 `L3`；能带着版本承诺、数据治理和组织权限进入生产环境的 `L4` 产品仍然稀少。
+
+开发者真正要交付的，也不会是一条安装命令：
+
+```text
+垂直 AI 工作台
+  = 通用 Harness
+  + 领域数据连接器
+  + 领域工具与知识
+  + 业务状态机
+  + 专属交互界面
+  + 审批、校验与审计
+  + 可安装、可升级的 Profile / Bundle
+```
+
+插件只是模块边界，`Profile` 才接近产品边界。用户不会自己研究二十个包的加载顺序；开发者需要替他选好组合、固定版本、配置默认策略，并为失败和升级负责。
+
+普通用户不需要写插件。开发者负责把一组能力做成可安装的 `Bundle` 和开箱即用的 `Profile`；保险顾问、会计、研究员或独立创作者打开应用时，看到的已经是自己的业务对象和工作方式。
+
+### 插件生态下一步缺的是可信组合
+
+插件市场已经不止一个，社区还在制作插件搜索器、管理面板、桌面启动器和按角色整理的插件包。生态开始从“谁写了更多插件”转向“谁能给出可信组合”。接下来首先缺的是兼容矩阵、签名、权限清单、静态扫描和托管运行。
+
+在保险、会计和投研产品中，界面不会再按聊天记录组织。页面围绕保单、账套、标的、审批结论和任务进度展开，聊天框只是一种输入方式。
+
+官方的插件发布文档已经暴露了供应链成本。从 GitHub 安装源码插件时，`pnpm` 的 `prepare` 可能在 Agent 沙箱之外执行；用户必须显式允许构建，官方建议只信任经过检查的来源，并把依赖固定到具体提交。[Package and install a plugin](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md) 定义了分发格式，却没有替生态完成信任判断。
+
+## 从当前生态回看 Agent Harness 的沿革
 
 图中的实线表示问题范围扩展，虚线把项目放到它主要回答的架构问题旁边，不表示代码依赖或直接继承。
 
@@ -383,15 +495,13 @@ DeepSeek Harness 再向下走了一层。它没有发明另一种推理循环，
 
 这些选择没有统一终点。业务流程清晰时，图比插件树容易推理；只想快速接管循环时，代码优先的 `SDK` 更轻；要交付一个可配置的本地 `Agent Host`，DeepSeek Harness 的装配方式更有吸引力。
 
-## 装配树不是生产保证
+## 插件树不能替产品负责
 
-DeepSeek Harness 最值得看的地方，不是又出现了一个会调用工具的 `Agent`。这部分早已不是稀缺能力。
+会调用工具的 `Agent` 已不稀缺。DeepSeek Harness 把二次开发边界从模型和 `Prompt` 推到了界面、业务对象、权限与工作流，但插件树只提供组合能力。
 
-它把过去散落在构造函数、全局变量、事件监听器和启动脚本里的 Runtime 依赖，放进同一个可追踪上下文。安装插件时，系统知道它需要谁、提供什么、改了什么；卸载插件时，系统知道该撤回哪些受管副作用。默认 `Agent Loop` 仍然顺序推进，但每个重要边界都允许插件在明确的调度语义下参与。
+谁能改装、结果如何验收、外部副作用怎样补偿，仍要由产品和部署系统回答。垂直产品还得说明数据来源、审批边界、验证方式和可回滚版本。
 
-这套设计很适合未来需要频繁重组能力的 Harness，也确实为组件级自修改提供了实验基础。真正困难的部分并没有消失：谁有权改装插件树，改动怎样评测，外部副作用如何补偿，坏插件如何被隔离，跨进程状态如何恢复。
-
-`--dump-config` 只说明这台机器此刻装了什么。生产系统还得证明它为什么这样装，以及怎样安全地换回去。
+`--dump-config` 只说明这台机器此刻装了什么。生产系统还得证明它为什么这样装，以及怎样安全地换回去。用户打开页面时，保单、账套、标的或任务已经摆好；插件名退到后台。
 
 ## 相关内容
 
@@ -408,6 +518,15 @@ DeepSeek Harness 最值得看的地方，不是又出现了一个会调用工具
 - [Cordis Primer](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.md)
 - [Agent Turn And Step Lifecycle](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/agent-lifecycle.md)
 - [Tool Execution Pipeline](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/tool-execution-pipeline.md)
+- [DeepSeek Harness Packages](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/README.md)
+- [Package and install a plugin](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)
+- [DSH Plugin Directory](https://dsh.directory/plugins)
+- [DSH Data Agent](https://github.com/omdsh-dev/dsh-data-agent)
+- [dsh-excel-chat](https://github.com/hccccc01333/dsh-excel-chat)
+- [dsh-finance](https://github.com/zhang787jun/dsh-finance)
+- [dsh-us-stocks](https://github.com/Realyujie/dsh-us-stocks)
+- [dsh-quant](https://github.com/pengpengyi92/dsh-quant)
+- [Harmony NEXT](https://github.com/linhay/harmony-next.skills)
 - [A Programming Paradigm for Spatiotemporal Composability](https://github.com/cordiverse/paper)
 - [LangGraph overview](https://docs.langchain.com/oss/python/langgraph/overview)
 - [Deep Agents overview](https://docs.langchain.com/oss/python/deepagents/overview)
