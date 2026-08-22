@@ -1,6 +1,6 @@
 ---
 title: LangGraph State 的生命周期
-modified: 2026-05-15T23:00:19+08:00
+modified: 2026-08-22T00:00:00+08:00
 date: 2026-04-06
 tags:
   - LangGraph
@@ -577,28 +577,13 @@ LangGraph 支持从历史 checkpoint 分叉执行。分叉后未变的 channel �
 
 ## checkpoint_writes 的进阶用途
 
-### 1. 故障恢复：从 writes 重建 blobs
+### 1. 节点失败后的恢复
 
-如果 `checkpoint_blobs` 写入失败，可以从 `checkpoint_writes` 重放：
+`checkpoint_writes` 保存同一个 `super-step` 中各个 `task` 已完成的状态写入。某个并行节点失败后，`Runtime` 可以在恢复时保留其他成功节点的 `pending writes`，避免把整个 `super-step` 重新执行一遍。
 
-```python
-writes = get_checkpoint_writes(thread_id, checkpoint_id)
+它不是完整的 `Agent trajectory`。模型请求、工具网络交互、耗时、重试和未进入 `State` 的中间结果不会自动出现在这张表里，这些数据应由 `Trace/Event` 系统记录。存储边界见 [[agent-checkpoint-trajectory-storage|Agent Checkpoint 与 Trajectory 的分层存储]]。
 
-state = {}
-for write in writes:
-    channel = write['channel']
-    data = deserialize(write['blob_data'])
-
-    if channel in state:
-        state[channel] = merge(state[channel], data)
-    else:
-        state[channel] = data
-
-# 重新创建 checkpoint_blobs
-save_checkpoint_blobs(thread_id, checkpoint_id, state)
-```
-
-### 2. Agent 行为分析
+### 2. `State` 写入分析
 
 ```sql
 SELECT
@@ -907,7 +892,7 @@ ckpt_001 → ckpt_002 ┤
 
 ### Step 6: SQL 查询示例
 
-**查询某 checkpoint 的完整执行轨迹**：
+**查询某 checkpoint 的节点级状态写入**：
 
 ```sql
 -- 查看 ckpt_003 中每个 node 的贡献
@@ -966,7 +951,7 @@ WHERE thread_id = 'thread_abc123'
 └─────────────────┴─────────────────────────────────────────┘
 ```
 
-**checkpoint_writes 表 —— 执行轨迹（调试/审计）**
+**checkpoint_writes 表 —— 节点级状态写入（恢复/调试）**
 
 ```
 ┌─────────────────┬─────────────────────────────────────────┐
@@ -979,6 +964,8 @@ WHERE thread_id = 'thread_abc123'
 │ task_path       │ "()" / "('subgraph',)" ← 子图路径        │
 └─────────────────┴─────────────────────────────────────────┘
 ```
+
+这张表能说明各个 `task` 向哪些 `channel` 写了什么，不能替代包含模型调用、工具调用和耗时关系的完整 `trajectory`。
 
 **checkpoint_blobs 表 —— 最终状态（常规读取）**
 
