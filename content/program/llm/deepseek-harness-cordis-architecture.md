@@ -45,15 +45,11 @@ npx @deepseek-ai/dsh --profile web --dump-config
 
 它打印的不是一份普通应用配置，而是一棵插件树。模型适配器、系统提示词、工具注册表、会话日志、审批、沙箱、上下文压缩、子 `Agent`，连默认的 `Agent Loop` 都只是树上的插件。DeepSeek Harness 没有把这些能力硬编码进同一个 `Agent Loop`；Cordis 的上下文与加载器承担最小装配内核。
 
-截至 2026 年 8 月，DeepSeek Harness 仍处于 `developer preview`，官方明确提醒会出现破坏兼容性的修改。它目前更适合研究架构、开发插件和验证新的 `Agent Runtime` 组合，不宜因为热度直接作为稳定生产基座。
-
 ## AI 工作台维护的不只是一段 Agent Loop
 
 最小的 `Agent Loop` 并不复杂：模型读取消息，决定是否调用工具，把工具结果放回上下文，再请求模型。几十行代码就能写出来。
 
 问题从第二天开始。会话需要恢复，流式输出需要重放，工具要审批，命令要进入沙箱，模型上下文会溢出，用户会在执行中追加指令，子 `Agent` 还要继承一部分能力、隔离另一部分能力。此时系统维护的已经不是一段循环，而是一次任务的完整生命周期。
-
-我更愿意把 `Agent Harness` 理解成模型循环外面的承重结构：
 
 | 层次 | 负责的事情 |
 | --- | --- |
@@ -437,7 +433,43 @@ tool/call 写日志
 
 插件只是模块边界，`Profile` 才接近产品边界。用户不会自己研究二十个包的加载顺序；开发者需要替他选好组合、固定版本、配置默认策略，并为失败和升级负责。
 
-普通用户不需要写插件。开发者负责把一组能力做成可安装的 `Bundle` 和开箱即用的 `Profile`；保险顾问、会计、研究员或独立创作者打开应用时，看到的已经是自己的业务对象和工作方式。
+普通用户不需要写插件。开发者负责把一组能力做成可安装的 `Bundle` 和开箱即用的 `Profile`；保险顾问、会计、研究员或独立创作者打开应用时，看到的已经是自己的业务对象和工作方式。对开发者来说，下一步是把这组能力封装成用户可以直接打开的应用。
+
+### 把 Web UI 封装成独立桌面应用
+
+如果第一版只需要自有品牌、固定 `Profile` 和免环境配置的体验，不准备重做业务界面，可以先在官方 `Web UI` 外增加一个 `Tauri` 或 `Electron` 桌面壳。应用启动时拉起固定版本的 `dsh web` 子进程，等待本地服务就绪，再让 `WebView` 打开回环地址；退出时由桌面壳关闭整棵进程树。
+
+```mermaid
+flowchart LR
+    user["用户启动独立桌面应用"] --> shell["自有品牌的 Tauri / Electron Shell"]
+    shell --> supervisor["进程监管<br/>启动、健康检查、退出与崩溃恢复"]
+    supervisor --> runtime["随包分发的 Node.js<br/>固定版本 dsh web"]
+    shell --> webview["WebView<br/>加载 127.0.0.1 随机端口"]
+    webview <--> runtime
+    runtime --> profile["产品 Profile / Bundle<br/>模型、插件、主题与默认策略"]
+    runtime --> data["应用专属数据目录<br/>会话、配置与工作区"]
+    shell --> keychain["系统 Keychain<br/>模型凭据"]
+    keychain --> bridge["宿主凭据桥<br/>不经过 WebView"]
+    bridge --> runtime
+```
+
+这条路线复用了官方 `Web UI`、会话协议和插件兼容面。开发者交付的是自己的应用名、图标、安装包、默认 `Profile`、插件白名单和升级策略。用户双击一个应用，不需要先安装 `Node.js`、执行 `npx`，也不必理解 `cordis.patch.yml`。社区的 [deepseek-harness-desktop](https://github.com/Sakana-yuyu/deepseek-harness-desktop/tree/master/apps/desktop-tauri) 已经提供了这条路线的 `Tauri` 原型；官方的 [GUI 分层说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-07-19-gui-layering-and-rpc-protocol.md) 则把 `dsh web` 描述为 `Host + Web Server + Web Frontend` 的组合，并给出了桌面壳通过 `IPC` 复用客户端层的方向。
+
+独立打包不等于复制仓库后换一个图标。第一个可交付版本至少要处理这些边界：
+
+| 边界 | 桌面产品需要补上的工作 |
+| --- | --- |
+| 运行时 | 把 `Node.js` 与 DeepSeek Harness 固定到经过验证的版本，不依赖用户机器上的全局环境 |
+| 本地服务 | 只监听 `127.0.0.1`，使用系统分配的空闲端口，并用一次性访问令牌、严格的 `Origin` 校验或等价宿主认证限制调用方 |
+| 进程生命周期 | 启动后等待健康检查；窗口退出、应用升级或异常崩溃时清理全部子进程 |
+| 数据 | 使用应用自己的数据目录，不直接占用用户已有的 `~/.dsh`；升级前迁移并保留回滚路径 |
+| 凭据 | 模型密钥进入系统 `Keychain`，由宿主凭据桥交给 `Runtime`，不写进安装包、`Profile`，也不返回前端页面 |
+| 插件供应链 | 默认只加载产品审核过并固定提交版本的插件，不让生产用户随意安装未经检查的 `GitHub` 源码包 |
+| 分发 | 完成 `macOS` 签名与公证、`Windows` 代码签名，并提供自动更新、第三方许可证清单与崩溃诊断 |
+
+[MIT License](https://github.com/deepseek-ai/deepseek-harness/blob/master/LICENSE) 允许修改、再分发和商业销售，但安装包必须保留版权与许可声明。代码许可也不会自动授予 `DeepSeek` 的商标和图标使用权。二次产品应使用自己的名称与视觉标识，并说明它基于 DeepSeek Harness 构建，避免让用户误以为是官方发行版。
+
+桌面壳方案仍受官方 `Web UI` 与现有扩展点约束，版本升级还要持续验证壳、前端资源、插件和配置是否兼容。等领域产品真的需要保单工作区、审计底稿或多窗格设计画布，再把前端替换为自有界面，通过 `Host API`、`SDK` 或 `JSON-RPC` 接入同一个 `Runtime`。当前项目仍处于 `developer preview`，这些接口还不能被当作长期稳定的桌面嵌入协议。第一版先把安装、启动、升级和退出做稳，比过早维护一个完整 `Fork` 更划算。
 
 ### 插件生态下一步缺的是可信组合
 
@@ -495,13 +527,7 @@ DeepSeek Harness 再向下走了一层。它没有发明另一种推理循环，
 
 这些选择没有统一终点。业务流程清晰时，图比插件树容易推理；只想快速接管循环时，代码优先的 `SDK` 更轻；要交付一个可配置的本地 `Agent Host`，DeepSeek Harness 的装配方式更有吸引力。
 
-## 插件树不能替产品负责
-
-会调用工具的 `Agent` 已不稀缺。DeepSeek Harness 把二次开发边界从模型和 `Prompt` 推到了界面、业务对象、权限与工作流，但插件树只提供组合能力。
-
-谁能改装、结果如何验收、外部副作用怎样补偿，仍要由产品和部署系统回答。垂直产品还得说明数据来源、审批边界、验证方式和可回滚版本。
-
-`--dump-config` 只说明这台机器此刻装了什么。生产系统还得证明它为什么这样装，以及怎样安全地换回去。用户打开页面时，保单、账套、标的或任务已经摆好；插件名退到后台。
+会调用工具的 `Agent` 已不稀缺。DeepSeek Harness 把二次开发边界从模型和 `Prompt` 推到了界面、业务对象、权限与工作流。
 
 ## 相关内容
 
@@ -519,6 +545,9 @@ DeepSeek Harness 再向下走了一层。它没有发明另一种推理循环，
 - [Agent Turn And Step Lifecycle](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/agent-lifecycle.md)
 - [Tool Execution Pipeline](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/tool-execution-pipeline.md)
 - [DeepSeek Harness Packages](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/README.md)
+- [DeepSeek Harness License](https://github.com/deepseek-ai/deepseek-harness/blob/master/LICENSE)
+- [GUI Layering and RPC Protocol](https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-07-19-gui-layering-and-rpc-protocol.md)
+- [DeepSeek Harness Desktop](https://github.com/Sakana-yuyu/deepseek-harness-desktop/tree/master/apps/desktop-tauri)
 - [Package and install a plugin](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)
 - [DSH Plugin Directory](https://dsh.directory/plugins)
 - [DSH Data Agent](https://github.com/omdsh-dev/dsh-data-agent)
