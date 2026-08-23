@@ -227,7 +227,7 @@ fast_search_products tool：
     去掉下架、不可展示、渠道不符、运营屏蔽的 SKU
 
   load_product_dossiers:
-    拉 Top10 产品深档案
+    按候选预算批量拉取产品深档案
 
   rule_rerank:
     产品名强匹配权重大于泛语义匹配
@@ -302,11 +302,11 @@ ProductSearchGraph：
     重新检查当前可展示货架
 
   load_product_dossiers:
-    拉 Top10 产品深档案
+    按候选预算批量拉取产品深档案
 
   rule_rerank:
-    按召回分、货架权重、档案完整度、更新时间排序
-    避免 Top3 全是同一类产品
+    按当前可售状态、业务优先级和产品质量信号排序
+    避免最终货架被同名或高度相似产品占满
 
   return ProductSearchRunResult:
     shelfCards
@@ -522,7 +522,7 @@ class ShelfCard(TypedDict):
 | `agenticone_recall_if_needed` | `normalized_task`、`session_context` | `matched_prod_nos`、`search_context`、`search_tasks` | 规划失败时回退单个 `product` 任务；查询失败写 `product:error` |
 | `normalize_candidates` | `matched_prod_nos + search_context` 或缓存候选 | 统一的候选池 | 丢弃无法校验的产品编号 |
 | `shelf_hard_filter` | 候选列表 | 过滤后候选 | 少于 3 个且来自缓存，则补一次实时搜索 |
-| `load_product_dossiers` | `Top10 prodNo` | 产品档案 `map` | 单个产品失败就剔除 |
+| `load_product_dossiers` | 候选预算内的 `prodNo` | 产品档案 `map` | 单个产品失败就剔除 |
 | `rule_rerank` | 候选 + 档案 | 排序货架 | 无候选则返回无结果状态 |
 | `build_product_result` | 排序货架 | `ProductShelfResult` | 禁止购买承诺话术 |
 | `persist_result` | 完整 `state` | `Redis run snapshot + terminal event` | 持久化失败告警，不改写结果 |
@@ -553,11 +553,13 @@ agenticone_recall_if_needed
 
 `product` 任务不是向量检索。它基于产品 `mapper` 数据执行白名单、产品名、字段条件、责任、目的地除外和模糊正则扫描。语义向量只用于候选缓存复用，不是 `AgenticOne` 产品召回的主搜索方式。
 
+实际执行时，版本化 `JSON` 会在启动阶段解析成进程内快照，请求不会反复打开文件。[[AgenticOne 产品召回：JSON 分发与内存全量过滤]] 单独记录了这套数据面的边界与代价。
+
 `SearchResultCapture` 把产品轻量信息、命中原因、核保 / 预算 / 收益结果和任务摘要写入 `search_context`。`deep_search` 解析搜索 `Agent` 的最终结果，再校验其中的 `prodNo`，避免模型编造产品编号。
 
 `filter_rank` 从召回结果中精选一批轻量候选，并可排除历史已展示产品，为“换一批”保留后备池。第一版不开放多轮指代，这个后备池不会被前端直接消费。
 
-`filter_rank` 的输出还不是最终货架。候选产品还要经过当前上下架和渠道校验、产品深档案校验以及确定性规则排序。`filter_rank` 减少主链路携带的候选数，`rule_rerank` 才决定用户看到的 `Top3`。
+`filter_rank` 的输出还不是最终货架。候选产品还要经过当前上下架和渠道校验、产品深档案校验以及确定性规则排序。`filter_rank` 减少主链路携带的候选数，`rule_rerank` 才决定最终展示顺序。
 
 ## 六、候选缓存：tool 和 subgraph 共用
 
@@ -619,7 +621,7 @@ ps:v1:lock:{searchMode}:{queryHash}
 它不保存：
 
 ```text
-最终 Top3
+最终展示清单
 最终卡片文案
 购买建议
 模型推理过程
@@ -636,7 +638,7 @@ live query 成功
   -> 写 semantic cache
 ```
 
-不要等最终 `Top3` 排完才写缓存。缓存的是候选池，不是货架结论。
+不要等最终展示顺序排完才写缓存。缓存的是候选池，不是货架结论。
 
 如果用 `Redis Stack / RediSearch`，可以给候选缓存建向量索引：
 
@@ -734,7 +736,7 @@ ProductSearchGraph:
 既往症
 ```
 
-用户已经明确说出预算、健康情况或责任阈值时，`AgenticOne` 召回链路可以调用对应工具收窄候选。用户没有提供的槽位不由系统猜测，也不能因为候选进入 `Top3` 就声称它适合投保。
+用户已经明确说出预算、健康情况或责任阈值时，`AgenticOne` 召回链路可以调用对应工具收窄候选。用户没有提供的槽位不由系统猜测，也不能因为候选进入展示清单就声称它适合投保。
 
 最终文案要把未确认条件说出来：
 
@@ -744,10 +746,10 @@ ProductSearchGraph:
 
 ### 7.2 深档案
 
-过滤后取 `Top10` 拉产品深档案：
+过滤后，按候选预算批量拉取产品深档案：
 
 ```text
-batch_get_product_dossier(prodNos[0:10])
+batch_get_product_dossier(shortlistProdNos)
 ```
 
 深档案至少包含：
@@ -776,31 +778,16 @@ updatedAt
 
 ### 7.3 规则排序
 
-第一版不让 `Agent` 做最终排序。
+第一版不让 `Agent` 自由产生最终排序。排序使用确定性优先级，具体字段和权重由场景配置：
 
 ```text
-finalScore =
-  0.55 * normalizedRecallScore
-  + 0.20 * shelfWeight
-  + 0.15 * dossierCompleteness
-  + 0.10 * freshnessWeight
+当前可售 / 可展示
+  -> 业务品质与运营优先级
+  -> 产品热度与时效信号
+  -> 同名或高度相似产品去重
 ```
 
-| 因子 | 来源 |
-| --- | --- |
-| `normalizedRecallScore` | 搜索或缓存中的召回分 |
-| `shelfWeight` | 货架或运营侧权重 |
-| `dossierCompleteness` | 深档案字段完整度 |
-| `freshnessWeight` | 产品档案更新时间或货架版本 |
-
-排序后做一次轻去重：
-
-```text
-同公司 + 同险种 + 名称高度相似
-  -> Top3 中最多保留 1 个
-```
-
-最终返回 `Top3`。候选池保留在内部 `state` 里，后续可以支持“换一批”，但第一版不开放多轮指代。
+最终展示数量也是场景预算，不是模型当场决定。其余候选保留在内部 `state` 里，后续可以支持“换一批”，但第一版不开放多轮指代。
 
 ## 八、前端事件：统一 Agent 流，不是 Product Search 流
 
@@ -934,7 +921,7 @@ Tool / LangGraph runtime events
 正在查找相关产品
 正在重新检查当前货架状态
 已读取候选产品档案
-已整理出 3 个可以优先查看的候选
+已整理出可以优先查看的候选
 ```
 
 不要展示：
