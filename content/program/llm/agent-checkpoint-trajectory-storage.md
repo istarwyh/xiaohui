@@ -1,7 +1,7 @@
 ---
 title: Agent Checkpoint 与 Trajectory 的分层存储
 created: 2026-08-22T00:00:00+08:00
-modified: 2026-08-22T00:00:00+08:00
+modified: 2026-08-23T00:00:00+08:00
 published: 2026-08-22T00:00:00+08:00
 description: 从长程 Agent 的大状态问题出发，区分 Checkpoint、Trajectory、Artifact 与 WAL，并给出 PostgreSQL、OpenTelemetry 和 OSS/S3 的分层存储方案。
 tags:
@@ -16,11 +16,9 @@ aliases:
   - Agent Checkpoint 分层存储
 ---
 
-一个搜索节点抓回了 `5 MB` 网页正文。正文进入工具结果，又被追加到 `messages`。图再走几步，`PostgreSQL` 里的 `checkpoint_blobs` 和 `checkpoint_writes` 很快长出一排相似的大字段；追踪系统还保存了一份完整的模型输入和工具输出。
+一个搜索节点抓取并清洗后得到近 `1 MB` 网页正文。默认 `ToolNode` 把全文包装成 `ToolMessage`，`add_messages` 又把它追加到 `state.messages`。下一步模型确实读到了正文，`PostgresSaver` 也原样保存了它。图再走几步，`checkpoint_blobs` 开始保存含有同一份正文的多个 `messages` 版本，`checkpoint_writes` 留着最初那条大 `ToolMessage`；追踪系统还保存了另一份完整模型输入。
 
-最顺手的答案是把大内容放进 `OSS/S3`，数据库只存元数据。
-
-方向没有错，边界却不能只由字节数决定。`checkpoint` 里的数据要在进程崩溃后把图重新扶起来，`trajectory` 里的数据主要回答这次运行经过了哪些节点、调用了什么工具、慢在哪里。两者都可能出现大字段，丢失后的代价完全不同。
+`OSS/S3` 适合接住大内容，但分层边界不能只由字节数决定。`checkpoint` 里的数据要在进程崩溃后把图重新扶起来，`trajectory` 里的数据主要回答这次运行经过了哪些节点、调用了什么工具、慢在哪里。两者都可能出现大字段，丢失后的代价完全不同。
 
 ## `Checkpoint` 不是 `Trajectory`
 
@@ -57,11 +55,26 @@ aliases:
 
 补上这条裂缝需要内容哈希、幂等上传、暂存状态、孤儿扫描、引用计数和删除补偿。对象存储节省的那部分数据库空间，换成了恢复协议里的第二套生命周期。
 
-## 先让 `Artifact` 离开 `State`
+## 进入模型请求，不等于写入 `State`
+
+按照默认 `ReAct` 循环，完整工具结果会沿着这条链路流动：
+
+```text
+工具返回正文
+  -> ToolMessage(content=正文)
+  -> add_messages
+  -> state.messages
+  -> Checkpoint
+  -> 下一次模型调用
+```
+
+正文只要进入持久化的 `state.messages`，就一定会进入 `checkpoint`。对象存储不会自动改变这件事。
+
+聊天模型只要求收到一组 `Message`，没有要求这组对象必须与 `state.messages` 是同一份列表。`State` 保存短消息和对象引用；模型节点调用前复制这份列表，把引用临时展开为完整 `ToolMessage`，调用后不把展开结果写回 `State`。
 
 先外置那些已经具备文件语义的内容：网页原文、`PDF`、图片、音频、代码包、完整检索结果、报告中间稿。这些对象往往只由少数节点读取，却会跟着 `messages` 或累积型 `state` 进入后续每个检查点。
 
-节点拿到网页后先写对象存储，`state` 只接收一张小卡片：
+抓取节点拿到网页后先写对象存储，`state` 只接收一张小卡片：
 
 ```python
 class ArtifactRef(TypedDict):
@@ -76,7 +89,7 @@ class ArtifactRef(TypedDict):
 
 class AgentState(TypedDict):
     messages: list
-    source_documents: list[ArtifactRef]
+    page_artifact: ArtifactRef
 ```
 
 对象键使用内容哈希，而不是临时文件名：
@@ -85,11 +98,57 @@ class AgentState(TypedDict):
 oss://agent-artifacts/{tenant_id}/sha256/ab/cd/abcdef...
 ```
 
-同一份网页被三个节点使用，只上传一次。上传完成并校验 `sha256` 后，节点才把 `ArtifactRef` 返回给图；`PostgresSaver` 随后的事务只需要保存这张引用卡。数据库事务若失败，对象会暂时成为孤儿，后台任务可以延迟清理。反过来的顺序会制造一个已经提交却无法读取的 `checkpoint`，恢复时更难处理。
+持久化的工具消息只说明对象已经准备好。下面省略并行工具调用与异常处理，只展示单个工具调用：
+
+```python
+async def fetch_page_node(state):
+    tool_call = state['messages'][-1].tool_calls[0]
+    clean_text = await fetch_and_clean(tool_call['args']['url'])
+    artifact_ref = await upload_by_hash(clean_text)
+
+    return {
+        'page_artifact': artifact_ref,
+        'messages': [
+            ToolMessage(
+                content=f"网页已抓取：{artifact_ref['artifact_id']}",
+                tool_call_id=tool_call['id'],
+            )
+        ],
+    }
+```
+
+下一步模型节点下载正文，复制持久化消息列表，再临时替换对应的 `ToolMessage.content`：
+
+```python
+async def analyze_page_node(state):
+    clean_text = await download(state['page_artifact']['uri'])
+    ensure_context_budget(clean_text, state['messages'])
+
+    model_messages = list(state['messages'])
+    tool_message = model_messages[-1]
+    model_messages[-1] = tool_message.model_copy(
+        update={'content': clean_text}
+    )
+
+    response = await model.ainvoke(model_messages)
+
+    # 只持久化模型的新回复，不返回临时展开的 model_messages
+    return {'messages': [response]}
+```
+
+`model_messages` 只活在这次函数调用里，节点返回的只有新回复。如果把 `model_messages` 一起返回，全文又会被 `add_messages` 写回状态，分层随即失效。
+
+`ToolMessage.artifact` 也会随消息进入 `checkpoint`。这个字段可以放 `ArtifactRef`，不适合再塞一份完整正文。
+
+同一份网页被三个节点使用，只上传一次。无论抓取和模型分析是否属于同一个节点，`ArtifactRef` 都要等上传完成并校验 `sha256` 后才能进入 `State`。同一个节点可以同时启动上传与模型调用，但返回前必须等上传成功；分属两个节点时，上传必须在抓取节点返回前完成。
+
+`PostgresSaver` 随后的事务只保存引用和短消息。数据库事务若失败，对象会暂时成为孤儿，后台任务可以延迟清理。先提交引用、再完成上传，则会留下一个无法读取对象的 `checkpoint`。
 
 `required_for_resume` 不能省。值为 `true` 的对象保留期至少覆盖对应 `checkpoint` 的可恢复窗口；值为 `false` 的调试附件可以更早进入低频或删除策略。不能让 `OSS lifecycle` 在数据库仍保存可恢复快照时先删掉对象。
 
-`messages` 变大时也不要条件反射地整体外置。它通常是模型下一轮立刻要读的热数据，放到对象存储只会让每一步多一次下载。先做消息裁剪、摘要、`DeltaChannel` 或拆出不再需要进入上下文的 `Artifact`。
+`1 MB` 是存储大小，不是模型上下文预算。展开正文之前仍要用目标模型对应的分词器计算 `token`，给系统指令、工具定义、历史消息和输出预留空间。超过预算时只能分块、检索或摘要；`OSS` 解决重复持久化，不会减少模型实际读取的 `token`。
+
+如果主 `Agent` 只需要网页结论和证据片段，另一种做法是让工具或 `SubAgent` 在内部读取全文并调用模型，只把摘要、引用和 `ArtifactRef` 交还给主图。完整正文会进入某次模型请求，但从未进入主 `Agent` 的 `messages`。
 
 ## `Trajectory` 走观测链路
 
@@ -122,7 +181,7 @@ Agent Runtime
     "payload_ref": {
       "uri": "oss://agent-artifacts/tenant_01/sha256/ab/cd/abcdef...",
       "sha256": "abcdef...",
-      "size_bytes": 5242880
+      "size_bytes": 1048576
     }
   }
 }
@@ -210,7 +269,7 @@ CREATE TABLE agent_artifact_refs (
 - 轨迹后端因完整输入输出出现成本、容量或权限问题；
 - `checkpoint` 与轨迹需要不同的保留期和访问权限。
 
-那个 `5 MB` 网页最终只需要在 `OSS` 里出现一次。`checkpoint` 保存 `ArtifactRef`，恢复时按需读取；`trajectory span` 保存耗时、模型、工具、`token` 和同一个引用；前端事件只说搜索完成。进程重启后，图从 `checkpoint` 继续，不重放轨迹。
+那份近 `1 MB` 的清洗后正文最终只在 `OSS` 里出现一次。持久化的 `ToolMessage` 保存 `artifact_id`，模型节点调用前临时展开正文，调用后只把模型回复写回 `State`；`trajectory span` 保存耗时、模型、`token` 和同一个引用。进程重启后，图从 `checkpoint` 继续，不重放轨迹。
 
 ## Related
 
