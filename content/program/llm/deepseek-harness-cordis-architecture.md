@@ -17,9 +17,7 @@ tags:
 description: DeepSeek Harness 把模型、工具、会话、审批、沙箱与界面拆成可组合插件，开发者可以据此组装面向个人或垂直业务的 AI 工作台。
 ---
 
-这两天写 DeepSeek Harness 插件时，我发现扩展边界没有停在工具注册。会话界面、审批和运行状态也在插件树里。
-
-过去给 Codex 一类通用 `Agent` 安装 `Skill`，主要是在既有宿主里增加操作方法。DeepSeek Harness 把宿主本身也变成了扩展面。
+这两天写 DeepSeek Harness 插件时，我发现DSH 给了开发者极大的扩展权限。过去给 Codex 一类通用 `Agent` 安装 `Skill`，主要是在既有宿主里增加操作方法。DeepSeek Harness 把宿主本身也变成了扩展面。
 
 | 扩展方式 | 改变的东西 |
 | --- | --- |
@@ -49,7 +47,7 @@ npx @deepseek-ai/dsh --profile web --dump-config
 
 最小的 `Agent Loop` 并不复杂：模型读取消息，决定是否调用工具，把工具结果放回上下文，再请求模型。几十行代码就能写出来。
 
-问题从第二天开始。会话需要恢复，流式输出需要重放，工具要审批，命令要进入沙箱，模型上下文会溢出，用户会在执行中追加指令，子 `Agent` 还要继承一部分能力、隔离另一部分能力。此时系统维护的已经不是一段循环，而是一次任务的完整生命周期。
+但是会话需要恢复，流式输出需要重放，工具要审批，命令要进入沙箱，模型上下文会溢出，用户会在执行中追加指令，子 `Agent` 还要继承一部分能力、隔离另一部分能力。此时系统维护的已经不是一段循环，而是一次任务的完整生命周期。
 
 | 层次 | 负责的事情 |
 | --- | --- |
@@ -100,8 +98,6 @@ flowchart TB
     scopeB --> presetB["另一组隔离后的能力"]
 ```
 
-补丁按 `row id` 替换整份配置，不做深度合并；上层覆盖时必须重述要保留的字段。
-
 `Profile` 解决“这次启动要装什么”，`Scope` 解决“这个 `Agent` 能看见什么”。同一个服务键可以在不同作用域中解析成不同实现。一个会话可以使用本地文件系统和 DeepSeek 模型，另一个会话可以使用远程沙箱和其他模型，而消费方仍然依赖相同的 `ctx.fs` 与 `ctx.llm` 契约。
 
 ## Cordis 提供的不是普通依赖注入
@@ -129,7 +125,7 @@ ctx.effect(() => {
 
 它比只约定 `activate()` / `deactivate()` 的生命周期更进一步：副作用登记、所有权和回收动作被绑定在同一处。
 
-但“可逆”不能被写成魔法。已经发送的邮件、已经成交的订单、没有备份的文件删除，都不会因为插件卸载自动消失。Cordis 能回收的是进入其追踪范围、并且提供逆操作的 `Effect`。外部副作用仍需要幂等键、事务、补偿动作和人工审批。
+⚠️ “可逆”肯定有限制。已经发送的邮件、已经成交的订单、没有备份的文件删除，都不会因为插件卸载自动消失。Cordis 能回收的是进入其追踪范围、并且提供逆操作的 `Effect`。外部副作用仍需要幂等键、事务、补偿动作和人工审批。
 
 ## Service、Event 与 Effect 各自做什么
 
@@ -152,7 +148,7 @@ DeepSeek Harness 没有让所有插件通过异步事件互相喊话。三个机
 
 `waterfall` 让插件拥有明确的控制权。只想记录指标的监听器应调用 `next()`；审批插件可以不调用 `next()`，直接拒绝操作；路由插件可以先改写请求，再等待下游结果。
 
-这也解释了为什么异步插件没有打乱 `Agent Loop`。同一个 `Agent` 的控制流仍然按 `Turn` 和 `Step` 串行推进。会影响下一阶段的 `waterfall` 与 `serial` 会被 `Driver` 等待；纯观测的 `emit` 不允许承担关键业务决策。异步只是等待模型、网络、磁盘和工具时不阻塞线程，不等于所有插件同时修改状态。
+异步插件没有打乱 `Agent Loop`。同一个 `Agent` 的控制流仍然按 `Turn` 和 `Step` 串行推进。会影响下一阶段的 `waterfall` 与 `serial` 会被 `Driver` 等待；纯观测的 `emit` 不允许承担关键业务决策。异步只是等待模型、网络、磁盘和工具时不阻塞线程，不等于所有插件同时修改状态。
 
 ## Turn、Step 与 SessionEvent
 
@@ -184,7 +180,7 @@ flowchart TD
 
 两类事件不能混用。界面如果需要断线重放聊天内容，应消费 `session/event`；插件如果要在本次请求发出前修改模型参数，应监听 `agent/request`。前者回答“发生过什么”，后者回答“现在是否允许继续以及怎样继续”。
 
-官方架构里有一条很硬的约束：模型可见的信息必须已经进入日志。下一次请求不是从若干插件的临时内存拼凑历史，而是通过 `deriveMessages()` 从 `SessionEvent` 投影出来。恢复、分叉、转录和 `UI` 重放因此共享同一份事实源。
+模型可见的信息必须已经进入日志。下一次请求不是从若干插件的临时内存拼凑历史，而是通过 `deriveMessages()` 从 `SessionEvent` 投影出来。恢复、分叉、转录和 `UI` 重放因此共享同一份事实源。
 
 ## 一次请求的时序
 
@@ -274,11 +270,7 @@ tool/call 写日志
 
 审批、沙箱、文件写入保护、超时、重试、指标和结果改写都能接入同一条管线，而工具本身不需要导入某个具体策略服务。
 
-`monotonic guard` 的意义是策略只能从允许走向拒绝，后面的插件不能把前面已经拒绝的高风险操作重新打开。工具结果经过规范化后成为唯一的模型可见结果，`UI` 卡片和下一次模型请求都围绕这份结果工作。
-
-安全不是某个工具作者记得写的一段 `if`，而是注册在统一能力边界上的系统策略。
-
-## 这套设计赢在哪里
+## 这套设计的优势
 
 ### 能力替换发生在 Runtime 内部
 
@@ -367,8 +359,6 @@ tool/call 写日志
 
 `Tools` 与 `User Interface` 合计约占 77%。目录中没有条目落入 `Sandboxes / Agent Loops` 主分类；当前可见供给首先集中在用户能看见的入口和 `Agent` 能接触的对象。
 
-这组数字只能描述生态形状，不能代表安装量和质量。目录由社区独立维护，`Bundle detected` 只说明某个提交符合静态包契约，不是安全或兼容性认证；原始 [GitHub dsh-plugin Topic](https://github.com/topics/dsh-plugin) 还混有大量只添加了标签、并非可安装 Bundle 的项目。
-
 ### 基础通用插件先把宿主做完整
 
 现有项目主要补齐任何领域都会使用的工作台能力：
@@ -383,7 +373,7 @@ tool/call 写日志
 | 协作与治理 | `Agent Teams`、`Taskboard`、`Auto Review`、`Plannotator` | 长任务可以分工、排队、复核和接受结构化反馈 |
 | 分发与运维 | 插件市场、插件管理器、成本面板、通知器 | 用户不用手改 `cordis.patch.yml`，开发者开始经营组合与升级 |
 
-模型接入插件增长得很快，但它们很难成为长期壁垒。同一个 `Profile` 可以把 DeepSeek 换成 Codex、Claude 或本地 `OpenAI-compatible` 服务，界面和业务流程仍然保留。领域数据、权限规则、验证方法和交互细节更难被替换。
+模型接入插件增长得很快，但它们很难成为长期壁垒。
 
 ### 垂直插件已经露出产品轮廓
 
@@ -536,30 +526,3 @@ DeepSeek Harness 再向下走了一层。它没有发明另一种推理循环，
 - [[Agent-Native]]
 - [[从Claude Code到 OneAgent：如何做好上下文工程]]
 - [[LangGraph Agent Event 消费指南]]
-
-## 资料
-
-- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
-- [DeepSeek Harness Architecture](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.md)
-- [Cordis Primer](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.md)
-- [Agent Turn And Step Lifecycle](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/agent-lifecycle.md)
-- [Tool Execution Pipeline](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/tool-execution-pipeline.md)
-- [DeepSeek Harness Packages](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/README.md)
-- [DeepSeek Harness License](https://github.com/deepseek-ai/deepseek-harness/blob/master/LICENSE)
-- [GUI Layering and RPC Protocol](https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-07-19-gui-layering-and-rpc-protocol.md)
-- [DeepSeek Harness Desktop](https://github.com/Sakana-yuyu/deepseek-harness-desktop/tree/master/apps/desktop-tauri)
-- [Package and install a plugin](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)
-- [DSH Plugin Directory](https://dsh.directory/plugins)
-- [DSH Data Agent](https://github.com/omdsh-dev/dsh-data-agent)
-- [dsh-excel-chat](https://github.com/hccccc01333/dsh-excel-chat)
-- [dsh-finance](https://github.com/zhang787jun/dsh-finance)
-- [dsh-us-stocks](https://github.com/Realyujie/dsh-us-stocks)
-- [dsh-quant](https://github.com/pengpengyi92/dsh-quant)
-- [Harmony NEXT](https://github.com/linhay/harmony-next.skills)
-- [A Programming Paradigm for Spatiotemporal Composability](https://github.com/cordiverse/paper)
-- [LangGraph overview](https://docs.langchain.com/oss/python/langgraph/overview)
-- [Deep Agents overview](https://docs.langchain.com/oss/python/deepagents/overview)
-- [OpenAI Agents SDK](https://developers.openai.com/api/docs/guides/agents)
-- [AutoGen AgentChat](https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/index.html)
-- [Claude Managed Agents overview](https://platform.claude.com/docs/en/managed-agents/overview)
-- [Claude Agent SDK to Managed Agents migration](https://platform.claude.com/docs/en/managed-agents/migration)
