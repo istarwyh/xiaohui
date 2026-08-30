@@ -1,7 +1,7 @@
 ---
 title: 保险搜品能力工程架构：从 Agent Tool 到可交互货架
 created: 2026-07-02T00:00:00+08:00
-modified: 2026-08-23
+modified: 2026-08-30
 published: 2026-07-02
 description: 保险搜品能力不是独立入口，而是主 `Agent` 的一个能力：简单 `query` 走传统 `fast search tool`，复杂 `query` 进入 `ProductSearchGraph`，复用 `AgenticOne` 的产品召回链路，再把候选货架、阶段事件和待确认条件交还给主 `Agent`。
 tags:
@@ -562,6 +562,12 @@ agenticone_recall_if_needed
 `filter_rank` 从召回结果中精选一批轻量候选，并可排除历史已展示产品，为“换一批”保留后备池。第一版不开放多轮指代，这个后备池不会被前端直接消费。
 
 `filter_rank` 的输出还不是最终货架。候选产品还要经过当前上下架和渠道校验、产品深档案校验以及确定性规则排序。`filter_rank` 减少主链路携带的候选数，`rule_rerank` 才决定最终展示顺序。
+
+### 5.2 离线 `Query` 复用产品池
+
+对于稳定且已经过业务整理的需求，系统提前离线生成 `Query`，并为每个 `Query` 关联产品池。线上问题通过 `QQ Matching` 找到相近的离线 `Query`，直接复用候选产品列表。
+
+前三个产品的 `Precision@3` 是这条路径唯一的核心指标，由线上语义匹配、离线产品池维护和候选排序共同决定。完整的评测边界记录在 [[RAG 工程实践：QQ 产品召回与 QA 文档导航]]。
 
 ## 六、候选缓存：tool 和 subgraph 共用
 

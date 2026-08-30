@@ -1,7 +1,7 @@
 ---
 title: 保险产品解读报告系统：Multi-Agent 生产链路与评测闭环
 created: 2026-06-21T00:00:00+08:00
-modified: 2026-06-21
+modified: 2026-08-30
 published: 2026-06-21
 description: 从 HelixVerify 到保险产品解读与评测系统，记录节点内 Agentic Loop、外层 Graph、质量网关、评分 Agent 和产品评测 Agent 如何组成可交付的 Multi-Agent 生产链路。
 tags:
@@ -182,6 +182,8 @@ Prompt 是交通标语，工具才是护栏。
 semantic_search_material：先找到可能相关的段落
 read_material / grep_material：再精读、定位、核对原文
 ```
+
+`QA Matching` 返回的五个文本块只是 `Agent` 继续阅读的坐标，唯一的核心指标是 `Anchor Precision@5`。`Agent` 随后如何查看前后内容、补齐限制条件并形成证据链，归入报告生成器的轨迹与结果评测。详细边界记录在 [[RAG 工程实践：QQ 产品召回与 QA 文档导航]]。
 
 索引构建不是写在下载工具里，而是由 `MaterialIndexMiddleware` 在 `download_insurance_product_all_materials` 完成后拦截 `ToolMessage` 自动触发：
 
