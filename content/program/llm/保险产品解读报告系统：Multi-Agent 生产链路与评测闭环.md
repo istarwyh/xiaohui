@@ -170,35 +170,36 @@ download(prod_no)
 
 Prompt 是交通标语，工具才是护栏。
 
-### Semantic Search-then-Read
+### `Semantic Search-then-Read`
 
 只靠 `grep` 也不够。
 
 保险材料里有大量同义表达。用户想找“赔付金额”，条款里可能写的是“给付保险金”“保险金额”“年度累计限额”。正则对精确数值很强，但对语义召回很弱。
-
-所以系统引入了语义检索，形成两级理解：
 
 ```text
 semantic_search_material：先找到可能相关的段落
 read_material / grep_material：再精读、定位、核对原文
 ```
 
-`QA Matching` 返回的五个文本块只是 `Agent` 继续阅读的坐标，唯一的核心指标是 `Anchor Precision@5`。`Agent` 随后如何查看前后内容、补齐限制条件并形成证据链，归入报告生成器的轨迹与结果评测。详细边界记录在 [[RAG 工程实践：QQ 产品召回与 QA 文档导航]]。
+`semantic_search_material` 先用 `prod_no` 限定当前产品的材料，再做向量搜索。`QA Matching` 返回 `Top 5 chunk_id`，唯一的核心指标是 `Anchor Precision@5`。`Agent` 按 `ID` 打开数据后如何查看前后内容、补齐限制条件并形成证据链，归报告生成器评测。
 
-索引构建不是写在下载工具里，而是由 `MaterialIndexMiddleware` 在 `download_insurance_product_all_materials` 完成后拦截 `ToolMessage` 自动触发：
+材料主要来自公网保险条款，少部分图片经 `OCR` 转成 `Markdown`。`download_insurance_product_all_materials` 完成后，`MaterialIndexMiddleware` 拦截 `ToolMessage` 并构建索引：
 
 ```text
 download 完成
   -> Middleware 解析素材清单
-  -> 按标题、空行、滑动窗口切段
-  -> 调用 Embedding 批量接口
+  -> 汇总公网保险条款与 OCR Markdown
+  -> 固定 2000 字窗口、重叠 200 字、步长 1800 字
+  -> Qwen-Embedding-4B 批量处理 Chunk 正文
   -> Redis 缓存向量
-  -> 索引写入 Agent state
+  -> 产品内索引写入 Agent state
 ```
 
-这个设计避免了把索引逻辑耦合到 download 工具里。下载只负责拿材料，索引是横切关注点，由 middleware 接管。
+`download` 只负责取得材料，索引构建留在 `MaterialIndexMiddleware`。`QA Matching` 与产品召回的 `QQ Matching` 共用经过保险领域语料微调的 `Qwen-Embedding-4B`；`Embedding` 只输入 `Chunk` 正文，不拼产品名、文件名或章节标题。
 
-同时索引失败不能阻塞主链路。Embedding API 不可用时，`semantic_search_material` 返回降级提示，引导 Agent 回到 `grep` 和精读。报告生成可以慢一点、笨一点，但不能因为辅助索引失败直接停摆。
+`chunk_id` 解决寻址，不负责去掉重叠候选。当时没有深入分析固定滑窗的坏案例，相邻窗口重复、标题语义缺失和 `OCR` 噪声只能列为待验证风险。详细实现与评测边界记录在 [[RAG 工程实践：QQ 产品召回与 QA 文档导航]]。
+
+索引失败不阻塞主链路。`Embedding API` 不可用时，`semantic_search_material` 返回降级提示，`Agent` 回到 `grep` 和原文读取。
 
 ## 四、外层 Graph：把增强和校验变成生产流程
 
