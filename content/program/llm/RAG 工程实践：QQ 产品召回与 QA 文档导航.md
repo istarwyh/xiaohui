@@ -30,7 +30,37 @@ QA Matching：Question -> Top 5 文本块 -> 文档坐标 -> Agent 前后搜索
 
 ## `QQ Matching` 召回产品池
 
-一些保险需求会提前离线生成 `Query`，每个 `Query` 关联一组经过业务整理的产品。线上请求先与这些离线 `Query` 做 `QQ Matching`，命中后取回对应产品池，再从中给出前三个产品。
+`QQ Matching` 的结果只服务我们定义的复杂 `Query`。产品名搜索、明确的单条件筛选等简单 `Query` 仍然提交原有的 `HA3 easy` 搜索结果。
+
+复杂 `Query` 的产品池由 `Agentic Search` 离线生成：拆解需求、调用搜索工具、产出候选产品，再把结果与离线 `Query` 一起写入 `Elasticsearch`。线上链路不重跑这段搜索轨迹，只取回已经物化的产品池。
+
+`QQ Matching` 使用经过保险领域语料微调的 `Qwen-Embedding-4B`。在线问题完成向量化后，`Elasticsearch` 只返回相似度最高的一个离线 `Query`，不合并多个查询的产品池。最高分超过阈值才算命中，阈值通过线上 `A/B` 实验调整。`Embedding` 接口耗时约为 `50ms`，这是组件级近似值。
+
+### 三路从 `t0` 并发
+
+简单和复杂 `Query` 由 `Qwen3.5-35B-A3B` 量级的小模型判断，接口耗时约为 `250ms`，同样是组件级近似值。这个 `Gate` 不作为搜索的串行前置步骤；请求进入时，`Gate`、`HA3 easy` 和 `QQ Matching` 同时执行：
+
+```text
+用户 Query
+  ├── complexity gate：simple / complex
+  ├── HA3 easy：原有搜索引擎逻辑
+  └── QQ Matching
+       ├── Qwen-Embedding-4B
+       └── Elasticsearch Top 1 Query -> 离线产品池
+
+simple
+  -> HA3 easy
+
+complex + QQ hit
+  -> 离线产品池
+
+complex + QQ miss
+  -> HA3 easy
+```
+
+`Gate` 判为简单 `Query` 时提交 `HA3 easy` 结果；判为复杂 `Query` 且 `QQ Matching` 命中时提交离线产品池；`QQ Matching` 未过阈值时，改为提交已经在途的 `HA3 easy` 结果，不再重新发起搜索。没有被选中的分支也会消耗计算资源，换回的是降级时无需等待另一条链路冷启动。
+
+### 评测落在产品上
 
 这条链路不评价两个问题有多相似。用户最终看见的是产品，评测也直接落在产品上。
 
@@ -48,11 +78,30 @@ $$
 
 如果前三个产品分别是“满足、满足、不满足”，这条查询的 `Precision@3` 就是 $2/3$。
 
-`Precision@3` 是由 `QQ Matching` 驱动的产品级业务指标，会同时反映离线 `Query` 覆盖、线上匹配、产品池维护和候选排序的问题。
+`Precision@3` 是 `QQ Matching` 唯一的核心指标。它是产品级业务指标，会同时反映离线 `Query` 覆盖、线上匹配、产品池维护和候选排序的问题。
 
 若产品位不足三个，评测分母仍应按三个计算。否则系统可以通过少返回结果抬高精度。训练集和测试集还要按 `Query` 语义簇隔离；同一句需求的轻微改写如果同时落在两边，会制造一个很好看但无法说明线上效果的数字。
 
-产品池之后仍然要经过结构化条件、当前货架状态和产品档案校验。年龄、保额、保障期、健康告知等硬条件不能只交给语义相似度。[[AgenticOne 产品召回：JSON 分发与内存全量过滤]] 记录了为什么这些条件要由确定性代码在完整候选域上执行，[[保险商品搜索 Agent 工程架构：从自然语言需求到可交互货架]] 则记录了候选如何进入最终货架。
+从 `Elasticsearch` 取回产品池后，在线链路还会拦截已下架、当前渠道不可售或违反硬条件的产品。年龄、保额、保障期、健康告知等条件不能只交给离线产品池或语义相似度。[[AgenticOne 产品召回：JSON 分发与内存全量过滤]] 记录了为什么这些条件要由确定性代码在完整候选域上执行，[[保险商品搜索 Agent 工程架构：从自然语言需求到可交互货架]] 则记录了候选如何进入最终货架。
+
+### 线上时延
+
+最近一天的线上数据中，接口算术平均耗时约为 `340ms`，`P95` 约为 `640ms`。性能口径以这组线上数据为准，`Embedding` 的 `50ms` 和 `Gate` 的 `250ms` 只作为组件级近似值。
+
+三条分支并发后，接口时延接近 `Gate` 与被选检索分支的较大值，而不是把 `250ms`、`50ms` 和搜索耗时依次相加：
+
+```text
+simple:
+  T ≈ max(T_gate, T_HA3) + T_assemble
+
+complex + QQ hit:
+  T ≈ max(T_gate, T_embedding + T_ES) + T_assemble
+
+complex + QQ miss:
+  T ≈ max(T_gate, T_embedding + T_ES, T_HA3) + T_fallback
+```
+
+`P95 = 640ms` 表示最近一天约 95% 的请求在 `640ms` 内完成，并非最慢请求耗时。
 
 ## `QA Matching` 给 `Agent` 一个坐标
 
@@ -68,7 +117,7 @@ semantic search
   -> 取得可写入报告的原文证据
 ```
 
-检索器只评价自己交出的五个定位块：
+`Anchor Precision@5` 是 `QA Matching` 唯一的核心指标，只评价检索器交出的五个定位块：
 
 $$
 Anchor\ Precision@5(q)=\frac{\sum_{i=1}^{5}rel(q,c_i)}{5}
