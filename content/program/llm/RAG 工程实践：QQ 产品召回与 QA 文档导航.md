@@ -1,7 +1,7 @@
 ---
 title: RAG 工程实践：QQ 产品召回与 QA 文档导航
 created: 2026-08-30
-modified: 2026-08-30
+modified: 2026-09-06
 published: 2026-08-30
 description: 从淘工厂知识库问答到保险 `Agentic RAG`，记录 `QQ Matching` 如何召回产品池、`QA Matching` 如何提供文档定位，以及两条链路为什么分别使用 `Precision@3` 与 `Anchor Precision@5`。
 tags:
@@ -35,6 +35,8 @@ QA Matching：Question -> Top 5 文本块 -> 文档坐标 -> Agent 前后搜索
 复杂 `Query` 的产品池由 `Agentic Search` 离线生成：拆解需求、调用搜索工具、产出候选产品，再把结果与离线 `Query` 一起写入 `Elasticsearch`。线上链路不重跑这段搜索轨迹，只取回已经物化的产品池。
 
 `QQ Matching` 使用经过保险领域语料微调的 `Qwen-Embedding-4B`。在线问题完成向量化后，`Elasticsearch` 只返回相似度最高的一个离线 `Query`，不合并多个查询的产品池。最高分超过阈值才算命中，阈值通过线上 `A/B` 实验调整。`Embedding` 接口耗时约为 `50ms`，这是组件级近似值。
+
+领域微调的数据制作与背后的对比学习原理，记录在 [[embedding-training-for-qq-matching|保险推品中的语义匹配：从产品池复用到领域微调]]。
 
 ### 三路从 `t0` 并发
 
