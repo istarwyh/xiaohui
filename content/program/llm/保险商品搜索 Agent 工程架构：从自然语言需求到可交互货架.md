@@ -1,7 +1,7 @@
 ---
 title: 保险搜品能力工程架构：从 Agent Tool 到可交互货架
 created: 2026-07-02T00:00:00+08:00
-modified: 2026-08-23
+modified: 2026-08-30
 published: 2026-07-02
 description: 保险搜品能力不是独立入口，而是主 `Agent` 的一个能力：简单 `query` 走传统 `fast search tool`，复杂 `query` 进入 `ProductSearchGraph`，复用 `AgenticOne` 的产品召回链路，再把候选货架、阶段事件和待确认条件交还给主 `Agent`。
 tags:
@@ -562,6 +562,14 @@ agenticone_recall_if_needed
 `filter_rank` 从召回结果中精选一批轻量候选，并可排除历史已展示产品，为“换一批”保留后备池。第一版不开放多轮指代，这个后备池不会被前端直接消费。
 
 `filter_rank` 的输出还不是最终货架。候选产品还要经过当前上下架和渠道校验、产品深档案校验以及确定性规则排序。`filter_rank` 减少主链路携带的候选数，`rule_rerank` 才决定最终展示顺序。
+
+### 5.2 离线 `Query` 复用产品池
+
+这条路径的结果只服务复杂 `Query`。离线 `Agentic Search` 生成查询对应的产品池；经过保险语料微调的 `Qwen-Embedding-4B` 在线完成向量化，接口耗时约为 `50ms`；`Elasticsearch` 只取相似度最高的一个离线 `Query` 及其产品池。命中阈值通过线上 `A/B` 实验调整。
+
+请求进入时，`Qwen3.5-35B-A3B` 量级的复杂度 `Gate`、`HA3 easy` 和 `QQ Matching` 从 `t0` 并发执行。`Gate` 接口耗时约为 `250ms`。简单 `Query` 提交 `HA3 easy` 结果；复杂 `Query` 命中 `QQ Matching` 时复用离线产品池，未命中时降级到已经在途的 `HA3 easy` 结果。产品池返回前还要重新校验上下架状态、渠道和硬条件。
+
+前三个产品的 `Precision@3` 是这条路径唯一的核心指标。最近一天的线上数据中，接口算术平均耗时约为 `340ms`，`P95` 约为 `640ms`；`50ms` 和 `250ms` 只是组件级近似值。完整链路与评测边界记录在 [[RAG 工程实践：QQ 产品召回与 QA 文档导航]]。
 
 ## 六、候选缓存：tool 和 subgraph 共用
 
