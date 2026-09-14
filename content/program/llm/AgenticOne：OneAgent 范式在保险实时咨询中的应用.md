@@ -2,8 +2,8 @@
 title: AgenticOne：OneAgent 范式在保险实时咨询中的应用
 published: 2026-06-21
 created: 2026-06-21T00:00:00+08:00
-modified: 2026-06-21T00:00:00+08:00
-description: AgenticOne 不是孤立的新范式，而是 OneAgent 范式在保险快查实时咨询场景中的应用：用主 Agent 调度 SubAgent、工具、状态和子流程，把搜品、取证、核保、问答、试算和流式输出编排成一条稳定链路。
+modified: 2026-09-09T00:00:00+08:00
+description: AgenticOne 是 OneAgent 范式在保险快查实时咨询场景中的应用。主 Agent 管控制流，Tool 与 SubAgent 生产事实，终末工具通过 Typed Handoff 接管表达，并用 A2UI 事件驱动前端交付。
 tags:
   - AI Agent
   - OneAgent
@@ -89,6 +89,37 @@ SubAgent 层
 第二，状态污染。搜索候选、取证材料、核保上下文、历史推荐清单、用户画像不能全都塞进 `messages`。它们应该进入不同的 `state` 字段，在需要时被对应工具读取。
 
 第三，时序混乱。一个在线咨询链路里可能同时有主 `Agent` token、搜品卡片、取证卡片、报告输出、裸 LLM 工具输出。如果前端按事件到达顺序直接展示，用户看到的是乱序的系统噪音，而不是业务过程。
+
+### 沿一次请求看三条流
+
+六层回答系统里有哪些工程职责。沿一次请求看，主 `Agent` 控制调用，工具把事实写入共享状态，终末工具接管表达。
+
+```text
+User
+  -> Main Agent
+       Control Plane：理解意图、选择能力、判断信息是否充分、决定何时结束
+       |-- 调用 Tools / SubAgents
+       |     搜品、取证、试算、核保
+       |       -> Shared State
+       |            Data Plane：evidence / calc / context
+       |       -> 向主 Agent 返回轻量清单
+       |
+       '-- 事实充分后调用 Terminal Tool
+              Typed Handoff：接管输出权
+              -> Context Assembly
+              -> Summary LLM
+              -> A2UI 业务事件
+              -> User
+                 Presentation Plane：生成并交付最终对客内容
+```
+
+主 `Agent` 处在 `Control Plane`。它要想清楚下一步做什么、调用谁、当前事实够不够，以及什么时候结束，但不负责亲自完成每种领域任务。
+
+`Tool` 和 `SubAgent` 生产事实。搜品得到候选和命中原因，取证得到原文片段，试算得到数字与假设，核保得到问题和判断条件。完整结果进入 `Shared State`，形成请求的 `Data Plane`。主 `Agent` 只拿继续调度所需的清单、标识和引用。
+
+终末工具是输出权的边界。它通过一个有明确输入和输出语义的 `Typed Handoff`，读取 `State` 中与当前问题有关的事实，完成 `Context Assembly`，再交给专门的 `Summary LLM`。生成结果不会回到主 `Agent` 再改写。
+
+这里的 `Presentation Plane` 负责一次交互请求的最终表达，属于产品交付内部。
 
 ## 三、为什么需要 Orchestrator
 
@@ -375,9 +406,9 @@ context_sub 取证
 
 公网搜索也是同理。当用户点名一个库内找不到的产品，系统可以通过公网搜索取证，但最后仍然应该进入 evidence 管道，再由问答工具组织成答案。
 
-## 八、qa_summary 的三条线
+## 八、qa_summary：Typed Handoff 怎样接管表达
 
-`qa_summary` 不是前端直接消费的工具 JSON。它是一个终末工具，同时连接三条线：证据线、回答线、前端流式线。
+`qa_summary` 不是前端直接消费的普通工具 JSON。它是一个终末工具，也是从 `Data Plane` 进入 `Presentation Plane` 的 `Typed Handoff`。主 `Agent` 通过它交出输出权；工具读取证据、组装上下文，再调用专门的 `Summary LLM`。
 
 以用户问“EBC 徒步能不能赔？”为例，链路大致是：
 
@@ -391,8 +422,9 @@ context_sub 取证
   -> 主 Agent 只收到“已取证”的清单，不看到长原文
   -> 主 Agent 调 qa_summary(question, prod_nos)
   -> qa_summary 从 state.search_evidence 读取 evidence
-  -> qa_summary 拼 QA prompt，调用 LLM 生成 Markdown
-  -> LLM token 通过 SSE 流给前端
+  -> qa_summary 完成 Context Assembly，调用 Summary LLM
+  -> 表达层生成 Markdown 与 A2UI 业务事件
+  -> 事件通过 SSE 流给前端
   -> qa_summary 返回完整 Markdown
   -> SummaryBypass 把 ToolMessage 转成最终 AIMessage
 ```
@@ -420,7 +452,7 @@ qa_summary(
 
 这条优先级很重要。具体问答必须优先相信本轮取到的条款、健告、投保须知等原文，而不是相信主 `Agent` 的历史印象。
 
-第四，前端看到的是 `qa_summary` 内部 LLM 生成过程中的 token，而不是等工具函数完全返回后才一次性显示。也就是说，`qa_summary` 内部的 LLM 调用会被标记成问答生成模块，SSE consumer 持续消费 token chunk，前端把这些 chunk 拼成用户看到的 Markdown 答案。
+第四，前端不必等工具函数完全返回后才看到结果。`qa_summary` 内部的 LLM 调用会被标记成问答生成模块。表达层把文本和界面结构转成 `A2UI` 业务事件，SSE consumer 持续消费并转发，客户端据此更新答案和组件。
 
 第五，`qa_summary` 最后仍然会返回完整 Markdown。这个返回值进入图状态，成为工具消息。但它主要用于本轮状态收口，不是让主 `Agent` 再总结。`SummaryBypass` 会把这条终末工具结果转成最终 `AIMessage`，并结束本轮，防止主 `Agent` 二次加工。
 
@@ -436,15 +468,13 @@ qa_summary(
 | 调用 qa_summary | 参与 |
 | qa_summary 生成答案后再总结 | 不参与，被 bypass 禁止 |
 
-一句话说，主 `Agent` 负责“该查什么、该问谁”；`context_sub_agent` 负责“把证据取回来”；`qa_summary` 负责“读证据并写给用户”；前端消费的是 `qa_summary` 生成过程中的 SSE token。
-
 ## 九、终末工具要被保护
 
 在 `AgenticOne` 里，有些工具只是中间工具，有些工具是终末工具。
 
-中间工具的结果需要主 `Agent` 再解释，比如保费试算、收益演算、部分核保工具。它们返回的是结构化事实，主 `Agent` 需要把这些事实变成用户能理解的话。
+保费试算、收益演算和部分核保工具返回结构化事实，完整结果写入共享状态。主 `Agent` 根据轻量结果继续调度，最终表达由终末工具组织。
 
-终末工具则不同。推荐报告和条款问答这类工具，本身已经生成了用户可见内容。它们可能包含产品卡、对比表、风险提示、证据解释和结构化组件。
+终末工具则不同。推荐报告和条款问答这类工具通过 `Typed Handoff` 接管输出权。它们从 `Shared State` 读取完整事实，组装适合当前输出类型的上下文，再由专门的 `Summary LLM` 生成用户可见内容。结果可能包含产品卡、对比表、风险提示、证据解释和结构化组件。
 
 如果终末工具成功后再让主 `Agent` 总结一遍，常见问题是：
 
@@ -453,7 +483,7 @@ qa_summary(
 - 证据解释被二次改写；
 - 用户看到重复回答。
 
-所以终末工具成功后应该直接成为最终输出。这是对输出层的保护，也是 `OneAgent` 应用到 C 端产品时必须建立的边界。
+所以终末工具成功后应该直接成为最终输出。这条边界把控制流与表达流分开，也避免主 `Agent` 在最后一步破坏已经组织好的事实关系和界面结构。
 
 这和离线生产闭环里的一个经验是同源的：已经通过专门链路生成和校验过的产物，不要再让另一个自由模型随手改写。
 
@@ -611,6 +641,14 @@ event_data.chunk.content
 
 其中 `module_code` 决定前端把内容放在哪个区域。例如思考 / 工具区和最终回答区应该分开，否则用户会把中间过程误认为最终结论。
 
+表达层现在使用 `A2UI` 组织事件。终末工具输出的不只是连续文本，还可以描述产品卡、对比表、风险提示等界面结构，以及这些结构如何增量更新。客户端按事件更新自己的组件状态。
+
+- LangGraph / LangChain 运行事件说明内部正在执行什么。
+- `A2UI` 消息说明用户界面要展示或更新什么。
+- SSE 负责把这些业务事件从服务端传到客户端。
+
+`producer` 和 `consumer` 从交错的运行事件中识别业务阶段、组织顺序，将终末表达转换为客户端可消费的 `A2UI` 事件。
+
 整条管线可以概括为：
 
 ```text
@@ -637,9 +675,12 @@ event_data.chunk.content
   -> Orchestrator 判断没有活跃子流程
   -> 主 Agent 识别为推荐诉求
   -> 搜品子图召回和精选候选
+  -> 候选标识与轻量上下文写入 Shared State
   -> 主 Agent 调推荐报告工具
-  -> 终末工具直出
-  -> SSE 按业务时序展示
+  -> Terminal Tool 读取产品深档案并完成 Context Assembly
+  -> Summary LLM 生成产品卡与比较
+  -> A2UI 事件通过 SSE 按业务时序展示
+  -> 终末工具直出，主 Agent 不二次改写
 ```
 
 ### 条款问答链路
@@ -651,6 +692,7 @@ event_data.chunk.content
   -> ContextBypass 聚合原文片段
   -> ContextEvidenceCapture 写入 evidence
   -> qa_summary 读取 evidence 并流式生成 Markdown
+  -> 表达层生成 A2UI 事件
   -> SummaryBypass 终末工具直出
 ```
 
@@ -736,9 +778,9 @@ Host Agent
 
 第三，把长证据放进 `state`，不要放进主上下文。主 `Agent` 只需要知道证据已经准备好，回答工具再按需读取。
 
-第四，区分中间工具和终末工具。中间工具返回事实，主 `Agent` 负责解释；终末工具已经生成用户可见产物，就应该直接输出。
+第四，区分中间工具和终末工具。中间能力生产事实并写入 `Shared State`；终末工具通过 `Typed Handoff` 接管输出权，完成上下文组装和最终表达。
 
-第五，流式输出要按业务时序重排。多 `Agent` 系统的事件到达顺序不等于用户理解顺序。
+第五，表达层用 `A2UI` 描述界面更新，并按业务时序发送。多 `Agent` 系统的运行事件到达顺序不等于用户理解顺序，SSE 也不代替界面协议。
 
 第六，`SubAgent` 不是为了组织结构好看，而是为了隔离上下文、压缩主链路、保护专业能力边界。
 
@@ -746,7 +788,7 @@ Host Agent
 
 `AgenticOne` 可以被看作一个很典型的 `OneAgent` 应用案例。
 
-它没有发明一套脱离 `OneAgent` 的新范式，而是把 `OneAgent` 的思想落到了保险快查的实时咨询链路里：基于基础 `Agent` 派生业务 `Agent`，允许主 `Agent` 调度同类或异构 `SubAgent`，用 `state` 管住长上下文和跨轮状态，用子流程承载业务状态机，用终末工具保护最终输出，用 SSE 队列把内部事件翻译成用户可理解的时序。
+在保险快查的实时咨询链路里，主 `Agent` 管控制流，工具与 `SubAgent` 把事实写入状态，终末工具接管表达，再通过 `A2UI` 事件交给前端。
 
 从这个角度看，`AgenticOne` 的重点不是“用了 Agent”，而是把保险咨询中的不确定性拆成了几个可以治理的层次：
 
@@ -755,7 +797,7 @@ Host Agent
 - 条款不确定，交给取证和问答工具；
 - 多轮流程不确定，交给子流程；
 - 长上下文不确定，交给 `state`；
-- 输出时序不确定，交给流式队列。
+- 输出结构和时序不确定，交给终末工具、`A2UI` 与流式队列。
 
 每一层只解决自己那一段不确定性。复杂系统不是靠一个更大的 prompt 稳定下来，而是靠边界、状态、工具、子流程和输出协议共同稳定下来。
 
