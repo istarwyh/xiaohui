@@ -1,6 +1,6 @@
 ---
 created: 2024-11-17T20:57:23+08:00
-modified: 2026-07-19
+modified: 2026-09-16
 published: 2024-11-17T20:57:23+08:00
 ---
 
@@ -57,10 +57,16 @@ OceanBase `AI` 黑客松二等奖领奖照片：
 
 ![](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/20260607231208677.png)
 
-- 围绕 `Harness Engineering` 提效与工程化实践，面向阿里国际 Accio 团队、蚂蚁集团平台体验技术部智能工程技术团队、阿里集团 ATH 事业群心流团队、高德全员大群、平安健康险团队进行技术分享，并在蚂蚁集团“技术夜校”完成 `Harness` 开放麦专场
+`AI Maker` 上海分享现场（2026 年 9 月 12 日，上海浦东滨江喜来登酒店）：
+
+![AI Maker 上海保险快查 Agent Native 实践分享现场](https://xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com/image/ai-maker-shanghai-agent-native-talk-20260912.jpg)
+
+- 围绕 `Harness Engineering` 提效与工程化实践，面向阿里国际 Accio 团队、蚂蚁集团平台体验技术部智能工程技术团队、阿里集团 ATH 事业群心流团队、平安健康险团队进行技术分享，并在蚂蚁集团“技术夜校”完成 `Harness` 开放麦专场
+- 2026 年 6 月 11 日，在高德全员大群分享《`Harness Engineering` 的实战解析：从 114 次自动迭代到 `AI Native` 闭环》
 - 在阿里集团奇点学堂分享 `AI Coding` 工具与实战案例，面向财富与保险事业群 HR 团队、蚂蚁保产品团队、蚂蚁保 `BI` 团队分享 `Claude Code` 工作提效、入门与进阶课程，并建设 [AI Speeds](https://aispeeds.me) 分享 `Claude Code` 最佳实践与超级个体方法
 - 面向钱塘征信团队分享 C 端 `AIGC` 实践、`Agent` 上下文工程与应用架构
 - 2026 年 6 月 25 日，在 CCF TF 第 179 期“智能体加速金融创新”分享保险快查 `Agent Native` 实践，CCF 公众号发布[活动回顾](https://mp.weixin.qq.com/s/hrxFK6xPFgREx4mUOX7msg)
+- 2026 年 9 月 12 日，在上海浦东滨江喜来登酒店的 `AI Maker` 上海活动上分享《保险快查的 `Agent Native` 实践》，并公开[演示文稿与逐页讲稿](https://aispeeds.me/shares/agent-native-product-ai-maker-shanghai)
 
 ## 我能给您带来什么
 
