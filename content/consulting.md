@@ -10,7 +10,6 @@ description: 与晓灰进行 1 小时 AI Agent、MCP、上下文工程与 AI 工
 
 <div class="membership-header">
   <span class="page-label">CONSULTING</span>
-  <h1>AI Agent 落地诊断</h1>
   <p class="header-desc">1 小时线上沟通，围绕你的 <code>Agent</code> 项目、<code>AI Coding</code> 工作流或 <code>AI</code> 工程路线做一次判断、拆解和下一步建议。</p>
 </div>
 

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file governs repository-wide work. More specific `CLAUDE.md` files supplement it and take precedence within their directories; in particular, use `content/CLAUDE.md` for writing, metadata, review, and version-control rules under `content/`.
 
 ## Project overview
 
@@ -132,20 +132,15 @@ Components are Preact function components under `quartz/components/`. Component-
 
 The homepage is special-cased by layout conditions: `TerminalHome` and `QuoteExhibit` render only for the `index` slug, while article title/meta/tag components are suppressed there. `scripts/update-homepage.js` still looks for a `Component.CardFeed(...)` block when syncing card data, so verify homepage assumptions when changing the layout.
 
-### Content and publishing rules
+### Content integration
 
 `quartz.config.ts` currently publishes with `locale: "zh-CN"`, `baseUrl: "xiaohui.cool"`, Plausible analytics, Obsidian-flavored Markdown, GFM, KaTeX LaTeX, syntax highlighting, RSS/sitemap, and a custom `AgentIndex` emitter. Ignored content patterns include `private`, `templates`, `.obsidian`, `*.canvas`, `claude-code-*.html`, and `CLAUDE.md`.
 
-For `content/` edits:
+Keep authoring rules in `content/CLAUDE.md` rather than duplicating them here. Repository-level tooling behaves as follows:
 
-- Read and follow `content/CLAUDE.md`; it contains the author profile, writing style, content categories, and commit/review expectations for the vault.
-- Markdown uses YAML frontmatter and Obsidian `[[wikilink]]` syntax.
-- Frontmatter date checks require a created field (`created` or `date`) and a modified field (`modified`, `lastmod`, `updated`, or `last-modified`) with ISO-style dates. A published field is optional but preferred (`published`, `publishDate`, or `date`).
-- When committing staged Markdown under `content/`, `scripts/fill-staged-frontmatter-dates.js` runs first and fills any missing canonical `created`, `modified`, and `published` fields with today's Asia/Shanghai date. It preserves existing alias fields and only inserts missing values.
-- For existing content backfills, `node scripts/backfill-frontmatter-dates.js` is dry-run by default and derives `created` from the earliest git author date, `modified` from the latest git author date, and `published` from `created`; use `--write` only when the user asks to update files.
-- The vault is primarily Chinese with English technical terms. Existing guidance asks to wrap English technical terms in backticks.
-- Images are generally hosted on Alibaba Cloud OSS rather than stored locally.
-- Root Prettier deliberately ignores `content/**/*.md` and `content/**/*.html`; preserve authorial Markdown formatting unless the user asks for formatting changes.
+- `scripts/fill-staged-frontmatter-dates.js` fills missing canonical `created`, `modified`, and `published` fields in staged content Markdown using today's Asia/Shanghai date. It preserves existing alias fields.
+- `node scripts/backfill-frontmatter-dates.js` is dry-run by default and derives dates from git history; use `--write` only when the user explicitly asks to update files.
+- Root Prettier excludes `content/**/*.md` and `content/**/*.html` so authorial formatting is preserved.
 
 ## Hooks and generated files
 

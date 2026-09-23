@@ -1,16 +1,16 @@
 ---
 published: 2026-06-30
 created: 2026-05-08
-modified: 2026-08-15
+modified: 2026-09-20
 ---
 
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file governs work under `content/`. It supplements the repository-root `CLAUDE.md`; when the two differ for a file in this directory, this file takes precedence. Root-level build, deployment, and code rules still apply when a task crosses outside `content/`.
 
 ## What This Is
 
-A personal knowledge base and blog managed with Obsidian, published to [xiaohui.cool](https://xiaohui.cool) via [Quartz](https://github.com/jackyzha0/quartz). This `content/` directory is the canonical Obsidian vault — edit directly here, no external sync needed. All content is Markdown — no build step, no tests, no application code.
+A personal knowledge base and blog managed with Obsidian, published to [xiaohui.cool](https://xiaohui.cool) via [Quartz](https://github.com/jackyzha0/quartz). This `content/` directory is the canonical Obsidian vault — edit directly here, no external sync needed. Content-only changes normally need no application tests or build; use the root instructions when validating publication behavior.
 
 ## Repository Structure
 
@@ -29,20 +29,18 @@ A personal knowledge base and blog managed with Obsidian, published to [xiaohui.
 ## Conventions
 
 - **File format**: Markdown with YAML frontmatter (used by Quartz for metadata like `title`, `aliases`)
+- **Dates**: Require a created field (`created` or `date`) and a modified field (`modified`, `lastmod`, `updated`, or `last-modified`) using ISO-style dates. A published field (`published`, `publishDate`, or `date`) is optional but preferred.
 - **Internal links**: Use Obsidian `[[wikilink]]` syntax for cross-references
-- **Images**: Hosted on Alibaba Cloud OSS (`xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com`)
-- **Formatting**: Prettier configured — 2 spaces, no tabs, no semicolons, single quotes, 120 char width, LF line endings, no prose wrap
+- **Images**: Host published images on Alibaba Cloud OSS (`xiaohui-zhangjiakou.oss-cn-zhangjiakou.aliyuncs.com`)
+- **Formatting**: Preserve authorial Markdown formatting. Root Prettier excludes `content/**/*.md` and `content/**/*.html`; do not run it over prose unless explicitly requested. For code or structured snippets, follow the surrounding style.
 - **Language**: Primarily Chinese with English technical terms; wrap English technical terms in backticks
 - **Skill metadata**: Repository-local skill Markdown must retain `created` and `modified` frontmatter. When updating a skill or one of its rule files, preserve `created` and set `modified` to the current date. This repository convention takes precedence over generic skill validators that reject those fields.
 
-## Commit Guidelines
+## Review and Version Control
 
-- Stage and commit all changes by default
-- Generate commit messages based on content changes
-- Check for mixed Chinese/English punctuation
-- Check for typos and grammar errors
-- Check that English technical terms are wrapped in backticks
-- Provide at least 3 constructive suggestions when reviewing
+- Do not stage, commit, or push unless the user explicitly asks. When asked, include only task-related files and generate the commit message from the actual changes.
+- Before finalizing, check mixed Chinese/English punctuation, typos, grammar, and unwrapped English technical terms.
+- When the task is a review, provide at least 3 constructive suggestions.
 
 ## Writing Style
 
