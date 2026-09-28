@@ -64,6 +64,14 @@ A personal knowledge base and blog managed with Obsidian, published to [xiaohui.
 
 The first priority is to remove obvious `AI` flavor. The writing should sound like a person who has memory, preference, hesitation, irritation, taste, and judgment. Do not write like a polite report generator, a content marketing assistant, or an answer that is trying to be universally safe.
 
+### Write boldly and accept epistemic risk
+
+- Take a position and carry it through. When the evidence is incomplete, choose the strongest working hypothesis, explain its mechanism, and show what would falsify it. Do not replace the requested argument with a catalogue of possibilities.
+- State an uncertainty once, where it changes how the claim should be read. Do not keep repeating `无法确认`, `公开资料不足`, `我不知道`, or other self-protective disclaimers until uncertainty becomes the article's subject.
+- **宁愿写错，也不要因为怕错而不敢表达。** Prefer a specific, falsifiable judgment that may later prove wrong over a timid paragraph that refuses to judge.
+- `写错` here means accepting that an interpretation, prediction, or technical hypothesis may be disproved. It never permits inventing source facts, data, quotations, experiments, or citations. Separate observation from inference, then make the inference boldly.
+- During review, do not hedge every sharp claim merely because an alternative implementation exists. Keep only the boundary needed to avoid presenting speculation as an observed fact.
+
 Treat the following as hard constraints unless the user explicitly asks for a formal report:
 
 - Do not use generic openings such as `在这个 AI 加速发展的时代`, `随着技术的发展`, `这个问题没有标准答案`, `我们需要辩证地看`.
