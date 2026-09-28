@@ -1,4 +1,4 @@
-import yaml from "js-yaml"
+import * as yaml from "js-yaml"
 import toml from "toml"
 
 export type FrontmatterLanguage = "yaml" | "toml"
