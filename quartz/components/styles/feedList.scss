@@ -57,16 +57,21 @@
   gap: 0.35rem;
 }
 
-.feed-card-title {
+// 用 a.xxx 提高特异性，覆盖 base.scss 中 `a.internal` 的高亮底色与内边距
+a.feed-card-title {
+  align-self: flex-start;
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--dark);
   background-color: transparent;
+  padding: 0;
+  border-radius: 0;
   text-decoration: none;
   line-height: 1.45;
 
   &:hover {
     color: var(--secondary);
+    background-color: transparent;
     text-decoration: none;
   }
 }
@@ -105,7 +110,7 @@
     height: 60px;
   }
 
-  .feed-card-title {
+  a.feed-card-title {
     font-size: 0.975rem;
   }
 }
