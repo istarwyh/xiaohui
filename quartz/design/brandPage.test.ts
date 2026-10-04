@@ -117,3 +117,20 @@ test("the rendered showcase has one title, valid section targets, and all ten us
     )
   }
 })
+
+test("article feedback keeps tags below the body and aligns the reading column with its title", () => {
+  const layout = readFileSync("quartz.layout.ts", "utf8")
+  const readingStyle = readFileSync("quartz/styles/custom.scss", "utf8")
+  assert.match(
+    layout,
+    /const articleTags = Component\.ConditionalRender\(\{[\s\S]*?component: Component\.TagList\(\),[\s\S]*?condition: \(page\) => !isHomePage\(page\)/,
+  )
+  assert.match(layout, /afterBody: \[homepageFeed, articleTags, bottomBreadcrumbs\]/)
+  const beforeBody = layout.split("beforeBody: [")[1].split("afterBody:")[0]
+  assert.doesNotMatch(beforeBody, /TagList|articleTags/)
+  assert.match(
+    readingStyle,
+    /body:not\(\[data-slug="index"\]\):not\(\[data-slug="en"\]\) \.center > article \{\s*margin-inline: 0;/,
+  )
+  assert.match(readingStyle, /max-width: var\(--measure-reading\)/)
+})
