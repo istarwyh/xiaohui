@@ -9,6 +9,12 @@ const bottomBreadcrumbs = Component.ConditionalRender({
   condition: (page) => !isHomePage(page),
 })
 
+// 首页「所有文章」feeds 流：构建时预渲染全部卡片，前端按批次揭示
+const homepageFeed = Component.ConditionalRender({
+  component: Component.FeedList(),
+  condition: isHomePage,
+})
+
 const sidebarPrimaryActions = Component.Flex({
   components: [
     {
@@ -68,7 +74,7 @@ export const defaultContentPageLayout: PageLayout = {
       condition: (page) => !isHomePage(page),
     }),
   ],
-  afterBody: [bottomBreadcrumbs],
+  afterBody: [homepageFeed, bottomBreadcrumbs],
   left: [
     Component.PageTitle(),
     Component.MobileOnly(Component.Spacer()),
