@@ -82,7 +82,7 @@ a.feed-card-image-link {
 }
 
 // 用 a.xxx 提高特异性，覆盖 base.scss 中 `a.internal` 的高亮底色与内边距
-a.feed-card-title {
+.feed-list a.feed-card-title {
   align-self: flex-start;
   font-size: var(--feed-title-size);
   font-weight: var(--weight-strong);
@@ -131,7 +131,7 @@ a.feed-card-title {
     padding: var(--feed-row-mobile-padding);
   }
 
-  a.feed-card-title {
+  .feed-list a.feed-card-title {
     font-size: var(--feed-title-mobile-size);
   }
 }

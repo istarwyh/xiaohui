@@ -144,6 +144,7 @@ test("approved feed density and image geometry remain explicit", () => {
   assert.match(feed, /repeat\(3, minmax\(0, 1fr\)\)/)
   assert.match(feed, /object-fit: contain/)
   assert.match(feed, /align-items: baseline/)
+  assert.match(feed, /\.feed-list a\.feed-card-title/, "Titles must outrank upstream a.internal")
 })
 
 test("design documentation cannot enter the content feed, and a real skip target exists", () => {
@@ -151,6 +152,12 @@ test("design documentation cannot enter the content feed, and a real skip target
   assert.match(config, /"AGENTS.md"/)
   assert.match(config, /"CLAUDE.md"/)
   const page = readFileSync("quartz/components/renderPage.tsx", "utf8")
-  assert.match(page, /href="#main-content"/)
+  assert.match(page, /href="#main-content" data-no-popover data-router-ignore/)
   assert.match(page, /<main class="center" id="main-content" tabIndex=\{-1\}/)
+})
+
+test("inline search styles cannot leak into the reparented modal results", () => {
+  const terminal = readFileSync("quartz/components/styles/terminalHome.scss", "utf8")
+  assert.match(terminal, /\.terminal-search-results \.terminal-search-layout \{/)
+  assert.doesNotMatch(terminal, /^\.terminal-search-layout \{/m)
 })

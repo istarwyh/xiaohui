@@ -170,6 +170,14 @@ body {
   outline-offset: var(--focus-offset);
 }
 
+.search .result-card:focus-visible,
+.search .result-card.focus,
+.terminal-search-layout .result-card:focus-visible,
+.terminal-search-layout .result-card.terminal-focus {
+  outline: var(--focus-width) solid var(--color-focus);
+  outline-offset: calc(-1 * var(--focus-width));
+}
+
 footer {
   opacity: 1;
   color: var(--color-text-muted);

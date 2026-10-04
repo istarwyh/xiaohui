@@ -822,8 +822,7 @@ document.addEventListener("nav", () => {
   function onMenuClick(event: MouseEvent) {
     const target = event.target as HTMLElement
     const format = target.closest<HTMLButtonElement>("button[data-format]")?.dataset.format as
-      | CopyFormat
-      | undefined
+      CopyFormat | undefined
 
     if (format) copy(format)
   }

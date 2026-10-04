@@ -253,7 +253,7 @@ export function renderPage(
     <html lang={lang}>
       <Head {...componentData} />
       <body data-slug={slug}>
-        <a class="skip-link" href="#main-content" data-no-popover>
+        <a class="skip-link" href="#main-content" data-no-popover data-router-ignore>
           {String(lang).startsWith("zh") ? "跳到主要内容" : "Skip to main content"}
         </a>
         <div id="quartz-root" class="page">
