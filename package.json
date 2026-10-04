@@ -16,7 +16,7 @@
     "docs": "npx quartz build --serve -d docs",
     "check": "tsc --noEmit && npx prettier . --check",
     "format": "npx prettier . --write",
-    "test": "node --import tsx --test ./quartz/util/path.test.ts ./quartz/depgraph.test.ts ./quartz/util/feedImage.test.ts && npm run check:design",
+    "test": "node --import tsx --test ./quartz/util/path.test.ts ./quartz/depgraph.test.ts ./quartz/util/feedImage.test.ts ./quartz/components/scripts/spa.test.ts && npm run check:design",
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1",
     "update-homepage": "node ./scripts/update-homepage.js",
     "sync": "npm run update-homepage && npx quartz sync",

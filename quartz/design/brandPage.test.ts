@@ -42,3 +42,10 @@ test("brand guide consumes shared palette and retains explicit copy failure feed
   assert.match(script, /无法自动复制/)
   assert.doesNotMatch(script, /innerHTML|eval\(/)
 })
+
+test("brand code examples expose one visible copy action and downloads have unique names", () => {
+  assert.match(component, /<pre data-clipboard-skip>/)
+  assert.match(component, /aria-label=\{`下载\$\{asset.title\} SVG`\}/)
+  const clipboard = readFileSync("quartz/components/scripts/clipboard.inline.ts", "utf8")
+  assert.match(clipboard, /hasAttribute\("data-clipboard-skip"\)\) continue/)
+})

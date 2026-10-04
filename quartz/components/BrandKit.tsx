@@ -7,11 +7,11 @@ import style from "./styles/brandKit.scss"
 import script from "./scripts/brandKit.inline"
 
 const swatches = [
-  { role: "color-canvas", name: "纸白", usage: "页面底色" },
-  { role: "color-surface", name: "纸面", usage: "内容与辅助信息" },
-  { role: "color-text-strong", name: "墨色", usage: "标题与关键文字" },
-  { role: "color-text-muted", name: "灰墨", usage: "日期、来源与说明" },
-  { role: "color-accent", name: "铜色", usage: "链接与交互提示" },
+  { role: "color-canvas", name: "纸白", darkName: "炭灰", usage: "页面底色" },
+  { role: "color-surface", name: "纸面", darkName: "深纸", usage: "内容与辅助信息" },
+  { role: "color-text-strong", name: "墨色", darkName: "浅墨", usage: "标题与关键文字" },
+  { role: "color-text-muted", name: "灰墨", darkName: "浅灰", usage: "日期、来源与说明" },
+  { role: "color-accent", name: "铜色", darkName: "浅铜", usage: "链接与交互提示" },
 ] as const
 
 const embed = `<a href="https://xiaohui.cool/">
@@ -158,6 +158,7 @@ export default (() => {
                 class="brand-action"
                 href={`/brand/${asset.filename}`}
                 download={asset.filename}
+                aria-label={`下载${asset.title} SVG`}
                 data-router-ignore
               >
                 下载 SVG ↓
@@ -203,11 +204,11 @@ export default (() => {
           ).map(([label, palette]) => (
             <div class="brand-palette">
               <h3>{label}</h3>
-              {swatches.map(({ role, name, usage }) => (
+              {swatches.map(({ role, name, darkName, usage }) => (
                 <button
                   class="brand-swatch"
                   data-brand-copy={palette[role]}
-                  aria-label={`复制${label}${name}色值 ${palette[role]}`}
+                  aria-label={`复制${label}${label === "暗色" ? darkName : name}色值 ${palette[role]}`}
                 >
                   <span
                     class="brand-swatch-color"
@@ -215,7 +216,7 @@ export default (() => {
                     aria-hidden="true"
                   />
                   <span>
-                    <strong>{name}</strong>
+                    <strong>{label === "暗色" ? darkName : name}</strong>
                     <small>{usage}</small>
                   </span>
                   <code>{palette[role].toUpperCase()}</code>
@@ -295,7 +296,7 @@ export default (() => {
                 复制代码
               </button>
             </div>
-            <pre>
+            <pre data-clipboard-skip>
               <code>{embed}</code>
             </pre>
             <p class="brand-small-note">下载后放入网站的 /brand/ 目录即可引用，无需额外脚本。</p>
