@@ -48,7 +48,8 @@ export default (() => {
       : []
     const author = (fileData.frontmatter as any)?.author ?? (cfg as any).author ?? cfg.pageTitle
     const dates = fileData.dates
-    const isArticle = !isHome && !is404 && !!fileData.frontmatter
+    const isArticle =
+      !isHome && !is404 && fileData.frontmatter?.pageType !== "brand" && !!fileData.frontmatter
     const ogType = isArticle ? "article" : "website"
     const locale = currentLang.replace("-", "_")
 

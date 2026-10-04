@@ -10,6 +10,15 @@ html {
 body {
   font-size: var(--text-body);
   -webkit-font-smoothing: antialiased;
+  background-image: var(--texture-paper);
+}
+
+// The texture is a background image, never an overlay over glyphs or controls.
+.terminal-window,
+.curated-quotes,
+.explore-hint,
+.graph-outer {
+  background-image: var(--texture-paper);
 }
 
 ::selection {
@@ -221,5 +230,15 @@ footer {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-contrast: more), (forced-colors: active), print {
+  body,
+  .terminal-window,
+  .curated-quotes,
+  .explore-hint,
+  .graph-outer {
+    background-image: none;
   }
 }

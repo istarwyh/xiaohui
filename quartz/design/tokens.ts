@@ -1,4 +1,5 @@
 import type { ColorScheme, Theme } from "../util/theme"
+import { paperTextureCss } from "./paperTexture"
 
 /**
  * Xiaohui / 晓灰 · editorial system v1
@@ -48,6 +49,7 @@ export const foundations = {
   "icon-size": "1.25rem",
   "measure-reading": "44rem",
   "measure-page": "100rem",
+  "measure-brand": "72rem",
   "duration-fast": "120ms",
   "duration-normal": "180ms",
   "ease-standard": "cubic-bezier(0.2, 0, 0, 1)",
@@ -64,10 +66,10 @@ export const foundations = {
 } as const
 
 export const light = {
-  "color-canvas": "#faf9f6",
-  "color-surface": "#f3f1ec",
+  "color-canvas": "#fcfbfa",
+  "color-surface": "#f8f7f5",
   "color-surface-raised": "#ffffff",
-  "color-surface-hover": "#eae6df",
+  "color-surface-hover": "#f0eeeb",
   "color-text": "#34322f",
   "color-text-strong": "#242320",
   "color-text-muted": "#68645e",
@@ -83,6 +85,7 @@ export const light = {
   "color-positive": "#476348",
   "color-warning": "#805b20",
   "color-danger": "#a13f3f",
+  "texture-paper": paperTextureCss("light"),
   "shadow-popover": "0 0.5rem 1.5rem rgba(36, 35, 32, 0.12)",
   "shadow-overlay": "0 1rem 3rem rgba(36, 35, 32, 0.18)",
 } as const
@@ -108,6 +111,7 @@ export const dark = {
   "color-positive": "#abc7a1",
   "color-warning": "#dcc18a",
   "color-danger": "#e8aaa4",
+  "texture-paper": paperTextureCss("dark"),
   "shadow-popover": "0 0.5rem 1.5rem rgba(0, 0, 0, 0.24)",
   "shadow-overlay": "0 1rem 3rem rgba(0, 0, 0, 0.36)",
 } satisfies Record<keyof typeof light, string>

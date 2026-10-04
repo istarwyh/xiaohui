@@ -3,6 +3,7 @@ import test from "node:test"
 import { readFileSync } from "node:fs"
 import { foundations, light, dark, designTokens, xiaohuiTheme } from "./tokens"
 import { joinStyles } from "../util/theme"
+import { paperGrain, paperTextureSvg } from "./paperTexture"
 
 function luminance(hex: string): number {
   assert.match(hex, /^#[0-9a-f]{6}$/i, "Contrast checks require opaque sRGB tokens")
@@ -106,6 +107,7 @@ test("Quartz aliases, browser tokens, and OG colors share one source", () => {
 const migratedStyles = [
   "quartz/styles/custom.scss",
   ...[
+    "brandKit",
     "terminalHome",
     "feedList",
     "search",
@@ -127,7 +129,7 @@ test("migrated surfaces cannot reintroduce raw colors, fonts, or undefined seman
       assert.match(match[1].trim(), /^(var\(|inherit$)/, path)
     }
     for (const match of source.matchAll(
-      /var\(--((?:color|font|space|radius|text|weight|leading|measure|duration|ease|shadow|focus|control|feed|layer|border)-[\w-]+)\)/g,
+      /var\(--((?:color|font|space|radius|text|weight|leading|measure|duration|ease|shadow|focus|control|feed|layer|border|texture)-[\w-]+)\)/g,
     )) {
       assert.ok(definitions.has(match[1]), `${path}: undefined --${match[1]}`)
     }
@@ -170,5 +172,33 @@ test("modal search highlights set a tested foreground instead of inheriting link
   )
   for (const palette of [light, dark]) {
     assert.ok(contrast(palette["color-text-strong"], palette["color-mark"]) >= 4.5)
+  }
+})
+
+test("paper texture is static, self-contained, and preserves worst-case text contrast", () => {
+  for (const mode of ["light", "dark"] as const) {
+    const palette = mode === "light" ? light : dark
+    const { channel, maxOpacity } = paperGrain[mode]
+    const svg = paperTextureSvg(mode)
+    assert.ok(Buffer.byteLength(svg) < 1024)
+    assert.doesNotMatch(svg, /<script|<animate|<image|href=/)
+    for (const background of surfaces) {
+      const textured =
+        "#" +
+        [1, 3, 5]
+          .map((start) => {
+            const color = parseInt(palette[background].slice(start, start + 2), 16)
+            return Math.round(color * (1 - maxOpacity) + channel * maxOpacity)
+              .toString(16)
+              .padStart(2, "0")
+          })
+          .join("")
+      for (const foreground of foregrounds) {
+        assert.ok(
+          contrast(palette[foreground], textured) >= 4.5,
+          `${mode} textured ${foreground}/${background}`,
+        )
+      }
+    }
   }
 })

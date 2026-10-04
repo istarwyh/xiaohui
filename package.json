@@ -25,7 +25,7 @@
     "backfill:dates": "node ./scripts/backfill-frontmatter-dates.js",
     "check:frontmatter": "node ./scripts/check-frontmatter.js --all",
     "postinstall": "node ./scripts/check-git-deps.js && (bash ./scripts/install-hooks.sh || true)",
-    "check:design": "node --import tsx --test ./quartz/design/tokens.test.ts"
+    "check:design": "node --import tsx --test ./quartz/design/tokens.test.ts ./quartz/design/brandAssets.test.ts ./quartz/design/brandPage.test.ts"
   },
   "engines": {
     "npm": ">=9.3.1",
