@@ -91,6 +91,22 @@ test("the rendered showcase has one title, valid section targets, and all ten us
   assert.equal(downloads.length, 10)
   assert.equal(new Set(downloads.map((match) => match[1])).size, 10)
   for (const [link] of downloads) assert.match(link, /data-router-ignore/)
+  const expectedDownloads = [
+    ...brandAssets.map(({ filename }) => [filename, filename]),
+    ["xiaohui-mark.png", "xiaohui-mark.png"],
+    ["xiaohui-horizontal-light.png", "xiaohui-horizontal-light.png"],
+    ["xiaohui-social.png", "xiaohui-social.png"],
+    ["palette.json", "xiaohui-palette.json"],
+    ["README.txt", "xiaohui-brand-readme.txt"],
+    ["paper-light.svg", "xiaohui-paper-light.svg"],
+  ]
+  for (const [source, filename] of expectedDownloads) {
+    const link = downloads.find(([, name]) => name === filename)?.[0]
+    assert.ok(
+      link?.includes(`href="/brand/${source}"`),
+      `Incorrect download target for ${filename}`,
+    )
+  }
   assert.equal([...html.matchAll(/data-brand-copy=/g)].length, 11)
   assert.equal([...html.matchAll(/id="darkmode-toggle"/g)].length, 1)
   assert.match(html, /id="brand-type"/)
