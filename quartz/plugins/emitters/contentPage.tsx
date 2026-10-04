@@ -14,6 +14,7 @@ import { BuildCtx } from "../../util/ctx"
 import { Node } from "unist"
 import { StaticResources } from "../../util/resources"
 import { QuartzPluginData } from "../vfile"
+import { isHomePage } from "../../util/homePageModel"
 
 async function processContent(
   ctx: BuildCtx,
@@ -26,7 +27,7 @@ async function processContent(
 ) {
   const slug = fileData.slug!
   const cfg = ctx.cfg.configuration
-  const externalResources = pageResources(pathToRoot(slug), resources)
+  const externalResources = pageResources(pathToRoot(slug), resources, ctx.buildId)
   const componentData: QuartzComponentProps = {
     ctx,
     fileData,
@@ -47,7 +48,11 @@ async function processContent(
   })
 }
 
-export const ContentPage: QuartzEmitterPlugin<Partial<FullPageLayout>> = (userOpts) => {
+interface ContentPageOptions extends Partial<FullPageLayout> {
+  homeLayout?: FullPageLayout
+}
+
+export const ContentPage: QuartzEmitterPlugin<ContentPageOptions> = (userOpts) => {
   const opts: FullPageLayout = {
     ...sharedPageComponents,
     ...defaultContentPageLayout,
@@ -55,25 +60,27 @@ export const ContentPage: QuartzEmitterPlugin<Partial<FullPageLayout>> = (userOp
     ...userOpts,
   }
 
-  const { head: Head, header, beforeBody, pageBody, afterBody, left, right, footer: Footer } = opts
+  const homeLayout = userOpts?.homeLayout
+  const layoutFor = (file: QuartzPluginData) => (homeLayout && isHomePage(file) ? homeLayout : opts)
   const Header = HeaderConstructor()
   const Body = BodyConstructor()
 
   return {
     name: "ContentPage",
     getQuartzComponents() {
-      return [
-        Head,
+      const components = [opts, ...(homeLayout ? [homeLayout] : [])].flatMap((layout) => [
+        layout.head,
         Header,
         Body,
-        ...header,
-        ...beforeBody,
-        pageBody,
-        ...afterBody,
-        ...left,
-        ...right,
-        Footer,
-      ]
+        ...layout.header,
+        ...layout.beforeBody,
+        layout.pageBody,
+        ...layout.afterBody,
+        ...layout.left,
+        ...layout.right,
+        layout.footer,
+      ])
+      return [...new Set(components)]
     },
     async *emit(ctx, content, resources) {
       const allFiles = content.map((c) => c[1].data)
@@ -93,7 +100,7 @@ export const ContentPage: QuartzEmitterPlugin<Partial<FullPageLayout>> = (userOp
           file.data,
           String(file.value ?? ""),
           allFiles,
-          opts,
+          layoutFor(file.data),
           resources,
         )
       }
@@ -121,7 +128,9 @@ export const ContentPage: QuartzEmitterPlugin<Partial<FullPageLayout>> = (userOp
 
       for (const [tree, file] of content) {
         const slug = file.data.slug!
-        if (!changedSlugs.has(slug)) continue
+        // Both homes depend on the entire published collection and asset inventory.
+        // Deletion events may not carry a parsed file, but must still rebuild feeds.
+        if (!changedSlugs.has(slug) && !(changeEvents.length > 0 && isHomePage(file.data))) continue
         if (slug.endsWith("/index") || slug.startsWith("tags/")) continue
 
         yield processContent(
@@ -130,7 +139,7 @@ export const ContentPage: QuartzEmitterPlugin<Partial<FullPageLayout>> = (userOp
           file.data,
           String(file.value ?? ""),
           allFiles,
-          opts,
+          layoutFor(file.data),
           resources,
         )
       }

@@ -30,10 +30,6 @@
   &:hover {
     background: var(--color-surface-hover);
   }
-
-  &.feed-card--hidden {
-    display: none;
-  }
 }
 
 // Keep even one or two images thumbnail-sized; three fit on narrow screens.
@@ -140,4 +136,52 @@ a.feed-card-image-link {
   .feed-list .feed-card {
     transition: none;
   }
+}
+
+.feed-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.feed-list .feed-card[hidden],
+.feed-controls[hidden],
+.feed-load-more[hidden],
+.feed-sentinel[hidden] {
+  display: none;
+}
+
+.feed-status,
+.feed-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+.feed-load-more {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-medium);
+  font: inherit;
+  color: var(--color-text-strong);
+  background: var(--color-surface);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface-hover);
+  }
+}
+
+.feed-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

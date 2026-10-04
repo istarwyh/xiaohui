@@ -1,6 +1,7 @@
 import { QuartzConfig } from "./quartz/cfg"
 import * as Plugin from "./quartz/plugins"
 import { xiaohuiTheme } from "./quartz/design/tokens"
+import { homePageLayout } from "./quartz.layout"
 
 /**
  * Quartz 4.0 Configuration
@@ -67,7 +68,9 @@ const config: QuartzConfig = {
     emitters: [
       Plugin.AliasRedirects(),
       Plugin.ComponentResources(),
-      Plugin.ContentPage(),
+      Plugin.ContentPage({
+        homeLayout: process.env.QUARTZ_HOME_LAYOUT === "legacy" ? undefined : homePageLayout,
+      }),
       Plugin.FolderPage(),
       Plugin.TagPage(),
       Plugin.ContentIndex({

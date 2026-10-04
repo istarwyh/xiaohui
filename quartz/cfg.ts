@@ -86,6 +86,7 @@ export interface QuartzConfig {
 }
 
 export interface FullPageLayout {
+  layoutVariant?: "home"
   head: QuartzComponent
   header: QuartzComponent[]
   beforeBody: QuartzComponent[]

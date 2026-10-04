@@ -11,6 +11,7 @@ import { GlobalConfiguration } from "../cfg"
 import { i18n } from "../i18n"
 
 interface RenderComponents {
+  layoutVariant?: "home"
   head: QuartzComponent
   header: QuartzComponent[]
   beforeBody: QuartzComponent[]
@@ -25,20 +26,22 @@ const headerRegex = new RegExp(/h[1-6]/)
 export function pageResources(
   baseDir: FullSlug | RelativeURL,
   staticResources: StaticResources,
+  buildVersion?: string,
 ): StaticResources {
-  const contentIndexPath = joinSegments(baseDir, "static/contentIndex.json")
+  const version = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : ""
+  const contentIndexPath = joinSegments(baseDir, "static/contentIndex.json") + version
   const contentIndexScript = `const fetchData = fetch("${contentIndexPath}").then(data => data.json())`
 
   const resources: StaticResources = {
     css: [
       {
-        content: joinSegments(baseDir, "index.css"),
+        content: joinSegments(baseDir, "index.css") + version,
       },
       ...staticResources.css,
     ],
     js: [
       {
-        src: joinSegments(baseDir, "prescript.js"),
+        src: joinSegments(baseDir, "prescript.js") + version,
         loadTime: "beforeDOMReady",
         contentType: "external",
       },
@@ -54,7 +57,7 @@ export function pageResources(
   }
 
   resources.js.push({
-    src: joinSegments(baseDir, "postscript.js"),
+    src: joinSegments(baseDir, "postscript.js") + version,
     loadTime: "afterDOMReady",
     moduleType: "module",
     contentType: "external",
@@ -248,40 +251,52 @@ export function renderPage(
       <></>
     )
 
+  const isHomeLayout = components.layoutVariant === "home"
   const lang = componentData.fileData.frontmatter?.lang ?? cfg.locale?.split("-")[0] ?? "en"
   const doc = (
     <html lang={lang}>
       <Head {...componentData} />
-      <body data-slug={slug}>
+      <body data-slug={slug} data-layout={isHomeLayout ? "home" : "article"}>
         <a class="skip-link" href="#main-content" data-no-popover data-router-ignore>
           {String(lang).startsWith("zh") ? "跳到主要内容" : "Skip to main content"}
         </a>
         <div id="quartz-root" class="page">
           <Body {...componentData}>
-            {LeftComponent}
+            {isHomeLayout ? (
+              <>
+                {header.map((HomeHeader) => (
+                  <HomeHeader {...componentData} />
+                ))}
+              </>
+            ) : (
+              <></>
+            )}
+            {isHomeLayout ? <></> : LeftComponent}
             <main class="center" id="main-content" tabIndex={-1}>
-              <div class="page-header">
-                <Header {...componentData}>
-                  {header.map((HeaderComponent) => (
-                    <HeaderComponent {...componentData} />
-                  ))}
-                </Header>
-                <div class="popover-hint">
-                  {beforeBody.map((BodyComponent) => (
-                    <BodyComponent {...componentData} />
-                  ))}
+              {!isHomeLayout && (
+                <div class="page-header">
+                  <Header {...componentData}>
+                    {header.map((HeaderComponent) => (
+                      <HeaderComponent {...componentData} />
+                    ))}
+                  </Header>
+                  <div class="popover-hint">
+                    {beforeBody.map((BodyComponent) => (
+                      <BodyComponent {...componentData} />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               <Content {...componentData} />
-              <hr />
+              {!isHomeLayout && <hr />}
               <div class="page-footer">
                 {afterBody.map((BodyComponent) => (
                   <BodyComponent {...componentData} />
                 ))}
               </div>
             </main>
-            {RightResizeHandle}
-            {RightComponent}
+            {isHomeLayout ? <></> : RightResizeHandle}
+            {isHomeLayout ? <></> : RightComponent}
             <Footer {...componentData} />
           </Body>
         </div>

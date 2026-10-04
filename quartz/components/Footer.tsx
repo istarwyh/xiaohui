@@ -16,6 +16,8 @@ export default ((opts?: Options) => {
       赛博农耕: ["Cyber Farming", "/Cyber-Farmer"],
       成长会员: ["Membership", "/en/membership"],
       RSS订阅: ["RSS", "/rss"],
+      "Agent 投资": ["Agent investing (中文)", "/agent-investing"],
+      "Agent 诊断": ["Agent diagnosis", "/en/consulting"],
       AI加速我: ["AI Speeds", "https://aispeeds.me"],
     }
     const links = Object.entries(opts?.links ?? {}).map(([text, link]) => {

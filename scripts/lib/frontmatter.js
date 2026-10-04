@@ -1,4 +1,4 @@
-import yaml from "js-yaml"
+import { load, JSON_SCHEMA } from "js-yaml"
 
 function lineEnd(source, start) {
   const newline = source.indexOf("\n", start)
@@ -30,7 +30,7 @@ export function parseFrontmatter(input) {
     if (lineText(source, lineStart, currentLineEnd).trim() === "---") {
       const frontmatter = source.slice(frontmatterStart, lineStart)
       const contentStart = lineAfter(source, currentLineEnd)
-      const parsed = yaml.load(frontmatter, { schema: yaml.JSON_SCHEMA })
+      const parsed = load(frontmatter, { schema: JSON_SCHEMA })
 
       return {
         data: parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {},

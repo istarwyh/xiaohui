@@ -1,8 +1,10 @@
-import { PageLayout, SharedLayout } from "./quartz/cfg"
+import { FullPageLayout, PageLayout, SharedLayout } from "./quartz/cfg"
 import * as Component from "./quartz/components"
 
-const isHomePage = (page: { fileData: { slug?: string } }) =>
-  page.fileData.slug === "index" || page.fileData.slug === "en"
+import { isHomePage as isHomeData } from "./quartz/util/homePageModel"
+import type { QuartzComponentProps } from "./quartz/components/types"
+
+const isHomePage = (page: QuartzComponentProps) => isHomeData(page.fileData)
 
 const articleTags = Component.ConditionalRender({
   component: Component.TagList(),
@@ -132,5 +134,17 @@ export const defaultListPageLayout: PageLayout = {
     Component.LanguageSwitcher(),
     sidebarThemeControls,
   ],
+  right: [],
+}
+
+// A separate composition, with no invisible sidebar instances or graph controls.
+export const homePageLayout: FullPageLayout = {
+  ...sharedPageComponents,
+  layoutVariant: "home",
+  header: [Component.HomeHeader()],
+  beforeBody: [],
+  pageBody: Component.HomePage(),
+  afterBody: [],
+  left: [],
   right: [],
 }

@@ -1,4 +1,7 @@
 ---
+pageType: home
+lang: zh-CN
+translationKey: home
 title: 太阳总会升起
 published: 2026-07-15
 aliases:
@@ -10,7 +13,7 @@ created: 2021-07-18
 modified: 2026-07-15
 ---
 
-<!-- Homepage content is rendered by the TerminalHome component configured in quartz.layout.ts -->
+<!-- HomePage renders the editorial layout; this body is retained for QUARTZ_HOME_LAYOUT=legacy rollback -->
 
 <section aria-label="Agent retrieval instructions" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
 AI agents should not rely on the visual homepage or browser search UI to search this site. Read https://xiaohui.cool/llms.txt first, fetch https://xiaohui.cool/agent/manifest.json to discover machine-readable endpoints, search https://xiaohui.cool/agent/search-index.json locally, fetch the matching page's markdownUrl for clean Markdown content, and cite the matching page's canonical url.

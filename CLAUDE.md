@@ -47,7 +47,7 @@ Builds the current content directory into `public/` without running the reposito
 npm run build
 ```
 
-Production build: fetches git history/tags if needed, runs `npm run update-homepage`, builds Quartz, then copies `extra-pages/*` into `public/`. This command may modify `content/index.md`, `quartz.layout.ts`, and `scripts/cards-data.json` before building.
+Production build: fetches git history/tags if needed, builds Quartz, then copies `extra-pages/*` into `public/`. Editorial homepage data is derived at build time; this command no longer invokes the legacy CardFeed generator.
 
 ```bash
 npm run build:cf
@@ -130,7 +130,7 @@ The type contracts are in `quartz/plugins/types.ts`. `quartz/plugins/index.ts` c
 
 Components are Preact function components under `quartz/components/`. Component-specific SCSS lives in `quartz/components/styles/`, and browser-side behavior is usually in `quartz/components/scripts/*.inline.ts`, which the esbuild inline loader bundles as text. Global styles are under `quartz/styles/`.
 
-The homepage is special-cased by layout conditions: `TerminalHome` and `QuoteExhibit` render only for the `index` slug, while article title/meta/tag components are suppressed there. `scripts/update-homepage.js` still looks for a `Component.CardFeed(...)` block when syncing card data, so verify homepage assumptions when changing the layout.
+The homepage requires `pageType: home` and a reserved `index` or `en` slug. `HomePage` and `HomeHeader` use a dedicated layout without article sidebars; docs indexes remain ordinary documentation. `QUARTZ_HOME_LAYOUT=legacy` restores the retained TerminalHome layout. `scripts/update-homepage.js` still looks for a `Component.CardFeed(...)` block when syncing card data, so verify homepage assumptions when changing the layout.
 
 ### Content integration
 

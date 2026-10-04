@@ -52,7 +52,7 @@ export const BrandPage: QuartzEmitterPlugin = () => {
           socialImage: `https://${cfg.baseUrl ?? "xiaohui.cool"}/brand/xiaohui-social.png`,
         },
       })
-      const externalResources = pageResources("." as FullSlug, resources)
+      const externalResources = pageResources("." as FullSlug, resources, ctx.buildId)
       const props: QuartzComponentProps = {
         ctx,
         cfg,

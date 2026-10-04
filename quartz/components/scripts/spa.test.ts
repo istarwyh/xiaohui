@@ -15,8 +15,11 @@ const router = transformSync(readFileSync(new URL("./spa.inline.ts", import.meta
 
 function setupRouter() {
   let location = new URL("https://example.com/brand")
+  let incomingLang = "en-US"
+  let incomingBuild: string | undefined = "same-build"
   let morph: () => Promise<void> = () => Promise.resolve()
   const events: string[] = []
+  const navigations: boolean[] = []
   const fetched: string[] = []
   const assigned: string[] = []
   const pushed: string[] = []
@@ -31,13 +34,20 @@ function setupRouter() {
     querySelectorAll: () => [],
   })
   const document = {
+    documentElement: { lang: "zh-CN" },
     body: node(),
     head: node(),
     title: "Brand",
     createElement: node,
-    querySelector: () => ({ textContent: "Next page" }),
+    querySelector: (selector: string) =>
+      selector.includes("quartz-build")
+        ? { getAttribute: () => "same-build" }
+        : { textContent: "Next page" },
     getElementById: () => ({ scrollIntoView: () => events.push("scroll-anchor") }),
-    dispatchEvent: (event: Event) => events.push(event.type),
+    dispatchEvent: (event: Event) => {
+      events.push(event.type)
+      if (event.type === "nav") navigations.push((event as CustomEvent).detail.isBack)
+    },
   }
   const window = {
     get location() {
@@ -68,7 +78,18 @@ function setupRouter() {
     },
     DOMParser: class {
       parseFromString() {
-        return { ...document, body: node(), head: node() }
+        return {
+          ...document,
+          documentElement: { lang: incomingLang },
+          body: node(),
+          head: node(),
+          querySelector: (selector: string) =>
+            selector.includes("quartz-build")
+              ? incomingBuild
+                ? { getAttribute: () => incomingBuild }
+                : null
+              : { textContent: "Next page" },
+        }
       }
     },
     require: (id: string) => {
@@ -101,12 +122,16 @@ function setupRouter() {
   events.length = 0 // Ignore the initial page's nav event.
 
   return {
+    document,
+    navigations,
     events,
     fetched,
     assigned,
     pushed,
     errors,
     window,
+    setIncomingBuild: (build: string | undefined) => (incomingBuild = build),
+    setIncomingLang: (lang: string) => (incomingLang = lang),
     setMorph: (next: () => Promise<void>) => (morph = next),
     popstate: async (path: string) => {
       location = new URL(path, location)
@@ -125,7 +150,7 @@ test("native fragment navigation and same-document Back/Forward preserve control
   }
 
   assert.deepEqual(app.fetched, [])
-  assert.deepEqual(app.events, [])
+  assert.equal(app.events.length, 0)
   assert.deepEqual(app.pushed, [])
 })
 
@@ -180,5 +205,46 @@ test("a rejected morph uses the router's full-page fallback and releases navigat
   app.setMorph(() => Promise.resolve())
   await app.window.spaNavigate(new URL("https://example.com/next"))
   assert.deepEqual(app.pushed, ["https://example.com/next"])
+  assert.equal(app.events.at(-1), "nav")
+})
+
+test("navigation updates document language after morph and preserves it on fragment history", async () => {
+  const app = setupRouter()
+  let complete!: () => void
+  app.setMorph(() => new Promise<void>((resolve) => (complete = resolve)))
+  const navigating = app.window.spaNavigate(new URL("https://example.com/en/"))
+  await setImmediate()
+  assert.equal(app.document.documentElement.lang, "zh-CN")
+  complete()
+  await navigating
+  assert.equal(app.document.documentElement.lang, "en-US")
+  await app.popstate("/en/#about")
+  assert.equal(app.document.documentElement.lang, "en-US")
+  app.setMorph(() => Promise.resolve())
+  app.setIncomingLang("zh-CN")
+  await app.window.spaNavigate(new URL("https://example.com/"))
+  assert.equal(app.document.documentElement.lang, "zh-CN")
+})
+
+test("nav history flag applies only to that navigation", async () => {
+  const app = setupRouter()
+  await app.popstate("/previous")
+  await app.window.spaNavigate(new URL("https://example.com/next"))
+  assert.deepEqual(app.navigations, [false, true, false])
+})
+
+test("a different release falls back before cleaning up or morphing existing controls", async () => {
+  const app = setupRouter()
+  app.window.addCleanup(() => app.events.push("cleanup"))
+  app.setIncomingBuild("new-build")
+  await app.window.spaNavigate(new URL("https://example.com/new-release"))
+  assert.deepEqual(app.assigned, ["https://example.com/new-release"])
+  assert.equal(app.events.length, 0)
+  assert.deepEqual(app.pushed, [])
+  assert.equal(app.document.documentElement.lang, "zh-CN")
+
+  app.setIncomingBuild(undefined)
+  await app.window.spaNavigate(new URL("https://example.com/legacy-page"))
+  assert.ok(app.events.includes("cleanup"))
   assert.equal(app.events.at(-1), "nav")
 })

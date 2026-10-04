@@ -39,8 +39,8 @@ const getOpts = ({ target }: Event): { url: URL; scroll?: boolean } | undefined 
   return { url, scroll: "routerNoscroll" in a.dataset ? false : undefined }
 }
 
-function notifyNav(url: FullSlug) {
-  const event: CustomEventMap["nav"] = new CustomEvent("nav", { detail: { url } })
+function notifyNav(url: FullSlug, isBack = false) {
+  const event: CustomEventMap["nav"] = new CustomEvent("nav", { detail: { url, isBack } })
   document.dispatchEvent(event)
 }
 
@@ -82,6 +82,16 @@ async function _navigate(url: URL, isBack: boolean = false) {
 
   if (!contents) return
 
+  const html = p.parseFromString(contents, "text/html")
+  const currentBuild = document.querySelector('meta[name="quartz-build"]')?.getAttribute("content")
+  const incomingBuild = html.querySelector('meta[name="quartz-build"]')?.getAttribute("content")
+  if (currentBuild && incomingBuild && currentBuild !== incomingBuild) {
+    // A new release can change component contracts; reload its scripts and CSS
+    // together rather than morphing new HTML into an older running client.
+    window.location.assign(url)
+    return
+  }
+
   // notify about to nav
   const event: CustomEventMap["prenav"] = new CustomEvent("prenav", { detail: {} })
   document.dispatchEvent(event)
@@ -90,7 +100,6 @@ async function _navigate(url: URL, isBack: boolean = false) {
   cleanupFns.forEach((fn) => fn())
   cleanupFns.clear()
 
-  const html = p.parseFromString(contents, "text/html")
   normalizeRelativeURLs(html, url)
 
   let title = html.querySelector("title")?.textContent
@@ -108,6 +117,7 @@ async function _navigate(url: URL, isBack: boolean = false) {
 
   // morph body
   await micromorph(document.body, html.body)
+  document.documentElement.lang = html.documentElement.lang
 
   // scroll into place and add history
   if (!isBack) {
@@ -132,7 +142,7 @@ async function _navigate(url: URL, isBack: boolean = false) {
   }
 
   currentPageUrl = new URL(window.location.toString())
-  notifyNav(getFullSlug(window))
+  notifyNav(getFullSlug(window), isBack)
   delete announcer.dataset.persist
 }
 
