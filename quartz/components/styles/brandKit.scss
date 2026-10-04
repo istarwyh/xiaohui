@@ -552,6 +552,7 @@ body[data-slug="brand"] {
     line-height: var(--leading-ui);
   }
   .brand-swatch-color {
+    width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
