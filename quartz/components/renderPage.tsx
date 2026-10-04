@@ -253,10 +253,13 @@ export function renderPage(
     <html lang={lang}>
       <Head {...componentData} />
       <body data-slug={slug}>
+        <a class="skip-link" href="#main-content" data-no-popover data-router-ignore>
+          {String(lang).startsWith("zh") ? "跳到主要内容" : "Skip to main content"}
+        </a>
         <div id="quartz-root" class="page">
           <Body {...componentData}>
             {LeftComponent}
-            <div class="center">
+            <main class="center" id="main-content" tabIndex={-1}>
               <div class="page-header">
                 <Header {...componentData}>
                   {header.map((HeaderComponent) => (
@@ -276,7 +279,7 @@ export function renderPage(
                   <BodyComponent {...componentData} />
                 ))}
               </div>
-            </div>
+            </main>
             {RightResizeHandle}
             {RightComponent}
             <Footer {...componentData} />

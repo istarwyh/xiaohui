@@ -6,6 +6,8 @@ const svgCheck =
 document.addEventListener("nav", () => {
   const els = document.getElementsByTagName("pre")
   for (let i = 0; i < els.length; i++) {
+    // Some reference pages provide their own visible, labelled copy action.
+    if (els[i].hasAttribute("data-clipboard-skip")) continue
     const codeBlock = els[i].getElementsByTagName("code")[0]
     if (codeBlock) {
       const source = (

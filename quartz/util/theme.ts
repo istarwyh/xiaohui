@@ -33,6 +33,12 @@ export interface Theme {
   cdnCaching: boolean
   colors: Colors
   fontOrigin: "googleFonts" | "local"
+  /** Optional semantic tokens emitted after Quartz compatibility variables. */
+  tokens?: {
+    shared: Record<string, string>
+    light: Record<string, string>
+    dark: Record<string, string>
+  }
 }
 
 export type ThemeKey = keyof Colors
@@ -140,6 +146,12 @@ export async function processGoogleFonts(
   return { processedStylesheet, fontFiles }
 }
 
+function customProperties(values: Record<string, string> = {}): string {
+  return Object.entries(values)
+    .map(([name, value]) => `  --${name}: ${value};`)
+    .join("\n")
+}
+
 export function joinStyles(theme: Theme, ...stylesheet: string[]) {
   return `
 ${stylesheet.join("\n\n")}
@@ -159,6 +171,8 @@ ${stylesheet.join("\n\n")}
   --headerFont: "${getFontSpecificationName(theme.typography.header)}", ${DEFAULT_SANS_SERIF};
   --bodyFont: "${getFontSpecificationName(theme.typography.body)}", ${DEFAULT_SANS_SERIF};
   --codeFont: "${getFontSpecificationName(theme.typography.code)}", ${DEFAULT_MONO};
+${customProperties(theme.tokens?.shared)}
+${customProperties(theme.tokens?.light)}
 }
 
 :root[saved-theme="dark"] {
@@ -171,6 +185,7 @@ ${stylesheet.join("\n\n")}
   --tertiary: ${theme.colors.darkMode.tertiary};
   --highlight: ${theme.colors.darkMode.highlight};
   --textHighlight: ${theme.colors.darkMode.textHighlight};
+${customProperties(theme.tokens?.dark)}
 }
 `
 }

@@ -150,3 +150,7 @@ Keep authoring rules in `content/CLAUDE.md` rather than duplicating them here. R
 - `pre-push`: runs full `tsc --noEmit` and `npm test`.
 
 Generated or derived files/directories include `public/`, `.quartz-cache/`, `tsconfig.tsbuildinfo`, and `scripts/cards-data.json`. `extra-pages/` is source for additional published HTML, not generated output.
+
+## Visual design and AI contributions
+
+Read `design/README.md` before changing the site UI. `quartz/design/tokens.ts` is the single source for brand values; use semantic CSS variables rather than hardcoded colors or a separate dark-mode cascade. Preserve the compact feed contract and keep design documentation outside `content/`. Run `npm run check:design` for visual-system changes and report browser checks plus any existing repository check failures separately.

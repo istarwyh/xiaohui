@@ -18,10 +18,12 @@ const isLocalUrl = (href: string) => {
   return false
 }
 
-const isSamePage = (url: URL): boolean => {
-  const sameOrigin = url.origin === window.location.origin
-  const samePath = url.pathname === window.location.pathname
-  return sameOrigin && samePath
+const isSamePage = (url: URL, current = new URL(window.location.toString())): boolean => {
+  return (
+    url.origin === current.origin &&
+    url.pathname === current.pathname &&
+    url.search === current.search
+  )
 }
 
 const getOpts = ({ target }: Event): { url: URL; scroll?: boolean } | undefined => {
@@ -59,6 +61,7 @@ function startLoading() {
 }
 
 let isNavigating = false
+let currentPageUrl = new URL(window.location.toString())
 let p: DOMParser
 async function _navigate(url: URL, isBack: boolean = false) {
   isNavigating = true
@@ -104,7 +107,7 @@ async function _navigate(url: URL, isBack: boolean = false) {
   html.body.appendChild(announcer)
 
   // morph body
-  micromorph(document.body, html.body)
+  await micromorph(document.body, html.body)
 
   // scroll into place and add history
   if (!isBack) {
@@ -128,6 +131,7 @@ async function _navigate(url: URL, isBack: boolean = false) {
     history.pushState({}, "", url)
   }
 
+  currentPageUrl = new URL(window.location.toString())
   notifyNav(getFullSlug(window))
   delete announcer.dataset.persist
 }
@@ -165,11 +169,12 @@ function createRouter() {
       navigate(url, false)
     })
 
-    window.addEventListener("popstate", (event) => {
-      const { url } = getOpts(event) ?? {}
-      if (window.location.hash && window.location.pathname === url?.pathname) return
-      navigate(new URL(window.location.toString()), true)
-      return
+    window.addEventListener("popstate", () => {
+      const url = new URL(window.location.toString())
+      // Native fragment links and Back/Forward within this document already
+      // scroll correctly. Re-morphing would tear down its active controls.
+      if (isSamePage(url, currentPageUrl)) return
+      navigate(url, true)
     })
   }
 

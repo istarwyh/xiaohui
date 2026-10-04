@@ -11,6 +11,7 @@ export default ((opts?: Options) => {
     const lang = normalizeLang(fileData.frontmatter?.lang, cfg.locale)
     const englishLabels: Record<string, [string, string]> = {
       关于我: ["About", "/en/Farming-in-the-cyber-world"],
+      品牌资料: ["Brand", "/brand"],
       成长时间线: ["Timeline", "/en/journey"],
       赛博农耕: ["Cyber Farming", "/Cyber-Farmer"],
       成长会员: ["Membership", "/en/membership"],

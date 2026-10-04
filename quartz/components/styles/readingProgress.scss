@@ -14,22 +14,13 @@
 .reading-progress-bar {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #7cb342 0%, #9acd32 50%, #7cb342 100%);
-  box-shadow: 0 0 10px rgba(154, 205, 50, 0.5);
-  transition: width 0.2s ease-out;
+  background: var(--color-accent);
+  transition: width var(--duration-normal) var(--ease-standard);
   will-change: width;
 }
 
-// 暗色主题增强
-[saved-theme="dark"] {
-  .reading-progress-bar {
-    background: linear-gradient(90deg, #9acd32 0%, #b8e356 50%, #9acd32 100%);
-    box-shadow: 0 0 15px rgba(154, 205, 50, 0.7);
-  }
-}
-
 // 移动端优化
-@media (max-width: 768px) {
+@media all and ($mobile) {
   .reading-progress {
     height: 3px;
   }

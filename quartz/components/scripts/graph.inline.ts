@@ -396,8 +396,7 @@ function renderGraph3D({
     pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
     raycaster.setFromCamera(pointer, camera)
     const hit = raycaster.intersectObjects(nodeMeshes, false)[0]?.object as
-      | THREE.Mesh<THREE.SphereGeometry, THREE.MeshLambertMaterial>
-      | undefined
+      THREE.Mesh<THREE.SphereGeometry, THREE.MeshLambertMaterial> | undefined
     setHoveredMesh(hit ?? null, event)
   }
 

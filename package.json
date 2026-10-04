@@ -16,7 +16,7 @@
     "docs": "npx quartz build --serve -d docs",
     "check": "tsc --noEmit && npx prettier . --check",
     "format": "npx prettier . --write",
-    "test": "tsx ./quartz/util/path.test.ts && tsx ./quartz/depgraph.test.ts && tsx ./quartz/util/feedImage.test.ts",
+    "test": "node --import tsx --test ./quartz/util/path.test.ts ./quartz/depgraph.test.ts ./quartz/util/feedImage.test.ts ./quartz/components/scripts/spa.test.ts && npm run check:design",
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1",
     "update-homepage": "node ./scripts/update-homepage.js",
     "sync": "npm run update-homepage && npx quartz sync",
@@ -24,7 +24,8 @@
     "build:cf": "npm run build",
     "backfill:dates": "node ./scripts/backfill-frontmatter-dates.js",
     "check:frontmatter": "node ./scripts/check-frontmatter.js --all",
-    "postinstall": "node ./scripts/check-git-deps.js && (bash ./scripts/install-hooks.sh || true)"
+    "postinstall": "node ./scripts/check-git-deps.js && (bash ./scripts/install-hooks.sh || true)",
+    "check:design": "node --import tsx --test ./quartz/design/tokens.test.ts ./quartz/design/brandAssets.test.ts ./quartz/design/brandPage.test.ts"
   },
   "engines": {
     "npm": ">=9.3.1",

@@ -43,6 +43,7 @@ export const sharedPageComponents: SharedLayout = {
   footer: Component.Footer({
     links: {
       关于我: "/Farming-in-the-cyber-world",
+      品牌资料: "/brand",
       成长时间线: "/journey",
       "Agent 投资": "/agent-investing",
       GitHub: "https://github.com/istarwyh",
