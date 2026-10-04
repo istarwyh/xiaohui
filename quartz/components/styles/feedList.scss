@@ -11,7 +11,7 @@
   gap: 0;
 }
 
-.feed-card {
+.feed-list .feed-card {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
@@ -123,7 +123,7 @@ a.feed-card-title {
 }
 
 @media all and ($mobile) {
-  .feed-card {
+  .feed-list .feed-card {
     gap: 0.75rem;
     padding: 0.65rem 0.2rem;
   }
@@ -134,7 +134,7 @@ a.feed-card-title {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .feed-card {
+  .feed-list .feed-card {
     transition: none;
   }
 }
