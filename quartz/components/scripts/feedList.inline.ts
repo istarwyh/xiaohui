@@ -13,6 +13,22 @@ document.addEventListener("nav", () => {
   const sentinel = document.getElementById("feed-sentinel")
   if (!list || !sentinel) return
 
+  // External assets can disappear after the build. Remove failed thumbnails and
+  // collapse the row when none remain, without leaving empty image boxes.
+  list.querySelectorAll<HTMLImageElement>(".feed-card-image").forEach((image) => {
+    const hideBrokenPreview = () => {
+      const row = image.closest(".feed-card-images")
+      image.closest(".feed-card-image-link")?.remove()
+      if (row && !row.querySelector(".feed-card-image")) row.remove()
+    }
+    if (image.complete && image.naturalWidth === 0) {
+      hideBrokenPreview()
+    } else {
+      image.addEventListener("error", hideBrokenPreview, { once: true })
+      window.addCleanup(() => image.removeEventListener("error", hideBrokenPreview))
+    }
+  })
+
   const parsedBatchSize = Number.parseInt(list.dataset.batchSize ?? "", 10)
   const batchSize =
     Number.isFinite(parsedBatchSize) && parsedBatchSize > 0 ? parsedBatchSize : DEFAULT_BATCH_SIZE

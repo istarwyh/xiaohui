@@ -3,6 +3,7 @@ import { resolveRelative } from "../util/path"
 import { QuartzPluginData } from "../plugins/vfile"
 import { Date as DateComponent } from "./Date"
 import { classNames } from "../util/lang"
+import { getFeedImages } from "../util/feedImage"
 
 // @ts-ignore
 import script from "./scripts/feedList.inline"
@@ -48,22 +49,17 @@ function getFeedDate(page: QuartzPluginData): Date | undefined {
   return page.dates?.modified ?? page.dates?.published ?? page.dates?.created
 }
 
-/** 封面图：socialImage / image / cover，有则用，没有就不渲染 */
-function getCoverImage(page: QuartzPluginData): string | undefined {
-  const frontmatter = page.frontmatter as Record<string, unknown> | undefined
-  const raw = frontmatter?.socialImage ?? frontmatter?.image ?? frontmatter?.cover
-  return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined
-}
-
 export default ((userOpts?: Partial<Options>) => {
   const FeedList: QuartzComponent = ({
     allFiles,
     fileData,
     displayClass,
     cfg,
+    ctx,
   }: QuartzComponentProps) => {
     const opts = { ...defaultOptions, ...userOpts }
     const excluded = new Set(opts.excludeSlugs)
+    const availableAssets = new Set<string>(ctx.allSlugs)
 
     const pages = allFiles
       .filter((page) => {
@@ -91,7 +87,7 @@ export default ((userOpts?: Partial<Options>) => {
               page.frontmatter?.description ?? page.description,
               opts.summaryLength,
             )
-            const imageUrl = getCoverImage(page)
+            const images = getFeedImages(page, fileData.slug!, availableAssets)
             const date = getFeedDate(page)
             const href = resolveRelative(fileData.slug!, page.slug!)
 
@@ -100,20 +96,38 @@ export default ((userOpts?: Partial<Options>) => {
                 class={`feed-card${i >= opts.batchSize ? " feed-card--hidden" : ""}`}
                 data-index={i}
               >
-                {imageUrl && (
-                  <a href={href} class="feed-card-image-link" aria-hidden="true" tabIndex={-1}>
-                    <img class="feed-card-image" src={imageUrl} alt="" loading="lazy" />
-                  </a>
-                )}
                 <div class="feed-card-body">
-                  <a href={href} class="feed-card-title internal">
-                    {title}
-                  </a>
+                  <div class="feed-card-heading">
+                    <a href={href} class="feed-card-title internal">
+                      {title}
+                    </a>
+                    {date && (
+                      <span class="feed-card-date">
+                        <DateComponent date={date} locale={cfg.locale} />
+                      </span>
+                    )}
+                  </div>
                   {summary && <p class="feed-card-summary">{summary}</p>}
-                  {date && (
-                    <span class="feed-card-date">
-                      <DateComponent date={date} locale={cfg.locale} />
-                    </span>
+                  {images.length > 0 && (
+                    <div class="feed-card-images">
+                      {images.map((image) => (
+                        <a
+                          key={image.src}
+                          href={href}
+                          class="feed-card-image-link internal"
+                          aria-label={title}
+                          tabIndex={-1}
+                        >
+                          <img
+                            class="feed-card-image"
+                            src={image.src}
+                            alt={image.alt}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
               </article>
