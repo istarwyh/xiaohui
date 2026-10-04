@@ -161,3 +161,14 @@ test("inline search styles cannot leak into the reparented modal results", () =>
   assert.match(terminal, /\.terminal-search-results \.terminal-search-layout \{/)
   assert.doesNotMatch(terminal, /^\.terminal-search-layout \{/m)
 })
+
+test("modal search highlights set a tested foreground instead of inheriting link/muted text", () => {
+  const search = readFileSync("quartz/components/styles/search.scss", "utf8")
+  assert.match(
+    search,
+    /& \.highlight \{\s*background: var\(--color-mark\);\s*color: var\(--color-text-strong\);/,
+  )
+  for (const palette of [light, dark]) {
+    assert.ok(contrast(palette["color-text-strong"], palette["color-mark"]) >= 4.5)
+  }
+})
