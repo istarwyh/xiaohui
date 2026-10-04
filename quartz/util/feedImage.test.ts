@@ -3,7 +3,9 @@ import { test } from "node:test"
 import type { Element, Root } from "hast"
 import type { QuartzPluginData } from "../plugins/vfile"
 import type { FullSlug } from "./path"
-import { getFeedImage } from "./feedImage"
+import { getFeedImages } from "./feedImage"
+
+const getFeedImage = (...args: Parameters<typeof getFeedImages>) => getFeedImages(...args)[0]
 
 const home = "index" as FullSlug
 const img = (src: string, properties: Element["properties"] = {}): Element => ({
@@ -120,4 +122,48 @@ test("does not modify the source article AST", () => {
   const original = structuredClone(page)
   getFeedImage(page, home)
   assert.deepEqual(page, original)
+})
+
+test("returns zero, one, two, or at most three unique images in source order", () => {
+  for (let count = 0; count <= 4; count++) {
+    const sources = Array.from({ length: count }, (_, i) => `https://images.example.com/${i}.png`)
+    const images = getFeedImages(article(sources.map((src) => img(src))), home)
+    assert.deepEqual(
+      images.map((image) => image.src),
+      sources.slice(0, 3),
+    )
+  }
+})
+
+test("deduplicates the cover and body images before applying the three-image limit", () => {
+  const page = article([
+    img("../assets/cover.png"),
+    img("https://images.example.com/one.png"),
+    img("https://images.example.com/one.png#same-image"),
+    img("https://images.example.com/two.png"),
+    img("https://images.example.com/three.png"),
+  ])
+  page.frontmatter = { title: "Article", tags: [], cover: "assets/cover.png" }
+  assert.deepEqual(
+    getFeedImages(page, home).map((image) => image.src),
+    [
+      "./assets/cover.png",
+      "https://images.example.com/one.png",
+      "https://images.example.com/two.png",
+    ],
+  )
+})
+
+test("skips missing local assets and falls back to usable body images", () => {
+  const page = article([img("../missing.png"), img("../assets/figure.png")])
+  assert.equal(getFeedImage(page, home, new Set(["assets/figure.png"]))?.src, "./assets/figure.png")
+  assert.deepEqual(getFeedImages(page, home, new Set()), [])
+  assert.equal(
+    getFeedImage(article([img("https://images.example.com/remote.png")]), home, new Set())?.src,
+    "https://images.example.com/remote.png",
+  )
+  assert.equal(
+    getFeedImage(article([img("../static/figure.png")]), home, new Set())?.src,
+    "./static/figure.png",
+  )
 })

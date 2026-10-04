@@ -3,7 +3,7 @@ import { resolveRelative } from "../util/path"
 import { QuartzPluginData } from "../plugins/vfile"
 import { Date as DateComponent } from "./Date"
 import { classNames } from "../util/lang"
-import { getFeedImage } from "../util/feedImage"
+import { getFeedImages } from "../util/feedImage"
 
 // @ts-ignore
 import script from "./scripts/feedList.inline"
@@ -55,9 +55,11 @@ export default ((userOpts?: Partial<Options>) => {
     fileData,
     displayClass,
     cfg,
+    ctx,
   }: QuartzComponentProps) => {
     const opts = { ...defaultOptions, ...userOpts }
     const excluded = new Set(opts.excludeSlugs)
+    const availableAssets = new Set<string>(ctx.allSlugs)
 
     const pages = allFiles
       .filter((page) => {
@@ -85,7 +87,7 @@ export default ((userOpts?: Partial<Options>) => {
               page.frontmatter?.description ?? page.description,
               opts.summaryLength,
             )
-            const image = getFeedImage(page, fileData.slug!)
+            const images = getFeedImages(page, fileData.slug!, availableAssets)
             const date = getFeedDate(page)
             const href = resolveRelative(fileData.slug!, page.slug!)
 
@@ -106,21 +108,26 @@ export default ((userOpts?: Partial<Options>) => {
                     )}
                   </div>
                   {summary && <p class="feed-card-summary">{summary}</p>}
-                  {image && (
-                    <a
-                      href={href}
-                      class="feed-card-image-link internal"
-                      aria-label={title}
-                      tabIndex={-1}
-                    >
-                      <img
-                        class="feed-card-image"
-                        src={image.src}
-                        alt={image.alt}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </a>
+                  {images.length > 0 && (
+                    <div class="feed-card-images">
+                      {images.map((image) => (
+                        <a
+                          key={image.src}
+                          href={href}
+                          class="feed-card-image-link internal"
+                          aria-label={title}
+                          tabIndex={-1}
+                        >
+                          <img
+                            class="feed-card-image"
+                            src={image.src}
+                            alt={image.alt}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
               </article>
