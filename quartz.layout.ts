@@ -4,6 +4,11 @@ import * as Component from "./quartz/components"
 const isHomePage = (page: { fileData: { slug?: string } }) =>
   page.fileData.slug === "index" || page.fileData.slug === "en"
 
+const articleTags = Component.ConditionalRender({
+  component: Component.TagList(),
+  condition: (page) => !isHomePage(page),
+})
+
 const bottomBreadcrumbs = Component.ConditionalRender({
   component: Component.Breadcrumbs(),
   condition: (page) => !isHomePage(page),
@@ -70,12 +75,8 @@ export const defaultContentPageLayout: PageLayout = {
       component: Component.ContentMeta(),
       condition: (page) => !isHomePage(page),
     }),
-    Component.ConditionalRender({
-      component: Component.TagList(),
-      condition: (page) => !isHomePage(page),
-    }),
   ],
-  afterBody: [homepageFeed, bottomBreadcrumbs],
+  afterBody: [homepageFeed, articleTags, bottomBreadcrumbs],
   left: [
     Component.PageTitle(),
     Component.MobileOnly(Component.Spacer()),

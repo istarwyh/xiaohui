@@ -49,3 +49,88 @@ test("brand code examples expose one visible copy action and downloads have uniq
   const clipboard = readFileSync("quartz/components/scripts/clipboard.inline.ts", "utf8")
   assert.match(clipboard, /hasAttribute\("data-clipboard-skip"\)\) continue/)
 })
+
+test("the rendered showcase has one title, valid section targets, and all ten usable downloads", async () => {
+  // Render the real component, stubbing only build-time stylesheet/script imports.
+  const { build } = await import("esbuild")
+  const { renderToString } = await import("preact-render-to-string")
+  const { outputFiles } = await build({
+    entryPoints: ["quartz/components/BrandKit.tsx"],
+    bundle: true,
+    write: false,
+    format: "esm",
+    platform: "node",
+    plugins: [
+      {
+        name: "component-static-resources",
+        setup(build) {
+          build.onResolve({ filter: /\.scss$|\.inline$/ }, (args) => ({
+            path: args.path,
+            namespace: "static-resource",
+          }))
+          build.onLoad({ filter: /.*/, namespace: "static-resource" }, () => ({
+            contents: 'export default ""',
+            loader: "js",
+          }))
+        },
+      },
+    ],
+  })
+  const { default: createBrandKit } = await import(
+    `data:text/javascript;base64,${Buffer.from(outputFiles[0].text).toString("base64")}`
+  )
+  const html = renderToString(createBrandKit()({ cfg: { locale: "zh-CN" } }))
+  assert.equal([...html.matchAll(/<h1\b/g)].length, 1)
+  assert.match(html, /写代码，<br\s*\/>也写字/)
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1])
+  assert.equal(new Set(ids).size, ids.length, "DOM IDs must be unique")
+  for (const [, target] of html.matchAll(/href="#([^"]+)"/g)) {
+    assert.ok(ids.includes(target), `Missing section target ${target}`)
+  }
+  const downloads = [...html.matchAll(/<a\s[^>]*\bdownload="([^"]+)"[^>]*>/g)]
+  assert.equal(downloads.length, 10)
+  assert.equal(new Set(downloads.map((match) => match[1])).size, 10)
+  for (const [link] of downloads) assert.match(link, /data-router-ignore/)
+  const expectedDownloads = [
+    ...brandAssets.map(({ filename }) => [filename, filename]),
+    ["xiaohui-mark.png", "xiaohui-mark.png"],
+    ["xiaohui-horizontal-light.png", "xiaohui-horizontal-light.png"],
+    ["xiaohui-social.png", "xiaohui-social.png"],
+    ["palette.json", "xiaohui-palette.json"],
+    ["README.txt", "xiaohui-brand-readme.txt"],
+    ["paper-light.svg", "xiaohui-paper-light.svg"],
+  ]
+  for (const [source, filename] of expectedDownloads) {
+    const link = downloads.find(([, name]) => name === filename)?.[0]
+    assert.ok(
+      link?.includes(`href="/brand/${source}"`),
+      `Incorrect download target for ${filename}`,
+    )
+  }
+  assert.equal([...html.matchAll(/data-brand-copy=/g)].length, 11)
+  assert.equal([...html.matchAll(/id="darkmode-toggle"/g)].length, 1)
+  assert.match(html, /id="brand-type"/)
+  for (const { filename } of brandAssets) {
+    assert.ok(
+      html.includes(`src="/brand/${filename}"`),
+      `Missing visual download preview ${filename}`,
+    )
+  }
+})
+
+test("article feedback keeps tags below the body and aligns the reading column with its title", () => {
+  const layout = readFileSync("quartz.layout.ts", "utf8")
+  const readingStyle = readFileSync("quartz/styles/custom.scss", "utf8")
+  assert.match(
+    layout,
+    /const articleTags = Component\.ConditionalRender\(\{[\s\S]*?component: Component\.TagList\(\),[\s\S]*?condition: \(page\) => !isHomePage\(page\)/,
+  )
+  assert.match(layout, /afterBody: \[homepageFeed, articleTags, bottomBreadcrumbs\]/)
+  const beforeBody = layout.split("beforeBody: [")[1].split("afterBody:")[0]
+  assert.doesNotMatch(beforeBody, /TagList|articleTags/)
+  assert.match(
+    readingStyle,
+    /body:not\(\[data-slug="index"\]\):not\(\[data-slug="en"\]\) \.center > article \{\s*margin-inline: 0;/,
+  )
+  assert.match(readingStyle, /max-width: var\(--measure-reading\)/)
+})
