@@ -3,6 +3,8 @@
 .feed-list-container {
   margin-top: 1rem;
   width: 100%;
+  // Do not let thumbnail intrinsic widths enlarge the page's mobile grid track.
+  contain: inline-size;
 }
 
 .feed-list {
