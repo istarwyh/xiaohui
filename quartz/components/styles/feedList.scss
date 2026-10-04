@@ -34,18 +34,25 @@
   }
 }
 
-.feed-card-image-link {
-  flex-shrink: 0;
+a.feed-card-image-link {
+  display: block;
+  width: min(100%, 26rem);
+  margin-top: 0.35rem;
+  padding: 0;
   background-color: transparent;
+  border-radius: 6px;
+  overflow: hidden;
   line-height: 0;
 }
 
 .feed-card-image {
-  width: 120px;
-  height: 80px;
-  object-fit: cover;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
   border-radius: 6px;
   display: block;
+  margin: 0;
   background: var(--lightgray);
 }
 
@@ -55,6 +62,13 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.feed-card-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.8rem;
 }
 
 // 用 a.xxx 提高特异性，覆盖 base.scss 中 `a.internal` 的高亮底色与内边距
@@ -89,9 +103,10 @@ a.feed-card-title {
 }
 
 .feed-card-date {
+  flex-shrink: 0;
   font-size: 0.75rem;
   color: var(--gray);
-  margin-top: 0.1rem;
+  white-space: nowrap;
 }
 
 .feed-sentinel {
@@ -103,11 +118,6 @@ a.feed-card-title {
   .feed-card {
     gap: 0.75rem;
     padding: 1rem 0.2rem;
-  }
-
-  .feed-card-image {
-    width: 90px;
-    height: 60px;
   }
 
   a.feed-card-title {
