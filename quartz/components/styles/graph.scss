@@ -1,15 +1,5 @@
 @use "../../styles/variables.scss" as *;
 
-:root {
-  --graph-current-node: #d97706;
-  --graph-current-node-ring: #7c2d12;
-}
-
-:root[saved-theme="dark"] {
-  --graph-current-node: #facc15;
-  --graph-current-node-ring: #fff7ad;
-}
-
 .graph {
   & > h3 {
     font-size: 1rem;
@@ -17,7 +7,7 @@
   }
 
   & > .graph-outer {
-    border-radius: 5px;
+    border-radius: var(--radius-medium);
     border: 1px solid var(--lightgray);
     box-sizing: border-box;
     height: 360px;
@@ -40,7 +30,7 @@
       align-items: center;
       background-color: color-mix(in srgb, var(--light) 90%, transparent);
       border: 1px solid var(--lightgray);
-      border-radius: 5px;
+      border-radius: var(--radius-medium);
       color: var(--dark);
       cursor: pointer;
       display: inline-flex;
@@ -157,7 +147,7 @@
 
   .global-graph-mode-toggle {
     border: 1px solid var(--lightgray);
-    border-radius: 5px;
+    border-radius: var(--radius-medium);
     display: inline-flex;
     overflow: hidden;
   }
@@ -193,7 +183,7 @@
   .global-graph-close {
     background: none;
     border: 1px solid var(--lightgray);
-    border-radius: 5px;
+    border-radius: var(--radius-medium);
     color: var(--dark);
     cursor: pointer;
     flex: 0 0 auto;
@@ -218,8 +208,8 @@
   .global-graph-tooltip {
     background: color-mix(in srgb, var(--light) 92%, transparent);
     border: 1px solid var(--lightgray);
-    border-radius: 5px;
-    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.14);
+    border-radius: var(--radius-medium);
+    box-shadow: var(--shadow-popover);
     color: var(--dark);
     font-size: 0.82rem;
     left: 0;

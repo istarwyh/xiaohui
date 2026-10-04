@@ -63,28 +63,28 @@ ul.toc-content.overflow {
   }
 
   &::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--color-surface);
     border-radius: 3px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(154, 205, 50, 0.3);
+    background: var(--color-border-strong);
     border-radius: 3px;
     transition: background 0.3s ease;
 
     &:hover {
-      background: rgba(154, 205, 50, 0.5);
+      background: var(--color-accent);
     }
   }
 
   & > li > a {
-    color: var(--dark);
-    opacity: 0.35;
+    color: var(--color-text-muted);
     transition:
       0.5s ease opacity,
       0.3s ease color;
     &.in-view {
-      opacity: 0.75;
+      color: var(--color-accent);
+      font-weight: var(--weight-strong);
     }
   }
 

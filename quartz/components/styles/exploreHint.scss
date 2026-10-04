@@ -2,9 +2,9 @@
 
 .explore-hint {
   border: 1px solid var(--lightgray);
-  border-radius: 5px;
+  border-radius: var(--radius-medium);
   padding: 0.9rem;
-  background: color-mix(in srgb, var(--lightgray) 28%, transparent);
+  background: var(--color-surface);
 
   & > h3 {
     font-size: 1rem;
@@ -26,9 +26,4 @@
     font-size: 0.85rem;
     line-height: 1.45rem;
   }
-}
-
-[saved-theme="dark"] .explore-hint {
-  background: rgba(0, 15, 0, 0.36);
-  border-color: rgba(154, 205, 50, 0.24);
 }

@@ -37,6 +37,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Check design contract
+        run: npm run check:design
+
       - name: Check types and style
         run: npm run check
 

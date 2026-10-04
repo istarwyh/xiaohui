@@ -28,9 +28,9 @@ export function TerminalChrome({ children, title }: TerminalChromeProps) {
     <div class="terminal-home">
       <div class="terminal-window">
         <div class="terminal-titlebar">
-          <span class="terminal-dot red"></span>
-          <span class="terminal-dot yellow"></span>
-          <span class="terminal-dot green"></span>
+          <span class="terminal-dot red" aria-hidden="true"></span>
+          <span class="terminal-dot yellow" aria-hidden="true"></span>
+          <span class="terminal-dot green" aria-hidden="true"></span>
           <span class="terminal-titlebar-text">{title}</span>
         </div>
         <div class="terminal-body">{children}</div>
@@ -42,8 +42,14 @@ export function TerminalChrome({ children, title }: TerminalChromeProps) {
 function TerminalPrompt({ command }: { command: string }) {
   return (
     <div class="terminal-prompt">
-      <span class="prompt-symbol">{">"}</span>
-      <span class="prompt-cmd">{command}</span>
+      <span class="prompt-symbol" aria-hidden="true">
+        {">"}
+      </span>
+      {command === "whoami" ? (
+        <span class="prompt-cmd">{command}</span>
+      ) : (
+        <h2 class="prompt-cmd">{command}</h2>
+      )}
     </div>
   )
 }
@@ -68,7 +74,7 @@ export function WhoamiSection({
 }) {
   return (
     <TerminalSection command="whoami" outputClass="whoami-output">
-      <p>{copy.whoamiLine}</p>
+      <h1 class="home-identity">{copy.whoamiLine}</h1>
       <p class="badge-line">
         {badges.map((badge) => (
           <span class="badge">{badge.text}</span>
@@ -157,7 +163,9 @@ export function SearchSection({ copy }: { copy: TerminalHomeCopy }) {
   return (
     <div class="terminal-block terminal-search-block">
       <label class="terminal-prompt terminal-search-line">
-        <span class="prompt-symbol">{">"}</span>
+        <span class="prompt-symbol" aria-hidden="true">
+          {">"}
+        </span>
         <input
           class="terminal-search-input"
           type="search"

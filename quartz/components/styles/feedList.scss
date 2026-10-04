@@ -1,7 +1,7 @@
 @use "../../styles/variables.scss" as *;
 
 .feed-list-container {
-  margin-top: 1rem;
+  margin-top: var(--space-4);
   width: 100%;
   // Do not let thumbnail intrinsic widths enlarge the page's mobile grid track.
   contain: inline-size;
@@ -17,18 +17,18 @@
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: 1rem;
-  padding: 0.75rem 0.4rem;
-  border-bottom: 1px solid var(--lightgray);
-  border-radius: 6px;
-  transition: background 0.15s ease;
+  gap: var(--space-4);
+  padding: var(--feed-row-padding);
+  border-bottom: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+  transition: background var(--duration-fast) var(--ease-standard);
 
   &:last-of-type {
     border-bottom: none;
   }
 
   &:hover {
-    background: var(--highlight);
+    background: var(--color-surface-hover);
   }
 
   &.feed-card--hidden {
@@ -40,8 +40,8 @@
 .feed-card-images {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
-  width: min(100%, 25rem);
+  gap: var(--feed-image-gap);
+  width: min(100%, calc(3 * var(--feed-thumbnail-width) + 2 * var(--feed-image-gap)));
   margin-top: 0.2rem;
 }
 
@@ -50,7 +50,7 @@ a.feed-card-image-link {
   min-width: 0;
   padding: 0;
   background-color: transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-medium);
   overflow: hidden;
   line-height: 0;
 }
@@ -58,12 +58,12 @@ a.feed-card-image-link {
 .feed-card-image {
   width: 100%;
   height: auto;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: var(--feed-thumbnail-ratio);
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: var(--radius-medium);
   display: block;
   margin: 0;
-  background: var(--lightgray);
+  background: var(--color-surface);
 }
 
 .feed-card-body {
@@ -71,7 +71,7 @@ a.feed-card-image-link {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .feed-card-heading {
@@ -84,9 +84,9 @@ a.feed-card-image-link {
 // 用 a.xxx 提高特异性，覆盖 base.scss 中 `a.internal` 的高亮底色与内边距
 a.feed-card-title {
   align-self: flex-start;
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--dark);
+  font-size: var(--feed-title-size);
+  font-weight: var(--weight-strong);
+  color: var(--color-text-strong);
   background-color: transparent;
   padding: 0;
   border-radius: 0;
@@ -94,15 +94,15 @@ a.feed-card-title {
   line-height: 1.45;
 
   &:hover {
-    color: var(--secondary);
+    color: var(--color-accent);
     background-color: transparent;
     text-decoration: none;
   }
 }
 
 .feed-card-summary {
-  font-size: 0.875rem;
-  color: var(--darkgray);
+  font-size: var(--text-small);
+  color: var(--color-text);
   line-height: 1.6;
   margin: 0;
   display: -webkit-box;
@@ -114,9 +114,10 @@ a.feed-card-title {
 
 .feed-card-date {
   flex-shrink: 0;
-  font-size: 0.75rem;
-  color: var(--gray);
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .feed-sentinel {
@@ -126,12 +127,12 @@ a.feed-card-title {
 
 @media all and ($mobile) {
   .feed-list .feed-card {
-    gap: 0.75rem;
-    padding: 0.65rem 0.2rem;
+    gap: var(--space-3);
+    padding: var(--feed-row-mobile-padding);
   }
 
   a.feed-card-title {
-    font-size: 0.975rem;
+    font-size: var(--feed-title-mobile-size);
   }
 }
 
