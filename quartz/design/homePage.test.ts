@@ -241,3 +241,14 @@ test("legacy generator cannot overwrite or produce card data for an editorial ho
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+// Quartz a.internal sets its own padding and highlight. Home compositions must
+// override that selector explicitly, rather than relying on stylesheet order.
+test("editorial anchors retain authored surface and padding over upstream internal links", () => {
+  const page = readFileSync("quartz/components/styles/homePage.scss", "utf8")
+  const header = readFileSync("quartz/components/styles/homeHeader.scss", "utf8")
+  assert.match(page, /\.home-page a\.home-featured-item\s*\{/)
+  assert.match(page, /\.home-page a\.home-path\s*\{/)
+  assert.match(page, /a\.home-secondary\s*\{[\s\S]*?background: transparent/)
+  assert.match(header, /a\.home-wordmark\s*\{[\s\S]*?background: transparent/)
+})

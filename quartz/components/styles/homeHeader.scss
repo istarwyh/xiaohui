@@ -11,7 +11,10 @@
   a {
     color: var(--color-text-strong);
   }
-  .home-wordmark {
+  a.home-wordmark {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
@@ -68,6 +71,10 @@
       display: none;
     }
   }
+  summary:focus-visible {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: var(--focus-offset);
+  }
   .home-menu[open] summary span {
     transform: rotate(45deg);
   }
@@ -105,11 +112,11 @@
     flex-wrap: wrap;
     gap: var(--space-2);
     padding-block: var(--space-3);
-    .home-wordmark {
+    a.home-wordmark {
       font-size: var(--text-h3);
       gap: var(--space-1);
     }
-    .home-wordmark svg {
+    a.home-wordmark svg {
       width: 32px;
       height: 32px;
     }
