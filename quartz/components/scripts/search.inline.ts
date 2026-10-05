@@ -1,8 +1,15 @@
 import FlexSearch from "flexsearch"
 import type { DocumentSearchResults, DocumentValue } from "flexsearch"
-import { ContentDetails } from "../../plugins/emitters/contentIndex"
-import { registerEscapeHandler, removeAllChildren } from "./util"
+import type { ContentDetails } from "../../plugins/emitters/contentIndex"
 import { FullSlug, normalizeRelativeURLs, resolveRelative } from "../../util/path"
+import { escapeHTML } from "../../util/escape"
+import {
+  highlightSearchText,
+  nextSearchResultIndex,
+  parseSearchQuery,
+  searchTermPattern,
+  type SearchQuery,
+} from "./search.helpers"
 
 interface Item {
   id: number
@@ -13,489 +20,405 @@ interface Item {
   [key: string]: DocumentValue | DocumentValue[]
 }
 
-// Can be expanded with things like "term" in the future
-type SearchType = "basic" | "tags"
-let searchType: SearchType = "basic"
-let currentSearchTerm: string = ""
-const encoder = (str: string) => str.toLowerCase().split(/([^a-z]|[^\x00-\x7F])/)
-let index = new FlexSearch.Document<Item>({
-  encode: encoder,
+const index = new FlexSearch.Document<Item>({
+  encode: (str: string) => str.toLowerCase().split(/([^a-z]|[^\x00-\x7F])/),
   document: {
     id: "id",
     tag: "tags",
     index: [
-      {
-        field: "title",
-        tokenize: "forward",
-      },
-      {
-        field: "content",
-        tokenize: "forward",
-      },
-      {
-        field: "tags",
-        tokenize: "forward",
-      },
+      { field: "title", tokenize: "forward" },
+      { field: "content", tokenize: "forward" },
+      { field: "tags", tokenize: "forward" },
     ],
   },
 })
 
-const p = new DOMParser()
-const fetchContentCache: Map<FullSlug, Element[]> = new Map()
-const contextWindowWords = 30
+const parser = new DOMParser()
+const fetchContentCache = new Map<FullSlug, Promise<Element[]>>()
+type SearchData = Record<FullSlug, ContentDetails>
 const numSearchResults = 8
 const numTagResults = 5
+let indexReady: Promise<SearchData> | undefined
 
-const tokenizeTerm = (term: string) => {
-  const tokens = term.split(/\s+/).filter((t) => t.trim() !== "")
-  const tokenLen = tokens.length
-  if (tokenLen > 1) {
-    for (let i = 1; i < tokenLen; i++) {
-      tokens.push(tokens.slice(0, i + 1).join(" "))
-    }
-  }
-
-  return tokens.sort((a, b) => b.length - a.length) // always highlight longest terms first
+function loadIndex(): Promise<SearchData> {
+  // One shared build across navigation and all responsive search controls.
+  indexReady ??= fetchData.then(async (data) => {
+    await Promise.all(
+      Object.entries<ContentDetails>(data).map(([slug, fileData], id) =>
+        index.addAsync(id, {
+          id,
+          slug: slug as FullSlug,
+          title: fileData.title,
+          content: fileData.content,
+          tags: fileData.tags,
+        }),
+      ),
+    )
+    return data
+  })
+  return indexReady
 }
 
-function highlight(searchTerm: string, text: string, trim?: boolean) {
-  const tokenizedTerms = tokenizeTerm(searchTerm)
-  let tokenizedText = text.split(/\s+/).filter((t) => t !== "")
+function highlightHTML(searchTerm: string, el: Element): HTMLElement {
+  const html = parser.parseFromString(el.innerHTML, "text/html")
+  const pattern = searchTermPattern(searchTerm)
+  if (!pattern) return html.body
 
-  let startIndex = 0
-  let endIndex = tokenizedText.length - 1
-  if (trim) {
-    const includesCheck = (tok: string) =>
-      tokenizedTerms.some((term) => tok.toLowerCase().startsWith(term.toLowerCase()))
-    const occurrencesIndices = tokenizedText.map(includesCheck)
-
-    let bestSum = 0
-    let bestIndex = 0
-    for (let i = 0; i < Math.max(tokenizedText.length - contextWindowWords, 0); i++) {
-      const window = occurrencesIndices.slice(i, i + contextWindowWords)
-      const windowSum = window.reduce((total, cur) => total + (cur ? 1 : 0), 0)
-      if (windowSum >= bestSum) {
-        bestSum = windowSum
-        bestIndex = i
-      }
-    }
-
-    startIndex = Math.max(bestIndex - contextWindowWords, 0)
-    endIndex = Math.min(startIndex + 2 * contextWindowWords, tokenizedText.length - 1)
-    tokenizedText = tokenizedText.slice(startIndex, endIndex)
-  }
-
-  const slice = tokenizedText
-    .map((tok) => {
-      // see if this tok is prefixed by any search terms
-      for (const searchTok of tokenizedTerms) {
-        if (tok.toLowerCase().includes(searchTok.toLowerCase())) {
-          const regex = new RegExp(searchTok.toLowerCase(), "gi")
-          return tok.replace(regex, `<span class="highlight">$&</span>`)
-        }
-      }
-      return tok
-    })
-    .join(" ")
-
-  return `${startIndex === 0 ? "" : "..."}${slice}${
-    endIndex === tokenizedText.length - 1 ? "" : "..."
-  }`
-}
-
-function highlightHTML(searchTerm: string, el: HTMLElement) {
-  const p = new DOMParser()
-  const tokenizedTerms = tokenizeTerm(searchTerm)
-  const html = p.parseFromString(el.innerHTML, "text/html")
-
-  const createHighlightSpan = (text: string) => {
-    const span = document.createElement("span")
-    span.className = "highlight"
-    span.textContent = text
-    return span
-  }
-
-  const highlightTextNodes = (node: Node, term: string) => {
+  function visit(node: Node) {
     if (node.nodeType === Node.TEXT_NODE) {
-      const nodeText = node.nodeValue ?? ""
-      const regex = new RegExp(term.toLowerCase(), "gi")
-      const matches = nodeText.match(regex)
-      if (!matches || matches.length === 0) return
-      const spanContainer = document.createElement("span")
-      let lastIndex = 0
+      const value = node.nodeValue ?? ""
+      const matches = [...value.matchAll(pattern!)]
+      if (matches.length === 0) return
+      const fragment = document.createDocumentFragment()
+      let offset = 0
       for (const match of matches) {
-        const matchIndex = nodeText.indexOf(match, lastIndex)
-        spanContainer.appendChild(document.createTextNode(nodeText.slice(lastIndex, matchIndex)))
-        spanContainer.appendChild(createHighlightSpan(match))
-        lastIndex = matchIndex + match.length
+        fragment.appendChild(document.createTextNode(value.slice(offset, match.index)))
+        const mark = document.createElement("span")
+        mark.className = "highlight"
+        mark.textContent = match[0]
+        fragment.appendChild(mark)
+        offset = match.index! + match[0].length
       }
-      spanContainer.appendChild(document.createTextNode(nodeText.slice(lastIndex)))
-      node.parentNode?.replaceChild(spanContainer, node)
+      fragment.appendChild(document.createTextNode(value.slice(offset)))
+      node.parentNode?.replaceChild(fragment, node)
     } else if (node.nodeType === Node.ELEMENT_NODE) {
-      if ((node as HTMLElement).classList.contains("highlight")) return
-      Array.from(node.childNodes).forEach((child) => highlightTextNodes(child, term))
+      const element = node as Element
+      if (element.matches(".highlight, script, style, textarea")) return
+      Array.from(node.childNodes).forEach(visit)
     }
   }
 
-  for (const term of tokenizedTerms) {
-    highlightTextNodes(html.body, term)
-  }
-
+  visit(html.body)
   return html.body
 }
 
-async function setupSearch(searchElement: Element, currentSlug: FullSlug, data: ContentIndex) {
-  const container = searchElement.querySelector(".search-container") as HTMLElement
-  if (!container) return
+function setupSearch(searchElement: HTMLElement, currentSlug: FullSlug) {
+  const container = searchElement.querySelector<HTMLElement>(".search-container")!
+  const searchButton = searchElement.querySelector<HTMLButtonElement>(".search-button")!
+  const searchBar = searchElement.querySelector<HTMLInputElement>(".search-bar")!
+  const closeButton = searchElement.querySelector<HTMLButtonElement>(".search-close")!
+  const searchLayout = searchElement.querySelector<HTMLElement>(".search-layout")!
+  const status = searchElement.querySelector<HTMLElement>(".search-status")!
+  if (!container || !searchButton || !searchBar || !closeButton || !searchLayout || !status) return
 
-  const sidebar = container.closest(".sidebar") as HTMLElement | null
-
-  const searchButton = searchElement.querySelector(".search-button") as HTMLButtonElement
-  if (!searchButton) return
-
-  const searchBar = searchElement.querySelector(".search-bar") as HTMLInputElement
-  if (!searchBar) return
-
-  const searchLayout = searchElement.querySelector(".search-layout") as HTMLElement
-  if (!searchLayout) return
-
-  const idDataMap = Object.keys(data) as FullSlug[]
-  const appendLayout = (el: HTMLElement) => {
-    searchLayout.appendChild(el)
-  }
-
-  const enablePreview = searchLayout.dataset.preview === "true"
-  let preview: HTMLDivElement | undefined = undefined
-  let previewInner: HTMLDivElement | undefined = undefined
+  const labels = searchElement.dataset
+  const sidebar = container.closest<HTMLElement>(".sidebar")
   const results = document.createElement("div")
   results.className = "results-container"
-  appendLayout(results)
+  const preview =
+    searchLayout.dataset.preview === "true" ? document.createElement("div") : undefined
+  if (preview) preview.className = "preview-container"
+  searchLayout.replaceChildren(results, ...(preview ? [preview] : []))
+  searchLayout.dataset.ready = "false"
 
-  if (enablePreview) {
-    preview = document.createElement("div")
-    preview.className = "preview-container"
-    appendLayout(preview)
-  }
+  let data: SearchData | undefined
+  let idDataMap: FullSlug[] = []
+  let disposed = false
+  let composing = false
+  let loadFailed = false
+  let queryVersion = 0
+  let previewVersion = 0
+  let previewTerm = ""
+  let returnFocus: HTMLElement | null = null
+  const isOpen = () => container.classList.contains("active")
+  const resultLinks = () => [...results.querySelectorAll<HTMLAnchorElement>("a.result-card")]
+  const setStatus = (text = "") => (status.textContent = text)
 
-  function hideSearch() {
-    container.classList.remove("active")
-    searchBar.value = "" // clear the input when we dismiss the search
-    if (sidebar) sidebar.style.zIndex = ""
-    removeAllChildren(results)
-    if (preview) {
-      removeAllChildren(preview)
-    }
+  function clearResults() {
+    previewVersion++
+    results.replaceChildren()
+    preview?.replaceChildren()
     searchLayout.classList.remove("display-results")
-    searchType = "basic" // reset search type after closing
-    searchButton.focus()
   }
 
-  function showSearch(searchTypeNew: SearchType) {
-    searchType = searchTypeNew
+  function hideSearch(restoreFocus = true) {
+    if (!isOpen()) return
+    queryVersion++
+    container.classList.remove("active")
+    searchButton.setAttribute("aria-expanded", "false")
+    searchBar.value = ""
+    composing = false
+    clearResults()
+    setStatus()
+    if (sidebar) sidebar.style.zIndex = ""
+    if (restoreFocus) {
+      const target = returnFocus?.isConnected ? returnFocus : searchButton
+      target.focus()
+    }
+    returnFocus = null
+  }
+
+  function showSearch(tags = false) {
+    if (!isOpen()) {
+      returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    }
     if (sidebar) sidebar.style.zIndex = "1"
     container.classList.add("active")
+    searchButton.setAttribute("aria-expanded", "true")
+    searchBar.value = tags ? "#" : searchBar.value
     searchBar.focus()
+    void runSearch()
   }
 
-  let currentHover: HTMLInputElement | null = null
-  async function shortcutHandler(e: HTMLElementEventMap["keydown"]) {
-    if (e.key === "k" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
-      e.preventDefault()
-      const searchBarOpen = container.classList.contains("active")
-      searchBarOpen ? hideSearch() : showSearch("basic")
+  function trapTab(event: KeyboardEvent) {
+    const focusable = [
+      ...container.querySelectorAll<HTMLElement>("input, button, a[href], [tabindex='0']"),
+    ].filter((element) => !element.hasAttribute("disabled") && element.getClientRects().length > 0)
+    const first = focusable[0] ?? searchBar
+    const last = focusable.at(-1) ?? first
+    if (
+      event.shiftKey &&
+      (document.activeElement === first || !container.contains(document.activeElement))
+    ) {
+      event.preventDefault()
+      last.focus()
+    } else if (
+      !event.shiftKey &&
+      (document.activeElement === last || !container.contains(document.activeElement))
+    ) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
+  function shortcutHandler(event: KeyboardEvent) {
+    // IME uses Enter, Escape and arrows internally; never consume those events.
+    if (composing || event.isComposing || event.keyCode === 229) return
+    if (event.key.toLowerCase() === "k" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault()
+      if (event.repeat) return
+      isOpen() ? hideSearch() : showSearch(event.shiftKey)
       return
-    } else if (e.shiftKey && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-      // Hotkey to open tag search
-      e.preventDefault()
-      const searchBarOpen = container.classList.contains("active")
-      searchBarOpen ? hideSearch() : showSearch("tags")
-
-      // add "#" prefix for tag search
-      searchBar.value = "#"
-      return
     }
-
-    if (currentHover) {
-      currentHover.classList.remove("focus")
+    if (!isOpen()) return
+    if (event.key === "Escape") {
+      event.preventDefault()
+      event.stopPropagation()
+      hideSearch()
+    } else if (event.key === "Tab") {
+      trapTab(event)
+    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault()
+      const links = resultLinks()
+      const current = links.indexOf(document.activeElement as HTMLAnchorElement)
+      const next = nextSearchResultIndex(current, links.length, event.key === "ArrowDown" ? 1 : -1)
+      if (next < 0) searchBar.focus()
+      else links[next].focus()
+    } else if (event.key === "Enter" && document.activeElement === searchBar) {
+      event.preventDefault()
+      // Navigation must never wait for a preview request.
+      resultLinks()[0]?.click()
     }
-
-    // If search is active, then we will render the first result and display accordingly
-    if (!container.classList.contains("active")) return
-    if (e.key === "Enter" && !e.isComposing) {
-      // If result has focus, navigate to that one, otherwise pick first result
-      if (results.contains(document.activeElement)) {
-        const active = document.activeElement as HTMLInputElement
-        if (active.classList.contains("no-match")) return
-        await displayPreview(active)
-        active.click()
-      } else {
-        const anchor = document.getElementsByClassName("result-card")[0] as HTMLInputElement | null
-        if (!anchor || anchor.classList.contains("no-match")) return
-        await displayPreview(anchor)
-        anchor.click()
-      }
-    } else if (e.key === "ArrowUp" || (e.shiftKey && e.key === "Tab")) {
-      e.preventDefault()
-      if (results.contains(document.activeElement)) {
-        // If an element in results-container already has focus, focus previous one
-        const currentResult = currentHover
-          ? currentHover
-          : (document.activeElement as HTMLInputElement | null)
-        const prevResult = currentResult?.previousElementSibling as HTMLInputElement | null
-        currentResult?.classList.remove("focus")
-        prevResult?.focus()
-        if (prevResult) currentHover = prevResult
-        await displayPreview(prevResult)
-      }
-    } else if (e.key === "ArrowDown" || e.key === "Tab") {
-      e.preventDefault()
-      // The results should already been focused, so we need to find the next one.
-      // The activeElement is the search bar, so we need to find the first result and focus it.
-      if (document.activeElement === searchBar || currentHover !== null) {
-        const firstResult = currentHover
-          ? currentHover
-          : (document.getElementsByClassName("result-card")[0] as HTMLInputElement | null)
-        const secondResult = firstResult?.nextElementSibling as HTMLInputElement | null
-        firstResult?.classList.remove("focus")
-        secondResult?.focus()
-        if (secondResult) currentHover = secondResult
-        await displayPreview(secondResult)
-      }
-    }
-  }
-
-  const formatForDisplay = (term: string, id: number) => {
-    const slug = idDataMap[id]
-    return {
-      id,
-      slug,
-      title: searchType === "tags" ? data[slug].title : highlight(term, data[slug].title ?? ""),
-      content: highlight(term, data[slug].content ?? "", true),
-      tags: highlightTags(term.substring(1), data[slug].tags),
-    }
-  }
-
-  function highlightTags(term: string, tags: string[]) {
-    if (!tags || searchType !== "tags") {
-      return []
-    }
-
-    return tags
-      .map((tag) => {
-        if (tag.toLowerCase().includes(term.toLowerCase())) {
-          return `<li><p class="match-tag">#${tag}</p></li>`
-        } else {
-          return `<li><p>#${tag}</p></li>`
-        }
-      })
-      .slice(0, numTagResults)
   }
 
   function resolveUrl(slug: FullSlug): URL {
     return new URL(resolveRelative(currentSlug, slug), location.toString())
   }
 
-  const resultToHTML = ({ slug, title, content, tags }: Item) => {
-    const htmlTags = tags.length > 0 ? `<ul class="tags">${tags.join("")}</ul>` : ``
-    const itemTile = document.createElement("a")
-    itemTile.classList.add("result-card")
-    itemTile.id = slug
-    itemTile.href = resolveUrl(slug).toString()
-    itemTile.innerHTML = `
-      <h3 class="card-title">${title}</h3>
-      ${htmlTags}
-      <p class="card-description">${content}</p>
-    `
-    itemTile.addEventListener("click", (event) => {
-      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-      hideSearch()
-    })
-
-    const handler = (event: MouseEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-      hideSearch()
-    }
-
-    async function onMouseEnter(ev: MouseEvent) {
-      if (!ev.target) return
-      const target = ev.target as HTMLInputElement
-      await displayPreview(target)
-    }
-
-    itemTile.addEventListener("mouseenter", onMouseEnter)
-    window.addCleanup(() => itemTile.removeEventListener("mouseenter", onMouseEnter))
-    itemTile.addEventListener("click", handler)
-    window.addCleanup(() => itemTile.removeEventListener("click", handler))
-
-    return itemTile
-  }
-
-  async function displayResults(finalResults: Item[]) {
-    removeAllChildren(results)
-    if (finalResults.length === 0) {
-      results.innerHTML = `<a class="result-card no-match">
-          <h3>No results.</h3>
-          <p>Try another search term?</p>
-      </a>`
-    } else {
-      results.append(...finalResults.map(resultToHTML))
-    }
-
-    if (finalResults.length === 0 && preview) {
-      // no results, clear previous preview
-      removeAllChildren(preview)
-    } else {
-      // focus on first result, then also dispatch preview immediately
-      const firstChild = results.firstElementChild as HTMLElement
-      firstChild.classList.add("focus")
-      currentHover = firstChild as HTMLInputElement
-      await displayPreview(firstChild)
-    }
-  }
-
-  async function fetchContent(slug: FullSlug): Promise<Element[]> {
-    if (fetchContentCache.has(slug)) {
-      return fetchContentCache.get(slug) as Element[]
-    }
-
-    const targetUrl = resolveUrl(slug).toString()
-    const contents = await fetch(targetUrl)
-      .then((res) => res.text())
-      .then((contents) => {
-        if (contents === undefined) {
-          throw new Error(`Could not fetch ${targetUrl}`)
-        }
-        const html = p.parseFromString(contents ?? "", "text/html")
-        normalizeRelativeURLs(html, targetUrl)
-        return [...html.getElementsByClassName("popover-hint")]
-      })
-
-    fetchContentCache.set(slug, contents)
-    return contents
-  }
-
-  async function displayPreview(el: HTMLElement | null) {
-    if (!searchLayout || !enablePreview || !el || !preview) return
-    const slug = el.id as FullSlug
-    const innerDiv = await fetchContent(slug).then((contents) =>
-      contents.flatMap((el) => [...highlightHTML(currentSearchTerm, el as HTMLElement).children]),
-    )
-    previewInner = document.createElement("div")
-    previewInner.classList.add("preview-inner")
-    previewInner.append(...innerDiv)
-    preview.replaceChildren(previewInner)
-
-    // scroll to longest
-    const highlights = [...preview.getElementsByClassName("highlight")].sort(
-      (a, b) => b.innerHTML.length - a.innerHTML.length,
-    )
-    highlights[0]?.scrollIntoView({ block: "start" })
-  }
-
-  async function onType(e: HTMLElementEventMap["input"]) {
-    if (!searchLayout || !index) return
-    currentSearchTerm = (e.target as HTMLInputElement).value
-    searchLayout.classList.toggle("display-results", currentSearchTerm !== "")
-    searchType = currentSearchTerm.startsWith("#") ? "tags" : "basic"
-
-    let searchResults: DocumentSearchResults<Item> = []
-    if (searchType === "tags") {
-      currentSearchTerm = currentSearchTerm.substring(1).trim()
-      const separatorIndex = currentSearchTerm.indexOf(" ")
-      if (separatorIndex != -1) {
-        // search by title and content index and then filter by tag (implemented in flexsearch)
-        const tag = currentSearchTerm.substring(0, separatorIndex)
-        const query = currentSearchTerm.substring(separatorIndex + 1).trim()
-        searchResults = await index.searchAsync({
-          query: query,
-          // return at least 10000 documents, so it is enough to filter them by tag (implemented in flexsearch)
-          limit: Math.max(numSearchResults, 10000),
-          index: ["title", "content"],
-          tag: { tags: tag },
+  function fetchContent(slug: FullSlug): Promise<Element[]> {
+    let cached = fetchContentCache.get(slug)
+    if (!cached) {
+      const targetUrl = resolveUrl(slug).toString()
+      cached = fetch(targetUrl)
+        .then(async (response) => {
+          if (!response.ok) throw new Error(`Could not fetch ${targetUrl}`)
+          const html = parser.parseFromString(await response.text(), "text/html")
+          normalizeRelativeURLs(html, targetUrl)
+          return [...html.getElementsByClassName("popover-hint")]
         })
-        for (let searchResult of searchResults) {
-          searchResult.result = searchResult.result.slice(0, numSearchResults)
-        }
-        // set search type to basic and remove tag from term for proper highlightning and scroll
-        searchType = "basic"
-        currentSearchTerm = query
+        .catch((error: unknown) => {
+          fetchContentCache.delete(slug)
+          throw error
+        })
+      fetchContentCache.set(slug, cached)
+    }
+    return cached
+  }
+
+  async function displayPreview(link: HTMLAnchorElement) {
+    resultLinks().forEach((result) => result.classList.toggle("focus", result === link))
+    if (!preview) return
+    const version = ++previewVersion
+    const term = previewTerm
+    const isCurrent = () =>
+      !disposed && isOpen() && version === previewVersion && results.contains(link)
+    preview.replaceChildren()
+    try {
+      const contents = await fetchContent(link.dataset.slug as FullSlug)
+      if (!isCurrent()) return
+      const inner = document.createElement("div")
+      inner.className = "preview-inner"
+      inner.append(...contents.flatMap((element) => [...highlightHTML(term, element).children]))
+      preview.replaceChildren(inner)
+      const highlights = [...preview.getElementsByClassName("highlight")].sort(
+        (a, b) => b.textContent!.length - a.textContent!.length,
+      )
+      highlights[0]?.scrollIntoView({ block: "nearest" })
+    } catch {
+      if (!isCurrent()) return
+      const message = document.createElement("p")
+      message.textContent = labels.previewError ?? ""
+      preview.replaceChildren(message)
+    }
+  }
+
+  function createResult(id: number, query: SearchQuery): HTMLAnchorElement {
+    const slug = idDataMap[id]
+    const item = data![slug]
+    const link = document.createElement("a")
+    link.className = "result-card"
+    link.dataset.slug = slug
+    link.href = resolveUrl(slug).toString()
+    const title =
+      query.type === "tags" ? escapeHTML(item.title) : highlightSearchText(query.term, item.title)
+    const tags =
+      query.type === "tags"
+        ? (item.tags ?? [])
+            .slice(0, numTagResults)
+            .map((tag) => {
+              const className = tag.toLowerCase().includes(query.term.toLowerCase())
+                ? ' class="match-tag"'
+                : ""
+              return `<li><p${className}>#${escapeHTML(tag)}</p></li>`
+            })
+            .join("")
+        : ""
+    link.innerHTML = `<h3 class="card-title">${title}</h3>${tags ? `<ul class="tags">${tags}</ul>` : ""}<p class="card-description">${highlightSearchText(query.term, item.content ?? "", true)}</p>`
+    return link
+  }
+
+  async function runSearch() {
+    const version = ++queryVersion
+    clearResults()
+    if (disposed || !isOpen()) return
+    if (!data) {
+      setStatus(loadFailed ? labels.error : labels.loading)
+      return
+    }
+    const query = parseSearchQuery(searchBar.value)
+    if (!query.term) {
+      setStatus(labels.ready)
+      return
+    }
+    setStatus(labels.searching)
+    try {
+      const searchResults: DocumentSearchResults<Item> = await index.searchAsync({
+        query: query.term,
+        limit: query.tag ? 10000 : numSearchResults,
+        index: query.type === "tags" ? ["tags"] : ["title", "content"],
+        ...(query.tag ? { tag: { tags: query.tag } } : {}),
+      })
+      if (disposed || !isOpen() || composing || version !== queryVersion) return
+      const getByField = (field: string): number[] =>
+        (searchResults.find((result) => result.field === field)?.result ?? []) as number[]
+      const ids = [
+        ...new Set([...getByField("title"), ...getByField("content"), ...getByField("tags")]),
+      ]
+        .filter((id) => idDataMap[id] !== undefined)
+        .slice(0, numSearchResults)
+      previewTerm = query.term
+      searchLayout.classList.add("display-results")
+      if (ids.length === 0) {
+        const empty = document.createElement("div")
+        empty.className = "result-card no-match"
+        const title = document.createElement("h3")
+        title.textContent = labels.noResults ?? ""
+        const hint = document.createElement("p")
+        hint.textContent = labels.noResultsHint ?? ""
+        empty.append(title, hint)
+        results.replaceChildren(empty)
+        setStatus(labels.noResults)
       } else {
-        // default search by tags index
-        searchResults = await index.searchAsync({
-          query: currentSearchTerm,
-          limit: numSearchResults,
-          index: ["tags"],
-        })
+        const links = ids.map((id) => createResult(id, query))
+        results.replaceChildren(...links)
+        setStatus(labels.resultCount?.replace("{count}", String(ids.length)))
+        void displayPreview(links[0])
       }
-    } else if (searchType === "basic") {
-      searchResults = await index.searchAsync({
-        query: currentSearchTerm,
-        limit: numSearchResults,
-        index: ["title", "content"],
-      })
+    } catch {
+      if (!disposed && isOpen() && version === queryVersion) setStatus(labels.error)
     }
-
-    const getByField = (field: string): number[] => {
-      const results = searchResults.filter((x) => x.field === field)
-      return results.length === 0 ? [] : ([...results[0].result] as number[])
-    }
-
-    // order titles ahead of content
-    const allIds: Set<number> = new Set([
-      ...getByField("title"),
-      ...getByField("content"),
-      ...getByField("tags"),
-    ])
-    const finalResults = [...allIds].map((id) => formatForDisplay(currentSearchTerm, id))
-    await displayResults(finalResults)
   }
 
-  const onSearchButtonClick = () => showSearch("basic")
+  // Delegation keeps one listener per container; discarded result cards retain none.
+  function previewResult(event: Event) {
+    const target =
+      event.target instanceof Element
+        ? event.target.closest<HTMLAnchorElement>("a.result-card")
+        : null
+    if (target && results.contains(target)) void displayPreview(target)
+  }
+  function clickResult(event: MouseEvent) {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0)
+      return
+    const target = event.target instanceof Element ? event.target.closest("a.result-card") : null
+    if (target && results.contains(target)) hideSearch(false)
+  }
+  function onBackdropClick(event: MouseEvent) {
+    if (event.target === container) hideSearch()
+  }
+  const onSearchButtonClick = () => showSearch()
+  const onCloseButtonClick = () => hideSearch()
+  const onInput = (event: Event) => {
+    if (!composing && !(event as InputEvent).isComposing) void runSearch()
+  }
+  const onCompositionStart = () => {
+    composing = true
+    queryVersion++
+    previewVersion++
+  }
+  const onCompositionEnd = () => {
+    composing = false
+    void runSearch()
+  }
 
   document.addEventListener("keydown", shortcutHandler)
-  window.addCleanup(() => document.removeEventListener("keydown", shortcutHandler))
   searchButton.addEventListener("click", onSearchButtonClick)
-  window.addCleanup(() => searchButton.removeEventListener("click", onSearchButtonClick))
-  searchBar.addEventListener("input", onType)
-  window.addCleanup(() => searchBar.removeEventListener("input", onType))
+  closeButton.addEventListener("click", onCloseButtonClick)
+  container.addEventListener("click", onBackdropClick)
+  searchBar.addEventListener("input", onInput)
+  searchBar.addEventListener("compositionstart", onCompositionStart)
+  searchBar.addEventListener("compositionend", onCompositionEnd)
+  results.addEventListener("mouseover", previewResult)
+  results.addEventListener("focusin", previewResult)
+  results.addEventListener("click", clickResult)
 
-  registerEscapeHandler(container, hideSearch)
-  await fillDocument(data)
-  searchLayout.dataset.ready = "true"
-  window.dispatchEvent(new Event("quartz:search-ready"))
+  // Register cleanup synchronously, before waiting for the index or a search.
+  window.addCleanup(() => {
+    hideSearch(false)
+    disposed = true
+    queryVersion++
+    previewVersion++
+    document.removeEventListener("keydown", shortcutHandler)
+    searchButton.removeEventListener("click", onSearchButtonClick)
+    closeButton.removeEventListener("click", onCloseButtonClick)
+    container.removeEventListener("click", onBackdropClick)
+    searchBar.removeEventListener("input", onInput)
+    searchBar.removeEventListener("compositionstart", onCompositionStart)
+    searchBar.removeEventListener("compositionend", onCompositionEnd)
+    results.removeEventListener("mouseover", previewResult)
+    results.removeEventListener("focusin", previewResult)
+    results.removeEventListener("click", clickResult)
+  })
+
+  void loadIndex()
+    .then((loaded) => {
+      if (disposed) return
+      data = loaded
+      idDataMap = Object.keys(data) as FullSlug[]
+      searchLayout.dataset.ready = "true"
+      window.dispatchEvent(new Event("quartz:search-ready"))
+      if (isOpen() && !composing) void runSearch()
+    })
+    .catch(() => {
+      if (disposed) return
+      loadFailed = true
+      searchLayout.dataset.ready = "error"
+      if (isOpen()) setStatus(labels.error)
+    })
 }
 
-/**
- * Fills flexsearch document with data
- * @param index index to fill
- * @param data data to fill index with
- */
-let indexPopulated = false
-async function fillDocument(data: ContentIndex) {
-  if (indexPopulated) return
-  let id = 0
-  const promises: Array<Promise<unknown>> = []
-  for (const [slug, fileData] of Object.entries<ContentDetails>(data)) {
-    promises.push(
-      index.addAsync(id++, {
-        id,
-        slug: slug as FullSlug,
-        title: fileData.title,
-        content: fileData.content,
-        tags: fileData.tags,
-      }),
-    )
-  }
-
-  await Promise.all(promises)
-  indexPopulated = true
-}
-
-document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
-  const currentSlug = e.detail.url
-  const data = await fetchData
-  const searchElement = document.getElementsByClassName("search")
-  for (const element of searchElement) {
-    await setupSearch(element, currentSlug, data)
+document.addEventListener("nav", (event: CustomEventMap["nav"]) => {
+  for (const element of document.querySelectorAll<HTMLElement>(".search")) {
+    setupSearch(element, event.detail.url)
   }
 })

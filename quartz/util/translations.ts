@@ -1,4 +1,5 @@
 import { GlobalConfiguration } from "../cfg"
+import type { ValidLocale } from "../i18n"
 import { QuartzPluginData } from "../plugins/vfile"
 import { FullSlug, joinSegments } from "./path"
 
@@ -18,6 +19,18 @@ export function normalizeLang(lang: unknown, fallback = DEFAULT_SOURCE_LANG): st
   const normalized = lang.trim()
   if (normalized === "zh") return DEFAULT_SOURCE_LANG
   return normalized
+}
+
+/** Choose UI strings from the page language without changing translation metadata. */
+export function getPageUiLocale(
+  fileData: QuartzPluginData | undefined,
+  cfg: GlobalConfiguration,
+): ValidLocale {
+  const pageLang = fileData?.frontmatter?.lang
+  const lang = typeof pageLang === "string" ? pageLang.trim().toLowerCase() : ""
+  if (lang === "en" || lang.startsWith("en-")) return "en-US"
+  if (lang === "zh" || lang.startsWith("zh-")) return "zh-CN"
+  return cfg.locale
 }
 
 export function languageLabel(lang: string): string {

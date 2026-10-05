@@ -60,11 +60,6 @@ export default (() => {
       name: cfg.pageTitle,
       url: `https://${cfg.baseUrl}/`,
       inLanguage: currentLang,
-      potentialAction: {
-        "@type": "SearchAction",
-        target: `https://${cfg.baseUrl}/?q={search_term_string}`,
-        "query-input": "required name=search_term_string",
-      },
     }
 
     // BreadcrumbList JSON-LD — built from slug segments (e.g. program/llm/foo)
@@ -118,6 +113,7 @@ export default (() => {
 
     return (
       <head>
+        <meta name="quartz-build" content={ctx?.buildId} />
         <title>{title}</title>
         <meta charSet="utf-8" />
         {additionalHead.map((resource) => {

@@ -685,6 +685,8 @@ body[data-slug="brand"] {
     margin: 0 0 var(--space-6);
     line-height: var(--leading-ui);
     > span {
+      flex-shrink: 0;
+      white-space: nowrap;
       padding-top: var(--space-1);
       color: var(--color-accent);
       font-family: var(--font-code);

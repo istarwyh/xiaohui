@@ -20,6 +20,10 @@ export const foundations = {
   "text-h3": "1.125rem",
   "text-h2": "1.5rem",
   "text-title": "clamp(1.75rem, 1.4rem + 1vw, 2.25rem)",
+  // Homepage-only display hierarchy; article titles keep the 28–36px scale above.
+  "text-display": "clamp(3.5rem, 4.8vw, 4.5rem)",
+  "text-display-mobile": "clamp(2.25rem, 10.25vw, 2.75rem)",
+  "text-section": "clamp(1.625rem, 2.25vw, 2.25rem)",
   "weight-regular": "400",
   "weight-medium": "500",
   "weight-strong": "600",
@@ -50,6 +54,7 @@ export const foundations = {
   "measure-reading": "44rem",
   "measure-page": "100rem",
   "measure-brand": "72rem",
+  "measure-home": "86.5rem",
   "duration-fast": "120ms",
   "duration-normal": "180ms",
   "ease-standard": "cubic-bezier(0.2, 0, 0, 1)",

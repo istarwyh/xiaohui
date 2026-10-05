@@ -146,7 +146,28 @@ test("approved feed density and image geometry remain explicit", () => {
   assert.match(feed, /repeat\(3, minmax\(0, 1fr\)\)/)
   assert.match(feed, /object-fit: contain/)
   assert.match(feed, /align-items: baseline/)
+  assert.match(feed, /\.feed-card-heading\s*\{[^}]*display: flex;[^}]*flex-wrap: wrap;/)
+  assert.match(feed, /-webkit-line-clamp: 2;/)
+  assert.match(feed, /line-clamp: 2;/)
   assert.match(feed, /\.feed-list a\.feed-card-title/, "Titles must outrank upstream a.internal")
+})
+
+test("homepage display scales are separate from unchanged article and reading measures", () => {
+  assert.equal(foundations["text-title"], "clamp(1.75rem, 1.4rem + 1vw, 2.25rem)")
+  assert.equal(foundations["text-display"], "clamp(3.5rem, 4.8vw, 4.5rem)")
+  assert.equal(foundations["text-display-mobile"], "clamp(2.25rem, 10.25vw, 2.75rem)")
+  assert.equal(foundations["text-section"], "clamp(1.625rem, 2.25vw, 2.25rem)")
+  assert.equal(foundations["measure-home"], "86.5rem")
+  assert.equal(foundations["measure-reading"], "44rem")
+  assert.equal(foundations["measure-brand"], "72rem")
+  assert.equal(foundations["measure-page"], "100rem")
+  assert.equal(foundations["text-body"], "1rem")
+  assert.equal(foundations["leading-reading"], "1.85")
+  const reading = readFileSync("quartz/styles/custom.scss", "utf8")
+  assert.match(reading, /\.article-title\s*\{\s*font-size: var\(--text-title\);/)
+  assert.doesNotMatch(reading, /var\(--(?:text-display(?:-mobile)?|text-section|measure-home)\)/)
+  const feed = readFileSync("quartz/components/styles/feedList.scss", "utf8")
+  assert.doesNotMatch(feed, /var\(--(?:text-display(?:-mobile)?|text-section|measure-home)\)/)
 })
 
 test("design documentation cannot enter the content feed, and a real skip target exists", () => {

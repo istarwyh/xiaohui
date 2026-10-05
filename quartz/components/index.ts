@@ -33,6 +33,8 @@ import QuoteExhibit from "./QuoteExhibit"
 import RssLink from "./RssLink"
 import LanguageSwitcher from "./LanguageSwitcher"
 import FeedList from "./FeedList"
+import HomeHeader from "./HomeHeader"
+import HomePage from "./HomePage"
 
 export {
   ArticleTitle,
@@ -70,4 +72,6 @@ export {
   RssLink,
   LanguageSwitcher,
   FeedList,
+  HomeHeader,
+  HomePage,
 }

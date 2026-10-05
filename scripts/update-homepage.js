@@ -186,6 +186,14 @@ function mapPostsToImages(posts) {
 
 // Update homepage content
 function updateHomepage() {
+  // Editorial homes own their data at build time. Never overwrite them, even with FORCE.
+  if (
+    fs.existsSync(indexPath) &&
+    /^pageType:\s*home\s*$/m.test(fs.readFileSync(indexPath, "utf8"))
+  ) {
+    console.log("Editorial homepage detected; legacy CardFeed generation is not applicable.")
+    return
+  }
   const recentFiles = getRecentFiles()
 
   // Combine featured and recent posts

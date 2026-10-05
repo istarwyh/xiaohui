@@ -1,6 +1,11 @@
 import { QuartzComponent, QuartzComponentConstructor, QuartzComponentProps } from "./types"
 import { resolveRelative } from "../util/path"
-import { getTranslationAlternates, languageLabel, normalizeLang } from "../util/translations"
+import {
+  getTranslationAlternates,
+  getPageUiLocale,
+  languageLabel,
+  normalizeLang,
+} from "../util/translations"
 import { classNames } from "../util/lang"
 
 export default (() => {
@@ -13,10 +18,11 @@ export default (() => {
     const alternates = getTranslationAlternates(cfg, fileData, allFiles)
     if (alternates.length <= 1) return <></>
 
+    const label = getPageUiLocale(fileData, cfg).startsWith("zh") ? "语言版本" : "Language versions"
     const currentLang = normalizeLang(fileData.frontmatter?.lang, cfg.locale)
 
     return (
-      <nav class={classNames(displayClass, "language-switcher")} aria-label="Language versions">
+      <nav class={classNames(displayClass, "language-switcher")} aria-label={label}>
         {alternates.map((alternate) => {
           const label = languageLabel(alternate.lang)
           const isCurrent = alternate.lang === currentLang

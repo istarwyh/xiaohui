@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOOK_DIR="$ROOT/.git/hooks"
+HOOK_DIR="$(git -C "$ROOT" rev-parse --path-format=absolute --git-path hooks)"
 NODE_BIN_DIR="$(dirname "$(command -v node)")"
 mkdir -p "$HOOK_DIR"
 
