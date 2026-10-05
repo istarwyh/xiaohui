@@ -18,7 +18,8 @@ export default (() => {
     const en = getHomeUiLocale(props.fileData) === "en-US"
     const home = resolveRelative(props.fileData.slug!, (en ? "en" : "index") as FullSlug)
     const links = [
-      ["#featured", en ? "Selected" : "精选"],
+      ["#featured", en ? "Work" : "作品"],
+      ["#paths", en ? "Themes" : "主题"],
       ["#writing", en ? "Writing" : "文章"],
       ["#about", en ? "About" : "关于"],
     ]

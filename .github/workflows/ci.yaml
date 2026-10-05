@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - v4
+      - preview/homepage-outcome-full
   workflow_dispatch:
 
 jobs:
