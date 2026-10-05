@@ -7,6 +7,84 @@ interface FeedState {
   offset?: number
 }
 
+/** Restore against rendered geometry, without inheriting the site's smooth scrolling. */
+function restoreFeedPosition(anchor: HTMLElement, offset: number) {
+  let frame: number | undefined
+  let stopped = false
+  let started: number | undefined
+  let stableFrames = 0
+  const pending = new Set<Element>()
+  const cleanups: (() => void)[] = []
+  const stop = () => {
+    if (stopped) return
+    stopped = true
+    if (frame !== undefined) window.cancelAnimationFrame(frame)
+    cleanups.forEach((cleanup) => cleanup())
+  }
+  const waitForResource = (resource: Element) => {
+    pending.add(resource)
+    const settled = () => pending.delete(resource)
+    for (const type of ["load", "error"]) {
+      resource.addEventListener(type, settled, { once: true })
+      cleanups.push(() => resource.removeEventListener(type, settled))
+    }
+  }
+
+  // The router has finished morphing, but font stylesheets and failed
+  // thumbnails above the saved card can still change its document position.
+  document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]').forEach((link) => {
+    if (!link.sheet && !link.disabled) waitForResource(link)
+  })
+  document.querySelectorAll<HTMLImageElement>("img").forEach((image) => {
+    if (
+      !image.complete &&
+      image.compareDocumentPosition(anchor) & Node.DOCUMENT_POSITION_FOLLOWING
+    ) {
+      waitForResource(image)
+    }
+  })
+
+  // Never compete with a reader, a new route, or same-document fragment history.
+  for (const type of [
+    "wheel",
+    "touchstart",
+    "pointerdown",
+    "keydown",
+    "click",
+    "popstate",
+    "hashchange",
+  ]) {
+    window.addEventListener(type, stop, { passive: true, capture: true })
+    cleanups.push(() => window.removeEventListener(type, stop, { capture: true }))
+  }
+
+  const restore = (now: number) => {
+    if (stopped) return
+    if (started !== undefined && now - started >= 1000) {
+      stop()
+      return
+    }
+    const firstFrame = started === undefined
+    started ??= now
+    const delta = anchor.getBoundingClientRect().top - offset
+    if (firstFrame || Math.abs(delta) > 1) {
+      window.scrollBy({ top: delta, behavior: "instant" })
+      stableFrames = 0
+    } else {
+      stableFrames++
+    }
+    // Two unchanged rendered frames also cover native history's deferred scroll.
+    // The deadline is only a safety bound for stalled resources, not a delayed
+    // scroll: each observed geometry change is corrected on the next frame.
+    // Async layout changes after this 1s bound are left to native scroll anchoring.
+    const settled = stableFrames >= 2 && pending.size === 0 && document.fonts?.status !== "loading"
+    if (settled) stop()
+    else frame = window.requestAnimationFrame(restore)
+  }
+  frame = window.requestAnimationFrame(restore)
+  return stop
+}
+
 function enhanceFeed(container: HTMLElement, isBack: boolean) {
   const list = container.querySelector<HTMLElement>(".feed-list")
   const controls = container.querySelector<HTMLElement>(".feed-controls")
@@ -20,10 +98,10 @@ function enhanceFeed(container: HTMLElement, isBack: boolean) {
   const cleanups: (() => void)[] = []
   const cards = Array.from(list.querySelectorAll<HTMLElement>(".feed-card"))
   let observer: IntersectionObserver | undefined
-  let restoreFrame: number | undefined
+  let cancelRestore: (() => void) | undefined
   const reset = () => {
     observer?.disconnect()
-    if (restoreFrame !== undefined) window.cancelAnimationFrame(restoreFrame)
+    cancelRestore?.()
     cleanups.forEach((cleanup) => cleanup())
     delete list.dataset.feedInitialized
   }
@@ -160,11 +238,7 @@ function enhanceFeed(container: HTMLElement, isBack: boolean) {
       typeof saved.offset === "number" &&
       Number.isFinite(saved.offset)
     ) {
-      const anchor = cards[saved.anchor!]
-      const offset = saved.offset
-      restoreFrame = window.requestAnimationFrame(() => {
-        window.scrollBy({ top: anchor.getBoundingClientRect().top - offset, behavior: "auto" })
-      })
+      cancelRestore = restoreFeedPosition(cards[saved.anchor!], saved.offset)
     }
   } catch {
     // Initialization failures must leave every static article available.

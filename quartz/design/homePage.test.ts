@@ -245,10 +245,10 @@ for (const locale of ["zh-CN", "en"] as const) {
     assert.match(portrait, /width="1254"/)
     assert.match(portrait, /height="1254"/)
     assert.doesNotMatch(hero, /<picture\b|\bsrcset=/, "Do not substitute regenerated face pixels")
-    const mask = resolveRelative(
-      (locale === "en" ? "en" : "index") as FullSlug,
-      `static/${portraitMaskFile}` as FullSlug,
-    )
+    const mask = "/static/" + portraitMaskFile
+    for (const route of ["/", "/en", "/program/deep/article"]) {
+      assert.equal(new URL(mask, "https://preview.test" + route).pathname, mask)
+    }
     assert.ok(portrait.match(/\bstyle="([^"]+)"/)?.[1].includes(`mask-image:url(${mask})`))
     assert.equal([...hero.matchAll(/<img\b/g)].length, 1, "Keep the talk photo in public work only")
     assert.match(portrait, /src="[^"\s]+\.(?:jpe?g|png|webp)(?:\?[^"]*)?"/)
@@ -510,7 +510,7 @@ test("the homepage consumes its display scale locally and preserves the article 
   assert.match(css, /var\(--measure-home\)/)
   assert.match(css, /font-size: var\(--text-display\)/)
   assert.match(css, /font-size: var\(--text-section\)/)
-  assert.match(css, /@media[^}]*\$mobile[\s\S]*font-size: var\(--text-display-mobile\)/)
+  assert.match(css, /@media \(max-width: 1000px\)[\s\S]*font-size: var\(--text-display-mobile\)/)
   assert.match(css, /\.home-writing(?:-feed)?\s*\{[^}]*max-width: var\(--measure-reading\)/)
   assert.doesNotMatch(css, /overflow-x:\s*(?:hidden|clip)/, "Do not mask mobile overflow")
 })
@@ -627,6 +627,26 @@ test("home composition overrides the upstream header margin and viewport scrollb
   )
   assert.match(
     page,
-    /@media #\{\$mobile\}[\s\S]*?\.home-hero-visual\s*\{[\s\S]*?width:\s*min\(100%,\s*28rem\);/,
+    /@media \(max-width: 1000px\)[\s\S]*?\.home-hero-visual\s*\{[\s\S]*?width:\s*min\(100%,\s*28rem\);/,
   )
+})
+
+test("narrow English menus wrap complete navigation labels instead of splitting words", () => {
+  const header = readFileSync("quartz/components/styles/homeHeader.scss", "utf8")
+  assert.match(
+    header,
+    /@media \(max-width: 1000px\)[\s\S]*?nav:not\(\.language-switcher\)\s*\{[\s\S]*?flex-wrap:\s*wrap;[\s\S]*?a\s*\{\s*white-space:\s*nowrap;/,
+  )
+})
+
+test("home art stacks before intermediate-width text can collide with portrait decoration", () => {
+  const header = readFileSync("quartz/components/styles/homeHeader.scss", "utf8")
+  const page = readFileSync("quartz/components/styles/homePage.scss", "utf8")
+  assert.match(header, /@media \(max-width: 1000px\)[\s\S]*?\.home-nav\s*\{\s*display:\s*none;/)
+  assert.match(header, /\.home-nav a\s*\{\s*white-space:\s*nowrap;/)
+  assert.match(
+    page,
+    /@media \(max-width: 1000px\)[\s\S]*?\.home-hero\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
+  )
+  assert.match(readFileSync("quartz/styles/variables.scss", "utf8"), /mobile:\s*800px/)
 })

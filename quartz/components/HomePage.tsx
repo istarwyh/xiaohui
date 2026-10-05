@@ -38,10 +38,9 @@ export default (() => {
       fileData.slug!,
       "static/home-ai-speeds-products-82e18ee7.jpg" as FullSlug,
     )
-    const portraitMask = resolveRelative(
-      fileData.slug!,
-      "static/home-portrait-mask-cb27f3ad.png" as FullSlug,
-    )
+    // Inline CSS URLs are not rewritten by SPA normalizeRelativeURLs. Keep this
+    // same-origin asset independent of the article URL active during the morph.
+    const portraitMask = "/static/home-portrait-mask-cb27f3ad.png"
     return (
       <div class="home-page" lang={en ? "en" : "zh-CN"}>
         <section class="home-hero" aria-labelledby="home-title">
@@ -211,7 +210,7 @@ export default (() => {
                   <span aria-hidden="true">↗</span>
                 </a>
                 <a class="home-text-link" href={mcpDemo}>
-                  {en ? "View the real demo" : "看实际演示"}
+                  {en ? "Download demo screenshot" : "下载演示截图"}
                   <span aria-hidden="true">↗</span>
                 </a>
               </div>

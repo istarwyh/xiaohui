@@ -644,10 +644,8 @@ body[data-layout="home"] {
     margin-inline: auto;
   }
 }
-@media #{$mobile} {
-  body[data-layout="home"] .page > #quartz-body {
-    padding-inline: var(--space-5);
-  }
+// Home display art and navigation need more space than article layouts.
+@media (max-width: 1000px) {
   .home-hero {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-6);
@@ -699,6 +697,11 @@ body[data-layout="home"] {
   }
   .home-portrait-signature {
     font-size: 7rem;
+  }
+}
+@media #{$mobile} {
+  body[data-layout="home"] .page > #quartz-body {
+    padding-inline: var(--space-5);
   }
   .home-section-heading {
     margin-bottom: var(--space-6);

@@ -45,14 +45,24 @@ function setupFeed(
     hash?: string
     pathname?: string
     navigationType?: string
+    pendingImage?: boolean
+    imageAfterAnchor?: boolean
+    pendingStylesheet?: boolean
+    fontsLoading?: boolean
   } = {},
 ) {
   const pathname = options.pathname ?? "/"
   const storage = options.storage ?? new Map<string, string>()
   const cleanups: Handler[] = []
   const events: string[] = []
-  const frames: Handler[] = []
+  const frames = new Map<number, FrameRequestCallback>()
+  let frameId = 0
+  let frameTime = 0
   let scrollTop = 0
+  let layoutShift = 0
+  const scrollBehaviors: ScrollBehavior[] = []
+  const fonts = { status: options.fontsLoading ? "loading" : "loaded" }
+  const stylesheet = Object.assign(new FakeElement(), { sheet: null, disabled: false })
   let nav: (event: { detail: { isBack: boolean } }) => void = () => {}
   let intersect: (entries: { isIntersecting: boolean }[]) => void = () => {}
   let observerDisconnected = false
@@ -67,8 +77,8 @@ function setupFeed(
   const cards = Array.from({ length: options.count ?? 25 }, (_, index) => ({
     hidden: false,
     getBoundingClientRect: () => ({
-      top: index * 100 - scrollTop,
-      bottom: index * 100 + 80 - scrollTop,
+      top: index * 100 + layoutShift - scrollTop,
+      bottom: index * 100 + layoutShift + 80 - scrollTop,
     }),
     querySelector: () => ({
       focus: (options: { preventScroll: boolean }) =>
@@ -80,8 +90,10 @@ function setupFeed(
   let imageRemoved = false
   let rowRemoved = false
   const image = Object.assign(new FakeElement(), {
-    complete: false,
+    complete: !options.pendingImage,
     naturalWidth: 128,
+    compareDocumentPosition: () => (options.imageAfterAnchor ? 2 : 4),
+
     closest: (selector: string) =>
       selector === ".feed-card-images"
         ? {
@@ -123,8 +135,15 @@ function setupFeed(
       addEventListener: (_type: string, callback: typeof nav) => {
         nav = callback
       },
-      querySelectorAll: () => [container],
+      querySelectorAll: (selector: string) => {
+        if (selector === 'link[rel="stylesheet"]')
+          return options.pendingStylesheet ? [stylesheet] : []
+        if (selector === "img") return [image]
+        return [container]
+      },
+      fonts,
     },
+    Node: { DOCUMENT_POSITION_FOLLOWING: 4 },
     window: {
       location: { pathname, hash: options.hash ?? "" },
       sessionStorage: {
@@ -143,15 +162,16 @@ function setupFeed(
       addCleanup: (callback: Handler) => cleanups.push(callback),
       addEventListener: windowEvents.addEventListener.bind(windowEvents),
       removeEventListener: windowEvents.removeEventListener.bind(windowEvents),
-      requestAnimationFrame: (callback: Handler) => {
-        frames.push(callback)
-        return frames.length - 1
+      requestAnimationFrame: (callback: FrameRequestCallback) => {
+        frames.set(++frameId, callback)
+        return frameId
       },
       cancelAnimationFrame: (id: number) => {
-        frames[id] = () => {}
+        frames.delete(id)
       },
-      scrollBy: ({ top }: { top: number }) => {
+      scrollBy: ({ top, behavior }: { top: number; behavior: ScrollBehavior }) => {
         scrollTop += top
+        scrollBehaviors.push(behavior)
         events.push(`restore:${top}`)
       },
     },
@@ -181,7 +201,11 @@ function setupFeed(
     list,
     image,
     events,
+    scrollBehaviors,
     storage,
+    fonts,
+    stylesheet,
+    windowEvents,
     start: (isBack = false) => nav({ detail: { isBack } }),
     cleanup: () => {
       cleanups.splice(0).forEach((callback) => callback())
@@ -189,7 +213,18 @@ function setupFeed(
     click: () => button.emit("click"),
     intersect: () => intersect([{ isIntersecting: true }]),
     pagehide: () => windowEvents.emit("pagehide"),
-    flushFrames: () => frames.splice(0).forEach((callback) => callback()),
+    flushFrames: (elapsed = 16) => {
+      frameTime += elapsed
+      const scheduled = Array.from(frames.values())
+      frames.clear()
+      scheduled.forEach((callback) => callback(frameTime))
+    },
+    pendingFrames: () => frames.size,
+    interrupt: (type: string) => windowEvents.emit(type),
+    scrollTop: () => scrollTop,
+    shiftLayout: (value: number) => {
+      layoutShift += value
+    },
     setScrollTop: (value: number) => {
       scrollTop = value
     },
@@ -300,6 +335,172 @@ test("Back restores the visible count and stable card offset without moving keyb
   assert.equal(app.visible(), 20)
   app.flushFrames()
   assert.deepEqual(app.events, ["restore:1220"])
+})
+
+test("Back restores instantly and rechecks a later native history scroll", () => {
+  const app = setupFeed({
+    storage: new Map([["quartz-feed:/", JSON.stringify({ visible: 20, anchor: 12, offset: -20 })]]),
+  })
+  app.start(true)
+  app.flushFrames()
+  assert.deepEqual(app.scrollBehaviors, ["instant"])
+  assert.equal(app.cards[12].getBoundingClientRect().top, -20)
+
+  // The browser can restore its old numeric scroll position after our first frame.
+  app.setScrollTop(100)
+  app.flushFrames()
+  assert.equal(app.cards[12].getBoundingClientRect().top, -20)
+  assert.deepEqual(app.events, ["restore:1220", "restore:1120"])
+  assert.deepEqual(app.scrollBehaviors, ["instant", "instant"])
+  app.flushFrames()
+  app.flushFrames()
+  assert.equal(app.pendingFrames(), 0)
+})
+
+test("Back cancels an in-flight smooth scroll even if the first frame is already aligned", () => {
+  const app = setupFeed({
+    storage: new Map([["quartz-feed:/", JSON.stringify({ visible: 20, anchor: 12, offset: -20 })]]),
+  })
+  app.setScrollTop(1220)
+  app.start(true)
+  app.flushFrames()
+  assert.deepEqual(app.events, ["restore:0"])
+  assert.deepEqual(app.scrollBehaviors, ["instant"])
+})
+
+test("hidden lazy images later in the feed do not delay restoration settling", () => {
+  const app = setupFeed({
+    pendingImage: true,
+    imageAfterAnchor: true,
+    storage: new Map([["quartz-feed:/", JSON.stringify({ visible: 20, anchor: 12, offset: -20 })]]),
+  })
+  app.start(true)
+  app.flushFrames()
+  app.flushFrames()
+  app.flushFrames()
+  assert.equal(app.pendingFrames(), 0)
+  assert.equal(app.image.handlers.get("load")?.size ?? 0, 0)
+})
+
+test("Back remeasures layout until pending styles, fonts and earlier images settle", () => {
+  const app = setupFeed({
+    pendingImage: true,
+    pendingStylesheet: true,
+    fontsLoading: true,
+    storage: new Map([["quartz-feed:/", JSON.stringify({ visible: 20, anchor: 12, offset: -20 })]]),
+  })
+  app.start(true)
+  app.flushFrames()
+  app.flushFrames()
+  app.flushFrames()
+  assert.equal(app.pendingFrames(), 1)
+
+  app.shiftLayout(540)
+  app.stylesheet.emit("load")
+  app.flushFrames(100)
+  assert.equal(app.cards[12].getBoundingClientRect().top, -20)
+
+  // A failed thumbnail removes its row above the saved card.
+  app.shiftLayout(-96)
+  app.image.emit("error")
+  app.flushFrames(100)
+  assert.equal(app.rowRemoved(), true)
+  assert.equal(app.cards[12].getBoundingClientRect().top, -20)
+
+  app.shiftLayout(30)
+  app.fonts.status = "loaded"
+  app.flushFrames(100)
+  app.flushFrames()
+  app.flushFrames()
+  assert.deepEqual(app.events, ["restore:1220", "restore:540", "restore:-96", "restore:30"])
+  assert.equal(app.pendingFrames(), 0)
+  assert.equal(app.windowEvents.handlers.get("wheel")?.size, 0)
+  assert.equal(app.stylesheet.handlers.get("load")?.size, 0)
+})
+
+test("Back restoration yields to user input, fragment history and another navigation", () => {
+  for (const type of [
+    "wheel",
+    "touchstart",
+    "pointerdown",
+    "keydown",
+    "click",
+    "popstate",
+    "hashchange",
+  ]) {
+    for (const alreadyStarted of [false, true]) {
+      const app = setupFeed({
+        pendingImage: true,
+        storage: new Map([
+          ["quartz-feed:/", JSON.stringify({ visible: 20, anchor: 12, offset: -20 })],
+        ]),
+      })
+      app.start(true)
+      if (alreadyStarted) app.flushFrames()
+      app.interrupt(type)
+      app.setScrollTop(500)
+      app.shiftLayout(80)
+      app.image.emit("load")
+      app.flushFrames()
+      assert.equal(app.scrollTop(), 500, `${type} must cancel restoration`)
+      assert.equal(app.pendingFrames(), 0)
+      assert.equal(app.windowEvents.handlers.get(type)?.size, 0)
+      assert.deepEqual(app.events, alreadyStarted ? ["restore:1220"] : [])
+    }
+  }
+})
+
+test("cleanup cancels queued restoration and later resource callbacks", () => {
+  const app = setupFeed({
+    pendingImage: true,
+    storage: new Map([["quartz-feed:/", JSON.stringify({ visible: 20, anchor: 12, offset: -20 })]]),
+  })
+  app.start(true)
+  app.flushFrames()
+  app.cleanup()
+  app.events.length = 0
+  app.setScrollTop(400)
+  app.image.emit("error")
+  app.start() // Ordinary navigation must never restart the cancelled scroll.
+  app.flushFrames()
+  assert.equal(app.scrollTop(), 400)
+  assert.deepEqual(app.events, [])
+  assert.equal(app.pendingFrames(), 0)
+})
+
+test("a stalled layout resource cannot keep scroll restoration alive indefinitely", () => {
+  const app = setupFeed({
+    pendingImage: true,
+    storage: new Map([["quartz-feed:/", JSON.stringify({ visible: 20, anchor: 12, offset: -20 })]]),
+  })
+  app.start(true)
+  app.flushFrames()
+  for (let index = 0; index < 3; index++) {
+    app.shiftLayout(20)
+    app.flushFrames(250)
+  }
+  app.flushFrames(250)
+  assert.equal(app.cards[12].getBoundingClientRect().top, -20)
+  assert.equal(app.pendingFrames(), 0)
+  app.setScrollTop(200)
+  app.image.emit("load")
+  app.flushFrames()
+  assert.equal(app.scrollTop(), 200)
+})
+
+test("a suspended animation frame cannot restore after the deadline", () => {
+  const app = setupFeed({
+    pendingImage: true,
+    storage: new Map([["quartz-feed:/", JSON.stringify({ visible: 20, anchor: 12, offset: -20 })]]),
+  })
+  app.start(true)
+  app.flushFrames()
+  app.setScrollTop(500)
+  app.shiftLayout(80)
+  app.flushFrames(2000)
+  assert.equal(app.scrollTop(), 500)
+  assert.deepEqual(app.events, ["restore:1220"])
+  assert.equal(app.pendingFrames(), 0)
 })
 
 test("Back from an article restores expanded feed offset even when home has a section hash", () => {
