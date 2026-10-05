@@ -24,9 +24,6 @@ export default (() => {
     ]
     return (
       <header class="home-header">
-        <noscript>
-          <style>{`.home-tools .search, .home-tools .darkmode { display: none; }`}</style>
-        </noscript>
         <a
           class="home-wordmark internal"
           href={home}
@@ -54,7 +51,7 @@ export default (() => {
             </a>
           ))}
         </nav>
-        <div class="home-tools">
+        <div class="home-tools" hidden>
           <SearchControl {...props} />
           <ThemeControl {...props} />
         </div>

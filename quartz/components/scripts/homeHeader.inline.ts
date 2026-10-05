@@ -1,4 +1,6 @@
 document.addEventListener("nav", () => {
+  const tools = document.querySelector<HTMLElement>(".home-tools")
+  if (tools) tools.hidden = false
   const menu = document.querySelector<HTMLDetailsElement>(".home-menu")
   if (!menu) return
   const summary = menu.querySelector("summary")

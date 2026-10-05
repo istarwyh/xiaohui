@@ -4,7 +4,8 @@ import { readFileSync, mkdtempSync, rmSync, writeFileSync, mkdirSync } from "nod
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { execFileSync } from "node:child_process"
-import { build } from "esbuild"
+import { build, transformSync } from "esbuild"
+import { runInNewContext } from "node:vm"
 import { pathToFileURL } from "node:url"
 import { slugifyFilePath } from "../util/path"
 import { getHomeContent } from "../components/home/homeContent"
@@ -134,7 +135,8 @@ for (const locale of ["zh-CN", "en"] as const) {
       assert.ok(ids.includes(target), target)
     assert.match(html, locale === "en" ? /All writing/ : /所有文章/)
     assert.match(html, locale === "en" ? /Subscribe via RSS/ : /RSS 订阅/)
-    assert.doesNotMatch(html, /feed-card--hidden/)
+    assert.doesNotMatch(html, /feed-card--hidden|<noscript/)
+    assert.match(html, /class="home-tools" hidden/)
   })
 }
 
@@ -251,4 +253,46 @@ test("editorial anchors retain authored surface and padding over upstream intern
   assert.match(page, /\.home-page a\.home-path\s*\{/)
   assert.match(page, /a\.home-secondary\s*\{[\s\S]*?background: transparent/)
   assert.match(header, /a\.home-wordmark\s*\{[\s\S]*?background: transparent/)
+})
+
+test("home toolbar enhances fresh and SPA-restored markup without noscript parsing", () => {
+  const code = transformSync(
+    readFileSync("quartz/components/scripts/homeHeader.inline.ts", "utf8"),
+    {
+      loader: "ts",
+      format: "cjs",
+    },
+  ).code
+  let tools = { hidden: true }
+  let initialize = () => {}
+  const cleanups: Array<() => void> = []
+  const menu = {
+    querySelector: () => ({ focus() {} }),
+    addEventListener() {},
+    removeEventListener() {},
+  }
+  runInNewContext(code, {
+    document: {
+      addEventListener(type: string, callback: () => void) {
+        if (type === "nav") initialize = callback
+      },
+      removeEventListener() {},
+      querySelector(selector: string) {
+        if (selector === ".home-tools") return tools
+        if (selector === ".home-menu") return menu
+        return null
+      },
+    },
+    window: { addCleanup: (callback: () => void) => cleanups.push(callback) },
+  })
+  initialize()
+  assert.equal(tools.hidden, false)
+  cleanups.splice(0).forEach((cleanup) => cleanup())
+  tools = { hidden: true }
+  initialize()
+  assert.equal(tools.hidden, false, "Back must enhance the new DOM node")
+  assert.match(
+    readFileSync("quartz/components/styles/homeHeader.scss", "utf8"),
+    /\.home-tools\[hidden\]\s*\{\s*display: none;/,
+  )
 })
