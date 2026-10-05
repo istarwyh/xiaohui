@@ -1,5 +1,9 @@
 @use "../../styles/variables.scss" as *;
 
+html:has(body[data-layout="home"]) {
+  width: 100%;
+}
+
 body[data-layout="home"] {
   .page {
     max-width: none;
@@ -182,6 +186,9 @@ body[data-layout="home"] {
   padding: var(--space-3);
 }
 .home-hero-visual {
+  width: 138%;
+  max-width: 36rem;
+  justify-self: end;
   position: relative;
   min-width: 0;
   isolation: isolate;

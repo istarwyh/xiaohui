@@ -615,3 +615,18 @@ test("home toolbar enhances fresh and SPA-restored markup without noscript parsi
     /\.home-tools\[hidden\]\s*\{\s*display: none;/,
   )
 })
+
+test("home composition overrides the upstream header margin and viewport scrollbar width", () => {
+  const header = readFileSync("quartz/components/styles/homeHeader.scss", "utf8")
+  const page = readFileSync("quartz/components/styles/homePage.scss", "utf8")
+  assert.match(header, /\.home-header\s*\{[\s\S]*?margin:\s*0;/)
+  assert.match(page, /html:has\(body\[data-layout="home"\]\)\s*\{\s*width:\s*100%;/)
+  assert.match(
+    page,
+    /\.home-hero-visual\s*\{[\s\S]*?width:\s*138%;[\s\S]*?max-width:\s*36rem;[\s\S]*?justify-self:\s*end;/,
+  )
+  assert.match(
+    page,
+    /@media #\{\$mobile\}[\s\S]*?\.home-hero-visual\s*\{[\s\S]*?width:\s*min\(100%,\s*28rem\);/,
+  )
+})
