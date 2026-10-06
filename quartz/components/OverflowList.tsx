@@ -1,9 +1,6 @@
 import { JSX } from "preact"
 
-const OverflowList = ({
-  children,
-  ...props
-}: JSX.HTMLAttributes<HTMLUListElement> & { id: string }) => {
+const OverflowList = ({ children, ...props }: JSX.IntrinsicElements["ul"] & { id: string }) => {
   return (
     <ul {...props} class={[props.class, "overflow"].filter(Boolean).join(" ")} id={props.id}>
       {children}
@@ -17,9 +14,7 @@ export default () => {
   const id = `list-${numLists++}`
 
   return {
-    OverflowList: (props: JSX.HTMLAttributes<HTMLUListElement>) => (
-      <OverflowList {...props} id={id} />
-    ),
+    OverflowList: (props: JSX.IntrinsicElements["ul"]) => <OverflowList {...props} id={id} />,
     overflowListAfterDOMLoaded: `
 document.addEventListener("nav", (e) => {
   const observer = new IntersectionObserver((entries) => {
