@@ -293,6 +293,30 @@ export function wrapPosterText(
           // Only a token wider than an entire line falls back to grapheme breaks.
           if (start > 0 && context.measureText(word).width <= maxWidth) end = start
         }
+        // Avoid introducing a line that starts with CJK closing punctuation.
+        // Carry its preceding character/word forward rather than dropping text
+        // or allowing punctuation to hang outside the body clipping rectangle.
+        const isClosing = (unit: string) =>
+          /^[，。！？；：、）》」』】〕〉〗〙〛…,.!?;:%)\]}>”’]+$/u.test(unit)
+        if (isClosing(remaining[end])) {
+          let boundary = end - 1
+          while (boundary > 0 && isClosing(remaining[boundary])) boundary--
+          if (isWordUnit(remaining[boundary])) {
+            let wordStart = boundary
+            let punctuationEnd = end
+            while (wordStart > 0 && isWordUnit(remaining[wordStart - 1])) wordStart--
+            while (punctuationEnd < remaining.length && isClosing(remaining[punctuationEnd]))
+              punctuationEnd++
+            if (
+              wordStart > 0 &&
+              context.measureText(remaining.slice(wordStart, punctuationEnd).join("")).width <=
+                maxWidth
+            ) {
+              boundary = wordStart
+            }
+          }
+          if (boundary > 0) end = boundary
+        }
       }
       const line = remaining.slice(0, end).join("")
       lines.push(preserveIndent ? line : line.trimEnd())

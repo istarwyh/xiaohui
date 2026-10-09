@@ -352,6 +352,40 @@ test("Latin words stay intact at CJK boundaries without requiring whitespace", (
   )
 })
 
+test("inserted normal-text line breaks keep CJK closing punctuation with preceding text", () => {
+  for (const punctuation of [
+    "，",
+    "。",
+    "！",
+    "？",
+    "；",
+    "：",
+    "、",
+    "）",
+    "》",
+    "」",
+    "』",
+    "】",
+    "〕",
+    "〉",
+    "”",
+    "’",
+  ]) {
+    const source = `甲乙丙丁${punctuation}尾`
+    const wrapped = wrapPosterText(simpleMeasure, source, 40).lines
+    assert.deepEqual(wrapped, ["甲乙丙", `丁${punctuation}尾`])
+    assert.equal(wrapped.join(""), source)
+    assert.ok(wrapped.every((line) => simpleMeasure.measureText(line).width <= 40))
+  }
+  assert.deepEqual(wrapPosterText(simpleMeasure, "甲乙丙丁。”尾", 40).lines, ["甲乙丙", "丁。”尾"])
+  assert.deepEqual(wrapPosterText(simpleMeasure, "甲乙Word，尾", 60).lines, ["甲乙", "Word，尾"])
+  assert.deepEqual(
+    wrapPosterText(simpleMeasure, "甲乙丙丁，尾", 40, Infinity, true).lines,
+    ["甲乙丙丁", "，尾"],
+    "code wrapping is unchanged",
+  )
+})
+
 test("footer URL decodes Unicode paths but preserves canonical query and fragment semantics", () => {
   const canonical =
     "https://xiaohui.cool/%E7%AC%94%E8%AE%B0/%E9%95%BF%E6%96%87?next=%2F%E9%A1%B5#%E7%AB%A0"

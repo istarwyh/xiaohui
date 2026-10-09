@@ -444,6 +444,11 @@ test("share panel selects, previews and downloads the correct short and long pos
   h.nav()
   assert.equal(h.document.querySelectorAll(".copy-page-control").length, 1)
   assert.equal(h.qrRequests.length, 0)
+  assert.equal(
+    h.download.hasAttribute("data-router-ignore"),
+    true,
+    "same-origin blob downloads must bypass the Quartz SPA router",
+  )
   h.open()
   assert.equal(h.sheet.hidden, false)
   assert.equal(h.document.body.classList.contains("share-sheet-open"), true)
@@ -969,5 +974,23 @@ test("legacy clipboard fallback reports success only when execCommand actually c
     )
     assert.equal(h.button.ariaLabel, succeeded ? "链接已复制" : "打开分享面板")
     assert.equal(h.errors.length, succeeded ? 0 : 1)
+  }
+})
+
+test("short poster uses fallback fonts when font loading stalls or rejects", async () => {
+  for (const reject of [false, true]) {
+    const fonts = deferred<void>()
+    const h = setupShare({ fontsReady: fonts.promise })
+    h.nav()
+    h.open()
+    await setImmediate()
+    assert.equal(h.qrRequests.length, 0)
+    if (reject) fonts.reject(new Error("font unavailable"))
+    else for (const timeout of h.timers.values()) timeout()
+    await setImmediate()
+    await h.finishShort()
+    assert.equal(h.objectUrls.has(h.image.src), true)
+    assert.equal(h.status.textContent, "")
+    assert.equal(h.timers.size, 0)
   }
 })

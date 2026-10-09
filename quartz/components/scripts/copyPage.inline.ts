@@ -113,7 +113,7 @@ document.addEventListener("nav", () => {
       <p class="share-page-hint"></p>
       <div class="share-page-poster" hidden>
         <img class="share-page-poster-image" alt="分享图片预览" />
-        <a class="share-page-poster-download" download="xiaohui-share.png">保存分享图</a>
+        <a class="share-page-poster-download" data-router-ignore download="xiaohui-share.png">保存分享图</a>
       </div>
       <div class="share-page-actions">
         <button type="button" data-share-action="wechat">
@@ -466,7 +466,16 @@ document.addEventListener("nav", () => {
 
   async function generateShortSharePoster() {
     const data = shareData()
-    await document.fonts?.ready
+    if (document.fonts?.ready) {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      await Promise.race([
+        document.fonts.ready.catch(() => undefined),
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, 1200)
+        }),
+      ])
+      clearTimeout(timer)
+    }
     const url = data.url ?? canonicalUrl()
     const canvas = document.createElement("canvas")
     const width = 1144
