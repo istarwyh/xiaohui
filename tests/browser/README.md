@@ -42,3 +42,11 @@ Review the complete PNGs visually in addition to the assertions. In particular,
 check glyph quality, comfortable spacing, fade transition, code and quote layout,
 and the footer/QR on long images. A successful assertion run does not replace
 this visual review.
+
+The suite currently contains ten tests. It records canvas encoding and preview
+readiness timings alongside successful PNGs, and keeps screenshots, traces and
+state diagnostics for failures. Poster readiness has a bounded 15-second wait:
+Chromium's native PNG encoder can use a 1-second idle-start watchdog plus a
+5.7-second completion watchdog, in addition to the renderer's 1.2-second font
+wait. This allows the browser's documented scheduling behavior without relaxing
+image, QR, content or interaction assertions. See the [Chromium encoder source](https://chromium.googlesource.com/chromium/src/+/lkgr/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc).

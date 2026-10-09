@@ -16,6 +16,10 @@ let server
 let base
 let posterCanvas
 const errorBuffers = new WeakMap()
+// Chromium PNG toBlob may use 1s idle-start + 5.7s encoding watchdogs, in
+// addition to the renderer's 1.2s font wait. This bounds readiness, not quality.
+// https://chromium.googlesource.com/chromium/src/+/lkgr/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
+const POSTER_READY_TIMEOUT = 15_000
 
 test.use({ trace: "retain-on-failure", screenshot: "only-on-failure" })
 
@@ -84,6 +88,14 @@ test.beforeAll(async () => {
     platform: "browser",
     outfile: path.join(directory, "share.js"),
   })
+  await build({
+    entryPoints: [path.join(repo, "quartz/components/scripts/sharePoster.ts")],
+    bundle: true,
+    format: "iife",
+    globalName: "SharePosterQA",
+    platform: "browser",
+    outfile: path.join(directory, "renderer.js"),
+  })
   const tokenFile = path.join(directory, "tokens.mjs")
   await build({
     entryPoints: [path.join(repo, "quartz/design/tokens.ts")],
@@ -108,7 +120,8 @@ test.beforeAll(async () => {
     .join(";")
   const componentCss = sass.compile(path.join(repo, "quartz/components/styles/copyPage.scss")).css
   const css = `:root{${tokens}}:root[saved-theme="dark"]{${darkTokens}}body{margin:0;padding:16px;box-sizing:border-box;color:var(--color-text);background:var(--color-canvas);font-family:var(--font-body);font-size:16px}article{max-width:700px;overflow-wrap:anywhere}h1{font-size:28px}pre{white-space:pre-wrap}button,a{-webkit-tap-highlight-color:transparent}${componentCss}`
-  for (const [sample, body] of Object.entries(samples)) {
+  const fixtureSamples = { ...samples, shortNoEmoji: samples.short.replace("👩🏽‍💻", "开发者") }
+  for (const [sample, body] of Object.entries(fixtureSamples)) {
     await writeFile(path.join(directory, sample + ".html"), fixture(sample, body, css))
   }
   await writeFile(
@@ -173,6 +186,61 @@ function observeErrors(page) {
 test.beforeEach(async ({ page }) => {
   observeErrors(page)
   await page.addInitScript(() => {
+    const canvases = new WeakMap()
+    window.shareCanvasStages = []
+    window.shareCanvasRefs = []
+    window.shareFontStages = [
+      { at: performance.now(), event: "init", status: document.fonts.status },
+    ]
+    document.fonts.ready.then(() =>
+      window.shareFontStages.push({
+        at: performance.now(),
+        event: "ready",
+        status: document.fonts.status,
+      }),
+    )
+    for (const type of ["loading", "loadingdone", "loadingerror"])
+      document.fonts.addEventListener(type, () =>
+        window.shareFontStages.push({
+          at: performance.now(),
+          event: type,
+          status: document.fonts.status,
+        }),
+      )
+    const canvasRecord = (canvas) => {
+      if (!canvases.has(canvas)) {
+        const record = { created: performance.now(), draws: 0 }
+        canvases.set(canvas, record)
+        window.shareCanvasStages.push(record)
+        window.shareCanvasRefs.push(canvas)
+      }
+      const record = canvases.get(canvas)
+      record.width = canvas.width
+      record.height = canvas.height
+      return record
+    }
+    const fillText = CanvasRenderingContext2D.prototype.fillText
+    CanvasRenderingContext2D.prototype.fillText = function (...args) {
+      const record = canvasRecord(this.canvas)
+      record.draws += 1
+      record.lastDraw = performance.now()
+      record.lastText = args[0]
+      return fillText.apply(this, args)
+    }
+    const toBlob = HTMLCanvasElement.prototype.toBlob
+    HTMLCanvasElement.prototype.toBlob = function (callback, ...args) {
+      const record = canvasRecord(this)
+      record.toBlobCalled = performance.now()
+      return toBlob.call(
+        this,
+        (blob) => {
+          record.toBlobCompleted = performance.now()
+          record.blobSize = blob?.size
+          callback(blob)
+        },
+        ...args,
+      )
+    }
     const log = (entry) => {
       const events = (window.shareDiagnostics ||= [])
       events.push({ at: performance.now(), ...entry })
@@ -239,9 +307,34 @@ test.beforeEach(async ({ page }) => {
 async function ready(page, width) {
   try {
     await expect
-      .poll(() => page.locator(".share-page-poster-image").evaluate((image) => image.naturalWidth))
+      .poll(
+        () => page.locator(".share-page-poster-image").evaluate((image) => image.naturalWidth),
+        { timeout: POSTER_READY_TIMEOUT },
+      )
       .toBe(width)
     await expect(page.locator(".share-page-poster")).toBeVisible()
+    await page.evaluate((width) => {
+      const readyAt = performance.now()
+      const click = window.shareDiagnostics?.findLast(
+        (event) => event.eventType === "click" && event.capture,
+      )
+      const canvas = window.shareCanvasStages?.findLast((entry) => entry.width === width)
+      const cached = canvas?.toBlobCompleted < click?.at
+      ;(window.shareReadiness ||= []).push({
+        width,
+        readyAt,
+        clickAt: click?.at,
+        callbackAt: canvas?.toBlobCompleted,
+        encodingStartedAt: canvas?.toBlobCalled,
+        cached,
+        clickToReadyMs: click ? readyAt - click.at : null,
+        clickToCallbackMs:
+          click && canvas?.toBlobCompleted && !cached ? canvas.toBlobCompleted - click.at : null,
+        nativeEncodingMs: canvas?.toBlobCompleted
+          ? canvas.toBlobCompleted - canvas.toBlobCalled
+          : null,
+      })
+    }, width)
   } catch (error) {
     const name = `${test.info().title.replace(/[^a-zA-Z0-9_-]+/g, "-")}-ready-${width}`
     const diagnostics = await page
@@ -276,6 +369,10 @@ async function ready(page, width) {
           shares: window.qa?.shares,
           events: window.shareDiagnostics,
           sheetHtml: sheet?.outerHTML,
+          fontStatus: document.fonts.status,
+          fontStages: window.shareFontStages,
+          canvasStages: window.shareCanvasStages,
+          readiness: window.shareReadiness,
         }
       })
       .catch((diagnosticError) => ({ captureError: String(diagnosticError) }))
@@ -313,7 +410,13 @@ async function exportImage(page, name, width, expectedUrl) {
   expect(decoded?.data, "Exported PNG QR must decode to the complete canonical URL").toBe(
     expectedUrl,
   )
-  return { width: png.width, height: png.height, filename }
+  const stages = await page.evaluate(() => ({
+    fonts: window.shareFontStages,
+    canvases: window.shareCanvasStages,
+    readiness: window.shareReadiness,
+  }))
+  await writeFile(path.join(artifacts, name + "-generation.json"), JSON.stringify(stages, null, 2))
+  return { width: png.width, height: png.height, filename, stages }
 }
 
 for (const width of [320, 390, 1280]) {
@@ -398,7 +501,10 @@ test("320/390 iframe viewport screenshots use full-width readable long previews"
     await frame.locator(".share-page-button").click()
     await frame.getByRole("button", { name: "长文分享图", exact: true }).click()
     await expect
-      .poll(() => frame.locator(".share-page-poster-image").evaluate((image) => image.naturalWidth))
+      .poll(
+        () => frame.locator(".share-page-poster-image").evaluate((image) => image.naturalWidth),
+        { timeout: POSTER_READY_TIMEOUT },
+      )
       .toBe(720)
     expect(await frame.locator("body").evaluate(() => innerWidth)).toBe(width)
     expect(
@@ -544,5 +650,71 @@ test("built Quartz documentation page exports and decodes its real canonical QR"
     path.join(artifacts, "built-quartz-docs-network.json"),
     JSON.stringify({ canonicalUrl, blockedRemoteRequests }, null, 2),
   )
+  expect(errors).toEqual([])
+})
+
+test("direct renderer exports original text with and without a color emoji", async ({ page }) => {
+  const errors = observeErrors(page)
+  for (const sample of ["shortNoEmoji", "short"]) {
+    await page.goto(`${base}/${sample}.html`)
+    await page.addScriptTag({ url: `${base}/renderer.js` })
+    let result
+    try {
+      result = await page.evaluate(async () => {
+        const blob = await window.SharePosterQA.generateLongSharePoster({
+          title: document.querySelector(".article-title").textContent,
+          url: document.querySelector('link[rel="canonical"]').href,
+          article: document.querySelector("article"),
+        })
+        return {
+          bytes: Array.from(new Uint8Array(await blob.arrayBuffer())),
+          exports: window.qa.exports,
+        }
+      })
+    } catch (error) {
+      await writeFile(
+        path.join(artifacts, `direct-${sample}-error.json`),
+        JSON.stringify(
+          {
+            error: String(error),
+            errors,
+            diagnostics: await page.evaluate(() => ({
+              exports: window.qa.exports,
+              events: window.shareDiagnostics,
+              fonts: window.shareFontStages,
+              canvases: window.shareCanvasStages,
+            })),
+          },
+          null,
+          2,
+        ),
+      )
+      throw error
+    }
+    const bytes = Buffer.from(result.bytes)
+    await writeFile(path.join(artifacts, `direct-${sample}.png`), bytes)
+    await writeFile(
+      path.join(artifacts, `direct-${sample}-generation.json`),
+      JSON.stringify(
+        await page.evaluate(() => ({
+          fonts: window.shareFontStages,
+          canvases: window.shareCanvasStages,
+        })),
+        null,
+        2,
+      ),
+    )
+    const png = PNG.sync.read(bytes)
+    expect(png.width).toBe(720)
+    expect(jsQR(new Uint8ClampedArray(png.data), png.width, png.height)?.data).toBe(
+      canonical(sample),
+    )
+    expect(
+      result.exports
+        .findLast((entry) => entry.width === 720)
+        .lines.map((line) => line.text)
+        .join(""),
+    ).toContain("SHORT-END")
+  }
   expect(errors).toEqual([])
 })

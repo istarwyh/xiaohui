@@ -3,6 +3,7 @@ import test from "node:test"
 import * as QRCode from "qrcode"
 import { foundations, light } from "../../design/tokens"
 import {
+  displayPosterUrl,
   extractArticleBlocks,
   generateLongSharePoster,
   layoutSharePoster,
@@ -322,6 +323,61 @@ test("wrapping reports truncation only when source remains, including explicit b
   assert.deepEqual(wrapPosterText(simpleMeasure, "text", 30, 0), { lines: [], truncated: true })
 })
 
+test("Latin words stay intact at CJK boundaries without requiring whitespace", () => {
+  assert.deepEqual(wrapPosterText(simpleMeasure, "长文分享测试：structures", 120).lines, [
+    "长文分享测试：",
+    "structures",
+  ])
+  assert.deepEqual(wrapPosterText(simpleMeasure, "中文English words中文", 80).lines, [
+    "中文",
+    "English",
+    "words中文",
+  ])
+  assert.deepEqual(wrapPosterText(simpleMeasure, "中文don't café", 60).lines, [
+    "中文",
+    "don't",
+    "café",
+  ])
+  assert.deepEqual(wrapPosterText(simpleMeasure, "中文veryLongUnbrokenToken", 50).lines, [
+    "中文ver",
+    "yLong",
+    "Unbro",
+    "kenTo",
+    "ken",
+  ])
+  assert.deepEqual(
+    wrapPosterText(simpleMeasure, "中文English", 60, Infinity, true).lines,
+    ["中文Engl", "ish"],
+    "code keeps its existing grapheme wrapping",
+  )
+})
+
+test("footer URL decodes Unicode paths but preserves canonical query and fragment semantics", () => {
+  const canonical =
+    "https://xiaohui.cool/%E7%AC%94%E8%AE%B0/%E9%95%BF%E6%96%87?next=%2F%E9%A1%B5#%E7%AB%A0"
+  assert.equal(
+    displayPosterUrl(canonical),
+    "https://xiaohui.cool/笔记/长文?next=%2F%E9%A1%B5#%E7%AB%A0",
+  )
+  assert.equal(
+    displayPosterUrl("https://xiaohui.cool/a%2Fb%3Fc%23d%20e%0A"),
+    "https://xiaohui.cool/a%2Fb%3Fc%23d%20e%0A",
+  )
+  assert.equal(
+    displayPosterUrl("https://xiaohui.cool/invalid%E7%AC"),
+    "https://xiaohui.cool/invalid%E7%AC",
+  )
+  assert.equal(
+    displayPosterUrl("https://xiaohui.cool/invalid%ZZ"),
+    "https://xiaohui.cool/invalid%ZZ",
+  )
+  assert.equal(
+    displayPosterUrl("https://xiaohui.cool?next=%E7%AC%94#%E8%AE%B0"),
+    "https://xiaohui.cool?next=%E7%AC%94#%E8%AE%B0",
+  )
+  assert.equal(displayPosterUrl("not an absolute URL"), "not an absolute URL")
+})
+
 test("short article layout contains all body text, dynamic title/author, QR and complete URL", () => {
   const { context } = canvasContext()
   const blocks = [paragraph("第一段的完整内容。"), paragraph("第二段的完整内容。")]
@@ -531,4 +587,46 @@ test("browser API snapshots article content before waiting for fonts", async () 
     .join("")
   assert.ok(text.includes("生成开始时的原文"))
   assert.equal(text.includes("导航后的新页面"), false)
+})
+
+test("mixed CJK/Latin/emoji short fixture exports fully without author or fade", async () => {
+  const { context, calls } = canvasContext()
+  const source =
+    "清楚的作者、可读的内容、可靠的结构和克制的细节。这是用于验证原文分享的短文。中文标点自然换行，English words stay readable，emoji 👩🏽‍💻 不能截断。"
+  const canvas = {
+    width: 0,
+    height: 0,
+    getContext: () => context,
+    toBlob: (callback: BlobCallback) => callback(new Blob(["PNG"], { type: "image/png" })),
+  }
+  const article = Object.assign(el("article", el("p", source), el("p", "SHORT-END 完整原文。")), {
+    ownerDocument: { fonts: { ready: Promise.resolve() }, createElement: () => canvas },
+  })
+  const url = new URL("https://xiaohui.cool/笔记/长文分享-short").href
+  const blob = await generateLongSharePoster({
+    title: "长文分享测试：short",
+    url,
+    article: article.asElement(),
+  })
+  assert.equal(blob.type, "image/png")
+  assert.equal(canvas.width, 720)
+  assert.ok(Number.isInteger(canvas.height) && canvas.height > 0 && canvas.height <= 8000)
+  const text = calls
+    .filter((call) => call.operation === "fillText")
+    .map((call) => call.args[0])
+    .join("")
+  assert.ok(text.includes("SHORT-END"))
+  assert.ok(text.includes("👩🏽‍💻"))
+  assert.ok(text.includes(displayPosterUrl(url)))
+  assert.equal(text.includes("作者："), false)
+  assert.equal(text.includes("正文未完"), false)
+  assert.equal(
+    calls.some((call) => call.operation === "gradient"),
+    false,
+  )
+  for (const call of calls.filter((call) => ["fillRect", "fillText"].includes(call.operation))) {
+    assert.ok(
+      call.args.every((argument) => typeof argument !== "number" || Number.isFinite(argument)),
+    )
+  }
 })

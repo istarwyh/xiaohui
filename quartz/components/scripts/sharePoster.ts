@@ -281,11 +281,17 @@ export function wrapPosterText(
         end++
       }
       if (end < remaining.length && !preserveIndent) {
-        // Keep a Latin word together when it can fit on the following line.
-        const prefix = remaining.slice(0, end).join("")
-        const boundary = prefix.search(/\s+\S*$/u)
-        if (boundary > 0 && /[\p{L}\p{N}]/u.test(remaining[end]) && /[A-Za-z0-9]$/u.test(prefix)) {
-          end = graphemes(prefix.slice(0, boundary)).length
+        // CJK does not require spaces around Latin words. Find the entire word at
+        // the proposed break, moving it to the next line if it fits there.
+        const isWordUnit = (unit: string) => /^[\p{Script=Latin}\p{N}\p{M}'’_-]+$/u.test(unit)
+        if (isWordUnit(remaining[end - 1]) && isWordUnit(remaining[end])) {
+          let start = end - 1
+          let wordEnd = end + 1
+          while (start > 0 && isWordUnit(remaining[start - 1])) start--
+          while (wordEnd < remaining.length && isWordUnit(remaining[wordEnd])) wordEnd++
+          const word = remaining.slice(start, wordEnd).join("")
+          // Only a token wider than an entire line falls back to grapheme breaks.
+          if (start > 0 && context.measureText(word).width <= maxWidth) end = start
         }
       }
       const line = remaining.slice(0, end).join("")
@@ -335,6 +341,21 @@ function fitEllipsis(context: TextMeasurer, text: string, width: number) {
   const units = graphemes(text)
   while (units.length && context.measureText(`${units.join("")}…`).width > width) units.pop()
   return `${units.join("")}…`
+}
+
+/** Human-readable path only; QR data and query/fragment escapes remain canonical. */
+export function displayPosterUrl(url: string): string {
+  const parts = url.match(/^(https?:\/\/[^/?#]+)([^?#]*)(.*)$/i)
+  if (!parts) return url
+  try {
+    // decodeURI retains escaped URL delimiters such as %2F, %3F and %23. Keep
+    // control characters and spaces escaped so they cannot look like new lines.
+    const path = decodeURI(parts[2]).replace(/[\u0000-\u0020\u007f]/g, encodeURIComponent)
+    return `${parts[1]}${path}${parts[3]}`
+  } catch {
+    // A malformed escape must not prevent a perfectly usable QR from rendering.
+    return url
+  }
 }
 
 /** Pure measured layout keeps footer/QR outside the clipped or faded article body. */
@@ -405,7 +426,7 @@ export function layoutSharePoster(
   const footerSize = rem(foundations["text-caption"])
   const footerLeading = footerSize * Number(foundations["leading-ui"])
   context.font = font(footerSize)
-  const urlLines = wrapPosterText(context, input.url, contentWidth).lines
+  const urlLines = wrapPosterText(context, displayPosterUrl(input.url), contentWidth).lines
   const footerReserve =
     gap + bodyLeading + gap + gap + input.qrSize + gap + urlLines.length * footerLeading + margin
   const bodyLimit = MAX_POSTER_HEIGHT - footerReserve
