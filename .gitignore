@@ -31,3 +31,7 @@ replit.nix
 # Environment variables
 .env
 .env.local
+
+# Browser QA output
+/test-results/
+/playwright-report/

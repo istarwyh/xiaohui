@@ -16,7 +16,8 @@
     "docs": "npx quartz build --serve -d docs",
     "check": "tsc --noEmit && npx prettier . --check",
     "format": "npx prettier . --write",
-    "test": "node --import tsx --test ./quartz/util/path.test.ts ./quartz/depgraph.test.ts ./quartz/util/feedImage.test.ts ./quartz/components/scripts/spa.test.ts ./quartz/util/homePageModel.test.ts ./quartz/util/translations.test.ts ./quartz/components/scripts/feedList.test.ts ./quartz/components/scripts/search.helpers.test.ts ./quartz/components/scripts/search.test.ts ./quartz/design/homePage.test.ts && node --test ./scripts/update-homepage.test.js ./scripts/lib/frontmatter.test.js && npm run check:design",
+    "test": "node --import tsx --test ./quartz/util/path.test.ts ./quartz/depgraph.test.ts ./quartz/util/feedImage.test.ts ./quartz/components/scripts/spa.test.ts ./quartz/util/homePageModel.test.ts ./quartz/util/translations.test.ts ./quartz/components/scripts/feedList.test.ts ./quartz/components/scripts/search.helpers.test.ts ./quartz/components/scripts/search.test.ts ./quartz/components/scripts/copyPage.test.ts ./quartz/components/pages/Content.test.ts ./quartz/components/scripts/sharePoster.test.ts ./quartz/design/homePage.test.ts && node --test ./scripts/update-homepage.test.js ./scripts/lib/frontmatter.test.js && npm run check:design",
+    "test:share-browser": "playwright test tests/browser/sharePoster.spec.mjs --workers=1",
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1",
     "update-homepage": "node ./scripts/update-homepage.js",
     "sync": "npm run update-homepage && npx quartz sync",
@@ -109,6 +110,7 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0",
     "@types/cli-spinner": "^0.2.3",
     "@types/d3": "^7.4.3",
     "@types/hast": "^3.0.4",
@@ -121,6 +123,8 @@
     "@types/ws": "^8.18.2",
     "@types/yargs": "^17.0.35",
     "esbuild": "^0.28.2",
+    "jsqr": "1.4.0",
+    "pngjs": "7.0.0",
     "prettier": "^3.9.9",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"

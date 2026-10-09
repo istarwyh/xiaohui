@@ -1,4 +1,6 @@
 import * as QRCode from "qrcode"
+import { generateLongSharePoster } from "./sharePoster"
+import { light, foundations } from "../../design/tokens"
 
 const svgCopy =
   '<svg aria-hidden="true" height="20" viewBox="0 0 16 16" version="1.1" width="20" data-view-component="true"><path fill-rule="evenodd" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"></path><path fill-rule="evenodd" d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"></path></svg>'
@@ -20,6 +22,7 @@ const svgImage =
   '<svg aria-hidden="true" height="22" viewBox="0 0 24 24" version="1.1" width="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>'
 
 type CopyFormat = "markdown" | "html"
+type PosterFormat = "short" | "long"
 type ShareAction = "wechat" | "timeline" | "poster" | "copy"
 type WebShareNavigator = Navigator & {
   share?: (data: FileShareData) => Promise<void>
@@ -103,6 +106,10 @@ document.addEventListener("nav", () => {
         <p class="share-page-preview-description"></p>
         <p class="share-page-preview-url"></p>
       </div>
+      <div class="share-page-formats" role="group" aria-label="分享图版式">
+        <button type="button" data-poster-format="short" aria-pressed="true">二维码短卡</button>
+        <button type="button" data-poster-format="long" aria-pressed="false">长文分享图</button>
+      </div>
       <p class="share-page-hint"></p>
       <div class="share-page-poster" hidden>
         <img class="share-page-poster-image" alt="分享图片预览" />
@@ -145,9 +152,11 @@ document.addEventListener("nav", () => {
 
   let resetTimer: ReturnType<typeof setTimeout> | undefined
   let shareResetTimer: ReturnType<typeof setTimeout> | undefined
-  let posterPromise: Promise<PosterResult> | undefined
-  let cachedPoster: PosterResult | undefined
-  let posterObjectUrl: string | undefined
+  const posters = new Map<PosterFormat, Promise<PosterResult>>()
+  const cachedPosters = new Map<PosterFormat, PosterResult>()
+  let posterFormat: PosterFormat = "short"
+  // Every open, close, format switch or action invalidates older UI continuations.
+  let shareRequest = 0
   let disposed = false
 
   function setMenuOpen(open: boolean) {
@@ -455,8 +464,9 @@ document.addEventListener("nav", () => {
     })
   }
 
-  async function generateSharePoster() {
+  async function generateShortSharePoster() {
     const data = shareData()
+    await document.fonts?.ready
     const url = data.url ?? canonicalUrl()
     const canvas = document.createElement("canvas")
     const width = 1144
@@ -467,11 +477,11 @@ document.addEventListener("nav", () => {
     const context = canvas.getContext("2d")
     if (!context) throw new Error("Canvas is not supported in this browser.")
 
-    const ink = "#111827"
-    const muted = "#4b5563"
-    const accent = "#2563eb"
-    const border = "#e5e7eb"
-    const panel = "#ffffff"
+    const ink = light["color-text-strong"]
+    const muted = light["color-text-muted"]
+    const accent = light["color-accent"]
+    const border = light["color-border"]
+    const panel = light["color-canvas"]
     const cardX = 0
     const cardY = 0
     const cardWidth = width
@@ -505,103 +515,136 @@ document.addEventListener("nav", () => {
 
     const qrDataUrl = await QRCode.toDataURL(url, {
       errorCorrectionLevel: "M",
-      margin: 1,
+      margin: 4,
       width: qrImageSize,
       color: {
         dark: ink,
-        light: "#ffffff",
+        light: light["color-surface-raised"],
       },
     })
     const qrImage = await loadImage(qrDataUrl)
 
     drawRoundedRect(context, qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 28)
-    context.fillStyle = "#ffffff"
+    context.fillStyle = light["color-surface-raised"]
     context.fill()
     context.drawImage(qrImage, qrBoxX + qrPadding, qrBoxY + qrPadding, qrImageSize, qrImageSize)
 
     context.fillStyle = ink
-    context.font =
-      '700 50px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
+    context.font = `700 50px ${foundations["font-body"]}`
     const titleLines = wrapCanvasText(context, String(data.title ?? document.title), textWidth, 3)
     titleLines.forEach((line, index) => {
       context.fillText(line, textX, titleY + index * titleLineHeight)
     })
 
     context.fillStyle = muted
-    context.font =
-      '400 28px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
+    context.font = `400 28px ${foundations["font-body"]}`
     const titleBottom = titleY + Math.max(titleLines.length - 1, 0) * titleLineHeight
     const description = truncateText(String(data.text ?? articleExcerpt()), 220, true)
-    const descriptionLines = wrapCanvasText(context, description, textWidth, 6, true)
+    const descriptionMaxLines = Math.min(6, Math.floor((height - 124 - titleBottom - 68) / 42) + 1)
+    const descriptionLines = wrapCanvasText(
+      context,
+      description,
+      textWidth,
+      descriptionMaxLines,
+      true,
+    )
     descriptionLines.forEach((line, index) => {
       context.fillText(line, textX, titleBottom + 68 + index * 42)
     })
 
     context.fillStyle = accent
-    context.font =
-      '600 30px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif'
+    context.font = `600 30px ${foundations["font-body"]}`
     context.textAlign = "right"
     context.fillText("xiaohui.cool", cardX + cardWidth - textRightPadding, cardY + cardHeight - 54)
     context.textAlign = "start"
 
-    const blob = await canvasToBlob(canvas)
-    const objectUrl = URL.createObjectURL(blob)
-
-    if (disposed) {
-      URL.revokeObjectURL(objectUrl)
-    } else {
-      if (posterObjectUrl) URL.revokeObjectURL(posterObjectUrl)
-      posterObjectUrl = objectUrl
-    }
-
-    return {
-      blob,
-      file: new File([blob], "xiaohui-share.png", { type: "image/png" }),
-      objectUrl,
-    }
+    return canvasToBlob(canvas)
   }
 
-  async function ensureSharePoster() {
-    setShareStatus("正在生成分享图…")
-    const poster = await cacheSharePoster()
-    showSharePoster(poster)
-    return poster
+  function currentShareRequest(request: number, format: PosterFormat) {
+    return !disposed && !shareSheet.hidden && shareRequest === request && posterFormat === format
   }
 
-  function cacheSharePoster() {
-    if (!posterPromise) {
-      posterPromise = generateSharePoster()
-        .then((poster) => {
-          cachedPoster = poster
-          return poster
-        })
-        .catch((error) => {
-          posterPromise = undefined
-          cachedPoster = undefined
-          throw error
-        })
+  function cacheSharePoster(format: PosterFormat) {
+    let pending = posters.get(format)
+    if (!pending) {
+      pending = (async () => {
+        const data = shareData()
+        const article = document.querySelector("article")
+        if (format === "long" && !article) throw new Error("Article content is unavailable.")
+        const blob =
+          format === "long"
+            ? await generateLongSharePoster({
+                title: data.title ?? document.title,
+                url: data.url ?? canonicalUrl(),
+                author: article?.getAttribute("data-share-author") || undefined,
+                article: article!,
+              })
+            : await generateShortSharePoster()
+        const objectUrl = URL.createObjectURL(blob)
+        const poster = {
+          blob,
+          file: new File(
+            [blob],
+            format === "long" ? "xiaohui-long-share.png" : "xiaohui-share.png",
+            { type: "image/png" },
+          ),
+          objectUrl,
+        }
+        if (disposed) URL.revokeObjectURL(objectUrl)
+        else cachedPosters.set(format, poster)
+        return poster
+      })().catch((error) => {
+        posters.delete(format)
+        throw error
+      })
+      posters.set(format, pending)
     }
-
-    return posterPromise
+    return pending
   }
 
   function showSharePoster(poster: PosterResult) {
     sharePosterPreview.hidden = false
     sharePosterImage.src = poster.objectUrl
+    sharePosterImage.alt = posterFormat === "long" ? "文章原文长图预览" : "二维码短卡预览"
     sharePosterDownload.href = poster.objectUrl
+    sharePosterDownload.download = poster.file.name
   }
 
-  function warmSharePoster() {
-    cacheSharePoster()
+  function warmSharePoster(request: number, format: PosterFormat) {
+    setShareStatus("正在生成分享图…")
+    cacheSharePoster(format)
       .then((poster) => {
-        sharePosterDownload.href = poster.objectUrl
+        if (!currentShareRequest(request, format)) return
+        showSharePoster(poster)
+        setShareStatus("")
       })
-      .catch((error) => console.error(error))
+      .catch((error) => {
+        if (currentShareRequest(request, format)) handlePosterError(error)
+      })
   }
 
   function handlePosterError(error: unknown) {
     console.error(error)
-    setShareStatus("当前浏览器无法生成分享图，请先复制链接。")
+    setShareStatus("分享图生成失败，可以再次点击保存图片重试，或先复制链接。")
+  }
+
+  function selectPosterFormat(format: PosterFormat) {
+    posterFormat = format
+    shareSheet.dataset.posterFormat = format
+    for (const option of shareSheet.querySelectorAll<HTMLButtonElement>("[data-poster-format]")) {
+      option.setAttribute("aria-pressed", String(option.dataset.posterFormat === format))
+    }
+    sharePosterPreview.hidden = true
+    sharePosterImage.removeAttribute("src")
+    sharePosterDownload.removeAttribute("href")
+    shareHint.textContent =
+      format === "long"
+        ? "长图展示文章原文；过长时末尾渐隐，扫码可阅读全文。预览可向下滚动。"
+        : isWeChatBrowser()
+          ? "微信内长按图片保存后发送给好友或朋友圈。"
+          : "系统不支持图片分享时，可保存后发送。"
+    warmSharePoster(++shareRequest, format)
   }
 
   function isWeChatBrowser() {
@@ -644,14 +687,10 @@ document.addEventListener("nav", () => {
       shareTitle.textContent = data.title ?? ""
       shareDescription.textContent = data.text ?? ""
       shareUrl.textContent = data.url ?? canonicalUrl()
-      shareHint.textContent = isWeChatBrowser()
-        ? "微信内会生成带二维码的分享图；长按保存后发送给好友或朋友圈。"
-        : "微信分享会生成带二维码的图片；系统不支持图片分享时可保存后发送。"
-      setShareStatus("")
-      if (!posterObjectUrl) sharePosterPreview.hidden = true
-      warmSharePoster()
+      selectPosterFormat(posterFormat)
       shareCloseButton.focus()
     } else {
+      shareRequest += 1
       shareButton.focus()
     }
   }
@@ -670,7 +709,7 @@ document.addEventListener("nav", () => {
     textarea.select()
 
     try {
-      document.execCommand("copy")
+      if (!document.execCommand("copy")) throw new Error("Copy command was rejected.")
       return Promise.resolve()
     } catch (error) {
       return Promise.reject(error)
@@ -696,6 +735,8 @@ document.addEventListener("nav", () => {
     poster: PosterResult,
     statusMessage: string,
     fallbackMessage: string,
+    request: number,
+    format: PosterFormat,
   ) {
     const data = shareData()
     const webShare = navigator as WebShareNavigator
@@ -706,22 +747,24 @@ document.addEventListener("nav", () => {
       text: data.text,
     }
 
-    if (
-      !webShare.share ||
-      (navigator.userActivation && !navigator.userActivation.isActive) ||
-      (webShare.canShare && !webShare.canShare(fileShareData))
-    ) {
-      return false
-    }
-
     try {
+      if (
+        !webShare.share ||
+        (navigator.userActivation && !navigator.userActivation.isActive) ||
+        (webShare.canShare && !webShare.canShare(fileShareData))
+      ) {
+        return false
+      }
+
       void webShare
         .share(shareDataWithFile)
         .then(() => {
+          if (!currentShareRequest(request, format)) return
           showSharedState("已打开系统分享")
           setShareStatus(statusMessage)
         })
         .catch((error) => {
+          if (!currentShareRequest(request, format)) return
           if ((error as DOMException)?.name === "AbortError") return
           if ((error as DOMException)?.name !== "NotAllowedError") console.error(error)
           showSharePoster(poster)
@@ -736,6 +779,8 @@ document.addEventListener("nav", () => {
   }
 
   async function shareGeneratedPoster(target: "wechat" | "timeline") {
+    const request = ++shareRequest
+    const format = posterFormat
     try {
       const targetLabel = target === "wechat" ? "微信好友" : "朋友圈"
       const fallbackMessage =
@@ -743,21 +788,28 @@ document.addEventListener("nav", () => {
           ? "已生成分享图。长按图片保存后发送给微信好友。"
           : "已生成分享图。长按图片保存后发到朋友圈。"
 
+      const cachedPoster = cachedPosters.get(format)
       if (cachedPoster && !isWeChatBrowser()) {
         showSharePoster(cachedPoster)
+        setShareStatus("")
         const sharing = trySharePosterFile(
           cachedPoster,
           `已打开系统分享。请选择${targetLabel}发送这张图片。`,
           fallbackMessage,
+          request,
+          format,
         )
         if (sharing) return
       }
 
-      await ensureSharePoster()
+      setShareStatus("正在生成分享图…")
+      const poster = await cacheSharePoster(format)
+      if (!currentShareRequest(request, format)) return
+      showSharePoster(poster)
       showSharedState("已生成分享图")
       setShareStatus(fallbackMessage)
     } catch (error) {
-      handlePosterError(error)
+      if (currentShareRequest(request, format)) handlePosterError(error)
     }
   }
 
@@ -770,22 +822,35 @@ document.addEventListener("nav", () => {
   }
 
   function saveSharePoster() {
-    ensureSharePoster()
-      .then(() => {
+    const request = ++shareRequest
+    const format = posterFormat
+    setShareStatus("正在生成分享图…")
+    cacheSharePoster(format)
+      .then((poster) => {
+        if (!currentShareRequest(request, format)) return
+        showSharePoster(poster)
         sharePosterDownload.click()
         showSharedState("已生成分享图")
         setShareStatus("分享图已生成；如果浏览器没有下载，请长按图片保存。")
       })
-      .catch((error) => handlePosterError(error))
+      .catch((error) => {
+        if (currentShareRequest(request, format)) handlePosterError(error)
+      })
   }
 
   function copyShareLink() {
+    const request = ++shareRequest
+    const format = posterFormat
     copyText(canonicalUrl()).then(
       () => {
+        if (!currentShareRequest(request, format)) return
         showSharedState("链接已复制")
         setShareStatus("链接已复制。")
       },
-      (error) => console.error(error),
+      (error) => {
+        console.error(error)
+        if (currentShareRequest(request, format)) setShareStatus("复制失败，请从上方选取文章链接。")
+      },
     )
   }
 
@@ -834,6 +899,13 @@ document.addEventListener("nav", () => {
       return
     }
 
+    const format = target.closest<HTMLButtonElement>("button[data-poster-format]")?.dataset
+      .posterFormat
+    if (format === "short" || format === "long") {
+      selectPosterFormat(format)
+      return
+    }
+
     const action = target.closest<HTMLButtonElement>("button[data-share-action]")?.dataset
       .shareAction as ShareAction | undefined
     if (action) onShareAction(action)
@@ -846,7 +918,21 @@ document.addEventListener("nav", () => {
   function onKeyDown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       setMenuOpen(false)
-      setShareSheetOpen(false)
+      if (!shareSheet.hidden) setShareSheetOpen(false)
+    }
+    if (event.key === "Tab" && !shareSheet.hidden) {
+      const focusable = Array.from(
+        shareSheet.querySelectorAll<HTMLElement>("button, a[href]"),
+      ).filter((element) => !element.closest("[hidden]"))
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last?.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first?.focus()
+      }
     }
   }
 
@@ -868,7 +954,8 @@ document.addEventListener("nav", () => {
     document.removeEventListener("keydown", onKeyDown)
     if (resetTimer) clearTimeout(resetTimer)
     if (shareResetTimer) clearTimeout(shareResetTimer)
-    if (posterObjectUrl) URL.revokeObjectURL(posterObjectUrl)
+    for (const poster of cachedPosters.values()) URL.revokeObjectURL(poster.objectUrl)
+    cachedPosters.clear()
     document.body.classList.remove("share-sheet-open")
     shareSheet.remove()
   })

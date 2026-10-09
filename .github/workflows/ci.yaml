@@ -50,6 +50,36 @@ jobs:
       - name: Ensure Quartz builds, check bundle info
         run: npx quartz build --bundleInfo -d docs
 
+  share-poster-browser:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium and CJK fonts
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y fonts-noto-cjk
+      - name: Build Quartz documentation for integration smoke test
+        run: npx quartz build -d docs
+      - name: Verify share images in a real browser
+        run: npm run test:share-browser
+        env:
+          SHARE_QA_SITE_DIRECTORY: public
+      - name: Upload share-image evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: share-posters-${{ github.event.pull_request.head.sha || github.sha }}
+          path: test-results/
+          if-no-files-found: error
+          retention-days: 14
+
   publish-tag:
     if: ${{ github.repository == 'jackyzha0/quartz' && github.ref == 'refs/heads/v4' }}
     needs: build-and-test
