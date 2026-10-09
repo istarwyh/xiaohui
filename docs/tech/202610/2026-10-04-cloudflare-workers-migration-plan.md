@@ -1,8 +1,8 @@
 # 晓灰博客迁移 Cloudflare Workers 技术方案
 
-日期：2026-10-04  
-状态：待评审的实施方案，仅文档，不代表已迁移、已部署或已修改 Cloudflare 配置  
-代码基线：`v4` / `7b595545b1ea19eb880d5e2224238dbbc2f84223`，已包含 PR #95 的纸感设计系统与 `/brand`
+初稿日期：2026-10-04；复核日期：2026-10-09  
+状态：保留的迁移技术方案（实施另行授权），仅文档，不代表已迁移、已部署或已修改 Cloudflare 配置  
+复核代码基线：`v4` / `08bb31e6e7b74851fb1023a814cebd8c4a6b37e2`，包含 PR #100 的双语首页实现及 PR #101 的依赖 override 修复；初稿基线为 `7b595545b1ea19eb880d5e2224238dbbc2f84223`
 
 ## 1. 结论与决策
 
@@ -13,7 +13,7 @@
 1. 保留 `content/ → Quartz → public/` 的内容生产链和现有页面表现
 2. 用 Workers Static Assets 接收同一份产物，在预览环境验证与 Pages 的差异
 3. 经确认后切换 `xiaohui.cool` 的流量，保留 Pages 回退路径
-4. 首页现代化继续作为独立 UI 变更推进；将来的互动、个性化、Agent API 再逐项接入 Worker
+4. 保留 PR #100 已实现的首页；将来的互动、个性化、Agent API 再逐项接入 Worker
 
 迁移给未来能力预留更直接的运行入口，但**不会自动改善首页设计、搜索体验或页面速度**。目前的阅读、全文索引、RSS、图谱和品牌页都是静态能力，Pages 也能继续可靠承载。推荐迁移的理由是后续 API、定时任务和服务绑定更容易统一管理，而不是现有博客已经必须动态化。[Cloudflare 迁移指南](https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/)
 
@@ -28,7 +28,9 @@
 
 ### 与首页重构的边界
 
-[首页现代化方案 PR #96](https://github.com/istarwyh/xiaohui/pull/96) 是独立提案，不是本迁移的前置依赖。部署迁移和首页设计可并行准备，但**生产切流与首页大改不能放在同一个发布窗口**，否则难以定位回归原因。迁移不改写作者文案、内容分类、纸感 token、亮暗主题、紧凑 feed、缩略图尺寸及移动端布局。继续遵守 [设计系统](../../../design/README.md) 与 [品牌资料说明](../../../design/brand-kit.md)。
+[首页实现 PR #100](https://github.com/istarwyh/xiaohui/pull/100) 已于 2026-10-05 合入 `v4`；[旧方案 PR #96](https://github.com/istarwyh/xiaohui/pull/96) 已于 2026-10-09 关闭、未合并，不再作为待实施依赖。迁移保留现有 `HomePage` / `HomeHeader`、中英文首页、按语言筛选的 FeedList、搜索、加载更多与返回状态、人物照片及遮罩，不重新实现首页。后续首页大改与生产切流应分开发版。实现事实参见 [首页实施记录](2026-10-04-homepage-implementation.md)，视觉规范仍见 [设计系统](../../../design/README.md) 与 [品牌资料说明](../../../design/brand-kit.md)。
+
+本文与 [通用托管指南](../../hosting.md) 分工不同：后者介绍 Quartz 的多平台托管；本文记录本博客迁移 Workers 的构建、HTTP 兼容、预览隔离、域名切流和回退方案。首页实施记录覆盖 UI 与验收，未实现 Workers 迁移；因此本文仍有独立价值。
 
 ## 2. 当前仓库与待确认事项
 
@@ -37,8 +39,8 @@
 | 项目            | 当前状态与来源                                                                                                                                                       | 对迁移的影响                                                             |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | 项目            | Quartz `4.4.0`，TypeScript / Preact，默认分支 `v4`                                                                                                                   | 构建发生在 Node 环境，产物运行在浏览器                                   |
-| 生产构建        | `package.json` 的 `build`：获取 Git 历史 → `update-homepage` → `quartz build` → 复制 `extra-pages/*` 到 `public/`；`build:cf` 是别名                                 | Workers 必须上传完整 `public/`，不能误用文档站构建                       |
-| 构建副作用      | `update-homepage` 可能修改 `content/index.md`、`quartz.layout.ts`、`scripts/cards-data.json`                                                                         | CI 不回写这些变化；记录产物与源 SHA，检查意外内容变更                    |
+| 生产构建        | `package.json` 的 `build`：获取 Git 历史 → `quartz build` → 复制 `extra-pages/*` 到 `public/`；`build:cf` 是别名                                                     | Workers 必须上传完整 `public/`，不能误用文档站构建                       |
+| 构建副作用      | 生产 build 已移除 `update-homepage`；显式运行旧脚本遇 `pageType: home` 会提前退出（含 FORCE），首页数据由构建阶段派生                                                | CI 不回写这些变化；记录产物与源 SHA，检查意外内容变更                    |
 | 域名与语言      | `quartz.config.ts`：`baseUrl: "xiaohui.cool"`、`locale: "zh-CN"`、`enableSPA: true`                                                                                  | 保持 canonical 域名；Quartz SPA 导航不等于服务器 SPA fallback            |
 | 输出            | ContentPage、FolderPage、TagPage、AliasRedirects、NotFoundPage、BrandPage                                                                                            | HTML 平铺文件与文件夹 index 并存，保留 URL 解析和真实 404                |
 | 发现入口        | `/index.xml`、`/sitemap.xml`、`/static/contentIndex.json`、`/llms.txt`、`/llms-full.txt`、`/agent/manifest.json`、`/agent/search-index.json`、`/agent/pages/**/*.md` | 全部仍按静态文件托管；不能误当 API、不能改变名称                         |
@@ -159,13 +161,13 @@ npx wrangler dev
 
 准备脚本应做这些确定性检查：
 
-1. 核验 `index.html`、`404.html`、`index.xml`、`sitemap.xml`、搜索索引、Agent 入口、`brand.html` 与品牌下载资源存在
+1. 核验 `index.html`、`en.html`、`static/home-portrait-mask-cb27f3ad.png`、`404.html`、`index.xml`、`sitemap.xml`、搜索索引、Agent 入口、`brand.html` 与品牌下载资源存在
 2. 核验 `extra-pages/wedding/` 的目标资源；盘点超大文件、大小写冲突和规范化后的路径碰撞
 3. 验证输出没有内部规则文档、private/draft 内容和 secrets；工程方案放在 `docs/`，不能进入生产 `content/` 索引
 4. 生成并保存构建 manifest：源 SHA、lockfile 哈希、Node/npm/Wrangler 版本、必要配置摘要、逐文件 SHA-256 与大小
 5. 按当天套餐限额检查文件数和单文件大小，并给 80% 容量预警；不得仅比较整个目录大小
-6. 标识预期构建副作用，拒绝未解释的作者内容变化；生成文件不自动 commit/push
-7. 不加载生产业务 secrets 参与静态构建；检查可选 Unsplash 行为，迁移阶段优先固定现有图源，防止同一 SHA 两次构建产生不同图片
+6. 核验新首页构建不改写作者内容或旧 cards-data，拒绝未解释的源文件变化；生成文件不自动 commit/push
+7. 不加载生产业务 secrets 参与静态构建；现有生产链不再调用旧 Unsplash/CardFeed 生成器；保留首页真实照片、根路径遮罩及文章图源，不重新引入随机选图
 
 `npm run build` 的 Git fetch 容错不能替代完整历史验证，否则基于 Git 的日期可能退回 filesystem 并改变 feed 顺序。新 workflow 使用 `fetch-depth: 0`，记录时间戳回退警告；若现有脚本稳定性不足，另开小改动修正，不绕过 `engine-strict` 或随意升级依赖。
 
@@ -196,7 +198,7 @@ Cloudflare 的自动 HTML 规范化会返回 `307`；Pages 的已有行为可能
 
 ### 缓存、索引和下载
 
-初期采用平台静态缓存默认值。普通资产的浏览器默认是 `Cache-Control: public, max-age=0, must-revalidate`，配合 ETag。`index.css`、`prescript.js`、`postscript.js`、`contentIndex.json` 等稳定文件名随发布变化，不能全站设一年 immutable。只有真正内容哈希命名、且旧版本仍可取到的文件才考虑长缓存。
+初期采用平台静态缓存默认值。普通资产的浏览器默认是 `Cache-Control: public, max-age=0, must-revalidate`，配合 ETag。`index.css`、`prescript.js`、`postscript.js`、`contentIndex.json` 等文件名稳定，但 #100 已对 CSS、两个脚本与 contentIndex URL 添加构建版本参数，并用 `quartz-build` 标记和客户端版本检查在跨版本 SPA 导航时完整刷新。参数不是内容哈希文件名，也不保证旧版本字节仍可获取，不能全站设一年 immutable。构建 ID 随构建生成，同一源 SHA 的两次构建并非字节相同；影子与生产必须复用同一份产物及 manifest。只有真正内容哈希命名、且旧版本仍可取到的文件才考虑长缓存。
 
 保留 CDN 原生资产缓存，不主动套 `caches.default`、KV 缓存或新的 **Workers Cache**。当前 Workers Cache 是另一个可选功能，启用后即使静态缓存命中也按标准 Workers 请求收费；它不是 Static Assets 免费缓存的同义词。[静态缓存行为](https://developers.cloudflare.com/workers/static-assets/headers/)、[Workers Cache 计费](https://developers.cloudflare.com/workers/cache/#pricing)
 
@@ -248,7 +250,7 @@ npx wrangler preview --name "pr-96"
 npx wrangler preview delete --name "pr-96" --skip-confirmation
 ```
 
-这里 `96` 仅示范命名，**不是要求给文档 PR #96 部署**。Preview 容量淘汰不等于 PR close 自动清理；为 closed/reopened 和失败重试编写显式生命周期逻辑。[预览 CI 示例](https://developers.cloudflare.com/workers/previews/examples/)
+这里 `96` 仅示范命名，不对应已关闭的 #96；本文档 PR #98 也不创建预览。Preview 容量淘汰不等于 PR close 自动清理；为 closed/reopened 和失败重试编写显式生命周期逻辑。[预览 CI 示例](https://developers.cloudflare.com/workers/previews/examples/)
 
 生产制品从合入后精确 `v4` SHA 重新构建并验收，不能把合并前 PR head 不加检查地晋级。冻结候选 release 后，shadow 和生产使用同一份 manifest/字节；如 preview-only headers 或 analytics 设置必须不同，记录允许的差异、分别生成产物，禁止把 noindex 带进生产。默认使用 Previews 的服务端 noindex 可避免修改产物。
 
@@ -291,7 +293,7 @@ npx wrangler preview delete --name "pr-96" --skip-confirmation
 
 达到下列条件后才结束双轨：关键矩阵全通过、至少覆盖一个约定的完整日常访问周期、一次真实内容发布成功、回退演练通过。观察周期建议至少 24 小时，低流量站结合主动探测延长；这是风险控制建议，不是凭等待时间自动判定成功。
 
-**不必为了开始首页重构立刻完成 Pages 清退。** Route 过渡稳定后即可视为流量已由 Workers 承载，首页迭代可以独立推进。彻底去除 Pages 依赖时，再安排第二次变更：
+**首页已在 PR #100 实现，不以 Pages 清退作为其前置条件。** Route 过渡稳定后即可视为流量已由 Workers 承载，首页迭代可以独立推进。彻底去除 Pages 依赖时，再安排第二次变更：
 
 1. 再次记录 DNS、TLS、Pages 域名绑定与 Worker Route 快照，确认回退所需权限
 2. 依真实账户状态移除冲突的 Pages 域名/CNAME；不能把同一 host 无条件重复绑定
@@ -371,25 +373,27 @@ npx wrangler preview delete --name "pr-96" --skip-confirmation
 
 下列项目由 implementation PR 提供结果表：基线 URL、候选 URL、源 SHA、预期、实际 status/headers/最终 URL、截图或断言、是否允许差异。样例路由必须从该次构建真实输出选取，不猜中文文章名。
 
-| 范围              | 必测用例                                                               | 通过标准                                                  |
-| ----------------- | ---------------------------------------------------------------------- | --------------------------------------------------------- |
-| 首页/正文         | `/`、长文、短文、中文路径、编码路径、`/en` 与英文文章                  | 内容、title、canonical、语言不变，直接打开/刷新成功       |
-| URL 规范化        | extensionless、`.html`、trailing slash、folder index、query、空格/中文 | 无循环、无意外跨域；允许的平台状态码差异已登记            |
-| 别名              | 真实 frontmatter alias、`/home` 等由输出确认的入口                     | 原有内容目标保持；区分 HTML meta refresh 和 HTTP redirect |
-| 错误页            | 根/深层随机路径、未知 `.js`/`.css`/图片                                | 真实 404，错误资源不返回成功 HTML                         |
-| 导航              | 首屏→文章→hash→返回→前进、连续点击、重复打开/关闭搜索                  | 地址栏与内容一致，无重复监听/空白页/卡死                  |
-| 搜索              | 中文/英文、键盘上下/Enter/Escape、结果进入深层页                       | 索引载入正确，搜索可用；预览不误访问生产索引              |
-| SEO               | canonical、hreflang、OG、JSON-LD、RSS、sitemap、robots                 | 全部生产 URL 正确，无预览域污染；生产无 noindex           |
-| 机器接口          | llms、manifest、search-index、Markdown 文章                            | 路径、Content-Type、结构与非私密内容范围保持              |
-| 视觉/移动         | 320px、390px、宽屏 × 亮/暗；中文换行、200% 缩放                        | 纸感 token 与紧凑 feed 不漂移，无横向裁切                 |
-| Feed/图片         | 0/1/2/3 图、加载失败、继续加载                                         | 日期同行，最多三张真实缩略图，尺寸与布局契约保持          |
-| 品牌/专题         | `/brand`、所有 SVG/PNG/JSON/TXT 下载、wedding 页面                     | 文件字节/类型正确，主题切换与下载交互可用                 |
-| 缓存/发布         | ETag/304、HEAD、需要的 Range、旧标签页、新旧 CSS/JS                    | 无稳定路径 immutable 误缓存，无跨版本功能破坏             |
-| Headers/redirects | 每条线上已确认规则、重定向链                                           | 规则有效，安全头覆盖范围清楚，未知规则不遗漏              |
-| 预览/安全         | PR reopen/closed、fork、noindex、secret/binding 隔离                   | 无未经审核生产权限，cleanup 只影响对应 PR                 |
-| 构建/容量         | 完整历史、lockfile、文件数、单文件上限、源/产物 manifest               | 精确 SHA 可追溯，无内部文件或秘密进入公开产物             |
-| 性能/可观测性     | 固定样本冷/热加载、CSS/JS体积、LCP/CLS 与基线                          | 不声称迁移必然提速；同条件测量，无明确回归                |
-| 恢复              | 撤 Route、版本回退、Pages 恢复演练                                     | 真实域名验证恢复；操作者与耗时已记录                      |
+| 范围              | 必测用例                                                                                   | 通过标准                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| 首页/正文         | `/`、长文、短文、中文路径、编码路径、`/en` 与英文文章                                      | 内容、title、canonical、语言不变，直接打开/刷新成功       |
+| URL 规范化        | extensionless、`.html`、trailing slash、folder index、query、空格/中文                     | 无循环、无意外跨域；允许的平台状态码差异已登记            |
+| 别名              | 真实 frontmatter alias、`/home` 等由输出确认的入口                                         | 原有内容目标保持；区分 HTML meta refresh 和 HTTP redirect |
+| 错误页            | 根/深层随机路径、未知 `.js`/`.css`/图片                                                    | 真实 404，错误资源不返回成功 HTML                         |
+| 导航              | 首屏→文章→hash→返回→前进、连续点击、重复打开/关闭搜索                                      | 地址栏与内容一致，无重复监听/空白页/卡死                  |
+| 搜索              | 中文/英文、键盘上下/Enter/Escape、结果进入深层页                                           | 索引载入正确，搜索可用；预览不误访问生产索引              |
+| SEO               | canonical、hreflang、OG、JSON-LD、RSS、sitemap、robots                                     | 全部生产 URL 正确，无预览域污染；生产无 noindex           |
+| 机器接口          | llms、manifest、search-index、Markdown 文章                                                | 路径、Content-Type、结构与非私密内容范围保持              |
+| 视觉/移动         | 320px、390px、宽屏 × 亮/暗；中文换行、200% 缩放                                            | 纸感 token 与紧凑 feed 不漂移，无横向裁切                 |
+| Feed/图片         | 0/1/2/3 图、加载失败、中英文独立加载更多、文章→Back 保留数量                               | 日期同行，最多三张真实缩略图，尺寸与布局契约保持          |
+| 品牌/专题         | `/brand`、所有 SVG/PNG/JSON/TXT 下载、wedding 页面                                         | 文件字节/类型正确，主题切换与下载交互可用                 |
+| 缓存/发布         | ETag/304、HEAD、需要的 Range、旧标签页、新旧 CSS/JS、带版本参数的索引、跨版本 SPA 完整导航 | 无稳定路径 immutable 误缓存，无跨版本功能破坏             |
+| Headers/redirects | 每条线上已确认规则、重定向链                                                               | 规则有效，安全头覆盖范围清楚，未知规则不遗漏              |
+| 预览/安全         | PR reopen/closed、fork、noindex、secret/binding 隔离                                       | 无未经审核生产权限，cleanup 只影响对应 PR                 |
+| 构建/容量         | 完整历史、lockfile、文件数、单文件上限、源/产物 manifest                                   | 精确 SHA 可追溯，无内部文件或秘密进入公开产物             |
+| 性能/可观测性     | 固定样本冷/热加载、CSS/JS体积、LCP/CLS 与基线                                              | 不声称迁移必然提速；同条件测量，无明确回归                |
+| 恢复              | 撤 Route、版本回退、Pages 恢复演练                                                         | 真实域名验证恢复；操作者与耗时已记录                      |
+
+迁移验收沿用 #100 已实现的行为：双语菜单/语言切换、键盘搜索、按语言筛选 feed、返回后的展开数量、深层文章回首页的照片与根路径遮罩均需复测。#100 的 Pages 验收是历史基线，不能作为 Workers 已通过的证据；其已记录的返回位置漂移、时区与浏览器未测范围不在迁移文档中宣称已修复。
 
 纯静态直达请求不经过自定义 `fetch` handler；不能只看 Worker 执行日志证明全站健康。结合可用的 zone/资产指标、既有 analytics、外部 HTTP smoke、浏览器 console 和 network。以后有 API 时再加结构化、脱敏日志与错误/延迟/CPU 告警；不为记录每次阅读而强制全站 Worker-first。
 
@@ -410,7 +414,7 @@ npx wrangler preview delete --name "pr-96" --skip-confirmation
 
 来源：[Static Assets billing](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)、[Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/)、[Workers limits](https://developers.cloudflare.com/workers/platform/limits/)、[Builds limits/pricing](https://developers.cloudflare.com/workers/ci-cd/builds/limits-and-pricing/)
 
-本次在隔离工作树按基线进行本地构建并复制 `extra-pages` 后，磁盘实际有 **2,100 个文件、106,155,532 bytes（约 101.2 MiB）**；最大文件 `/static/contentIndex.json` 为 **16,590,321 bytes（约 15.8 MiB，单文件上限约 63%）**。这是本地容量样本，不是 Cloudflare 已部署产物；构建有 Git 元数据警告，日期/顺序仍需在正式 CI 复核。当前样本未触及上述资产限额；搜索索引继续增长时应考虑裁减/分片，而不是等到 25 MiB 上传失败。
+2026-10-04 初稿在隔离工作树按旧基线进行本地构建并复制 `extra-pages` 后，磁盘实际有 **2,100 个文件、106,155,532 bytes（约 101.2 MiB）**；最大文件 `/static/contentIndex.json` 为 **16,590,321 bytes（约 15.8 MiB，单文件上限约 63%）**。这是本地容量样本，不是 Cloudflare 已部署产物；构建有 Git 元数据警告，日期/顺序仍需在正式 CI 复核。该历史样本未触及当时资产限额；不能用它代表 #100 后的产物，实施时必须重新测量。搜索索引继续增长时应考虑裁减/分片，而不是等到单文件上限触发上传失败。
 
 估算方法：纯静态保持原生资产路由；动态月成本按账户中全部 Worker 的 billable requests + CPU + 实际使用的存储/队列/AI/日志/构建计算。流量未知时不给“每月必定免费”或“最多 5 美元”的承诺。设置预算告警、必要的 CPU/request 防护；告警不是硬性花费上限。
 
@@ -433,6 +437,8 @@ npx wrangler preview delete --name "pr-96" --skip-confirmation
 
 ## 13. 本方案的验证记录
 
+### 初稿历史验证（2026-10-04，不能替代最新基线验证）
+
 - 仓库事实从 `7b595545b1ea19eb880d5e2224238dbbc2f84223` 核对，独立 worktree，仅新增本文
 - 官方行为、CLI 与公开价格于 2026-10-04 核对，引用均为 Cloudflare 一手文档
 - 未读取 Cloudflare 私有仪表盘；未创建 Worker、Preview、token、数据库或 DNS 记录
@@ -442,4 +448,12 @@ npx wrangler preview delete --name "pr-96" --skip-confirmation
 - 构建引起的 `scripts/cards-data.json` 派生变化已从文档提交排除；没有更改作者内容、UI、依赖、CI 或部署配置
 - 文档站 `node quartz/bootstrap-cli.mjs build --bundleInfo -d docs` 已通过；相对链接存在性、四个 JSONC 示例语法、Prettier 与 diff whitespace 已检查。远端 CI 另见本 PR；尚未安装/运行 Wrangler，未做 Workers 本地路由测试或线上迁移验收
 
-下一步是评审本方案；认可路线后，从 M1 的可复现构建与最小静态配置开始，不把首页视觉改造或未来 API 一次性塞进迁移 PR。
+本次文档合并只保留并更新方案，不启动迁移。后续获得实施授权后，从 M1 的可复现构建与最小静态配置开始，不把首页视觉改造或未来 API 一次性塞进迁移 PR。
+
+### 最终复核（2026-10-09）
+
+- 对照最新 `v4`（`08bb31e6`）、已合并 #100、`package.json`、首页组件/布局/脚本、资源版本逻辑及三份现有技术文档复核；仅更新本文，不改运行代码或部署配置。
+- 更新旧首页提案状态、生产构建链、生成器退出保护、双语首页/照片遮罩/Feed 验收与跨版本资源行为；保留通用 hosting 指南与本项目迁移方案的分工。
+- 官方 Previews 起步、HTML handling 与 headers 文档于 2026-10-09 重读，仍支持文中 Wrangler 最低版本、307 规范化与默认 revalidation 说明。价格/限额表保留明确的 2026-10-04 查询日期，不作为新的账户或报价核验。
+- 最新基线本地验证结果与远端 CI 在 PR #98 的最终处理记录中列出；初稿 CI 成功不作为最新兼容性证据。
+- 未安装或运行 Wrangler，未读取私有 Cloudflare 配置；未部署 Workers、修改 DNS、Route 或生产流量。
