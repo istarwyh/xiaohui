@@ -15,6 +15,9 @@ let directory
 let server
 let base
 let posterCanvas
+const errorBuffers = new WeakMap()
+
+test.use({ trace: "retain-on-failure", screenshot: "only-on-failure" })
 
 const samples = {
   short:
@@ -157,7 +160,9 @@ test.afterAll(async () => {
 })
 
 function observeErrors(page) {
+  if (errorBuffers.has(page)) return errorBuffers.get(page)
   const errors = []
+  errorBuffers.set(page, errors)
   page.on("pageerror", (error) => errors.push(error.message))
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(message.text())
@@ -165,11 +170,126 @@ function observeErrors(page) {
   return errors
 }
 
+test.beforeEach(async ({ page }) => {
+  observeErrors(page)
+  await page.addInitScript(() => {
+    const log = (entry) => {
+      const events = (window.shareDiagnostics ||= [])
+      events.push({ at: performance.now(), ...entry })
+      if (events.length > 150) events.shift()
+    }
+    const state = () => {
+      const sheet = document.querySelector(".share-page-sheet")
+      const image = document.querySelector(".share-page-poster-image")
+      return {
+        hidden: sheet?.hidden,
+        format: sheet?.dataset.posterFormat,
+        status: document.querySelector(".share-page-status")?.textContent,
+        src: image?.getAttribute("src"),
+        naturalWidth: image?.naturalWidth,
+      }
+    }
+    for (const eventType of ["pointerdown", "pointerup", "click"]) {
+      for (const capture of [true, false])
+        document.addEventListener(
+          eventType,
+          (event) => {
+            const target = event.target
+            log({
+              eventType,
+              capture,
+              target:
+                target instanceof Element
+                  ? `${target.tagName}.${target.className}`
+                  : String(target),
+              formatTarget:
+                target instanceof Element
+                  ? target.closest("[data-poster-format]")?.getAttribute("data-poster-format")
+                  : null,
+              ...state(),
+            })
+          },
+          capture,
+        )
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      new MutationObserver((mutations) => {
+        if (
+          mutations.some(
+            (mutation) =>
+              mutation.target instanceof Element &&
+              (mutation.target.matches(
+                ".share-page-sheet,.share-page-poster,.share-page-poster-image,.share-page-status",
+              ) ||
+                mutation.target.closest(".share-page-status")),
+          )
+        )
+          log({ eventType: "mutation", ...state() })
+      }).observe(document.body, {
+        subtree: true,
+        attributes: true,
+        childList: true,
+        characterData: true,
+        attributeFilter: ["hidden", "src", "data-poster-format"],
+      })
+    })
+  })
+})
+
 async function ready(page, width) {
-  await expect
-    .poll(() => page.locator(".share-page-poster-image").evaluate((image) => image.naturalWidth))
-    .toBe(width)
-  await expect(page.locator(".share-page-poster")).toBeVisible()
+  try {
+    await expect
+      .poll(() => page.locator(".share-page-poster-image").evaluate((image) => image.naturalWidth))
+      .toBe(width)
+    await expect(page.locator(".share-page-poster")).toBeVisible()
+  } catch (error) {
+    const name = `${test.info().title.replace(/[^a-zA-Z0-9_-]+/g, "-")}-ready-${width}`
+    const diagnostics = await page
+      .evaluate(() => {
+        const sheet = document.querySelector(".share-page-sheet")
+        const image = document.querySelector(".share-page-poster-image")
+        const download = document.querySelector(".share-page-poster-download")
+        return {
+          url: location.href,
+          title: document.title,
+          activeElement: document.activeElement?.outerHTML,
+          sheetHidden: sheet?.hidden,
+          posterHidden: document.querySelector(".share-page-poster")?.hidden,
+          status: document.querySelector(".share-page-status")?.textContent,
+          format: sheet?.dataset.posterFormat,
+          image: {
+            src: image?.getAttribute("src"),
+            width: image?.naturalWidth,
+            height: image?.naturalHeight,
+            complete: image?.complete,
+          },
+          download: {
+            href: download?.getAttribute("href"),
+            name: download?.getAttribute("download"),
+          },
+          buttons: Array.from(document.querySelectorAll("[data-poster-format]"), (button) => ({
+            format: button.dataset.posterFormat,
+            pressed: button.getAttribute("aria-pressed"),
+          })),
+          exports: window.qa?.exports,
+          pending: window.qa?.pending.length,
+          shares: window.qa?.shares,
+          events: window.shareDiagnostics,
+          sheetHtml: sheet?.outerHTML,
+        }
+      })
+      .catch((diagnosticError) => ({ captureError: String(diagnosticError) }))
+    await writeFile(
+      path.join(artifacts, name + ".json"),
+      JSON.stringify(
+        { expectedWidth: width, errors: observeErrors(page), ...diagnostics },
+        null,
+        2,
+      ),
+    )
+    await page.screenshot({ path: path.join(artifacts, name + ".png") }).catch(() => {})
+    throw error
+  }
 }
 
 async function openLong(page) {
