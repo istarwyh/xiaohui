@@ -50,7 +50,18 @@ if (params.get('theme') === 'dark') {
   const applyTheme=()=>document.documentElement?.setAttribute('saved-theme','dark');
   applyTheme();document.addEventListener('DOMContentLoaded',applyTheme,{once:true});
 }
-window.qa = { exports: [], shares: [], pending: [], draws: new WeakMap(), snapshots: [] };
+window.qa = { exports: [], shares: [], pending: [], draws: new WeakMap(), snapshots: [], mathGeometry: [] };
+const scrollWidthDescriptor=Object.getOwnPropertyDescriptor(Element.prototype,'scrollWidth');
+if(scrollWidthDescriptor?.get&&scrollWidthDescriptor.configurable){
+  Object.defineProperty(Element.prototype,'scrollWidth',{...scrollWidthDescriptor,get(){
+    const value=scrollWidthDescriptor.get.call(this);
+    if(this.matches?.('.share-poster .katex')){
+      const r=this.getBoundingClientRect(),style=getComputedStyle(this);
+      window.qa.mathGeometry.push({scrollWidth:value,clientWidth:this.clientWidth,width:r.width,height:r.height,fontSize:style.fontSize,inlineSize:style.inlineSize,blockSize:style.blockSize,transform:style.transform,available:this.parentElement?.clientWidth,text:this.textContent});
+    }
+    return value;
+  }});
+}
 window.qa.snapshot = () => {
   const root = document.querySelector('.share-poster');
   if (!root) return null;
@@ -610,6 +621,15 @@ async function renderMarkup(page, html, options = {}) {
         ? document.createElement("article")
         : document.querySelector("article")
       article.innerHTML = html
+      if (options.sourceWidth) article.style.width = options.sourceWidth + "px"
+      const sourceMath = Array.from(article.querySelectorAll(".katex"), (node) => ({
+        text: node.textContent,
+        scrollWidth: node.scrollWidth,
+        clientWidth: node.clientWidth,
+        width: node.getBoundingClientRect().width,
+        fontSize: getComputedStyle(node).fontSize,
+        inlineSize: getComputedStyle(node).inlineSize,
+      }))
       try {
         const blob = await window.SharePosterQA.generateLongSharePoster({
           title: options.title || "结构保真与资源验证",
@@ -619,11 +639,21 @@ async function renderMarkup(page, html, options = {}) {
         return {
           bytes: Array.from(new Uint8Array(await blob.arrayBuffer())),
           prepared: window.qa.exports.findLast((entry) => entry.width === 720)?.dom,
+          sourceMath,
         }
       } catch (error) {
         return {
           error: { name: error.name, message: error.message },
           hosts: document.querySelectorAll(".share-poster-host").length,
+          mathGeometry: window.qa.mathGeometry,
+          sourceMath: Array.from(article.querySelectorAll(".katex"), (node) => ({
+            text: node.textContent,
+            scrollWidth: node.scrollWidth,
+            clientWidth: node.clientWidth,
+            width: node.getBoundingClientRect().width,
+            fontSize: getComputedStyle(node).fontSize,
+            inlineSize: getComputedStyle(node).inlineSize,
+          })),
         }
       }
     },
@@ -1226,35 +1256,63 @@ test("SPA cleanup releases late exports and cancels a pending download", async (
   await expect(page.locator(".share-page-preview-title")).toContainText("下一篇文章")
 })
 
-test("display math retains fraction, radical and superscript geometry in actual PNG pixels", async ({
+test("display math preserves intrinsic geometry across narrow and wide source articles", async ({
   page,
 }) => {
   await page.goto(`${base}/short.html`)
   await page.addScriptTag({ url: `${base}/renderer.js` })
   await page.addStyleTag({ url: `${base}/katex/katex.min.css` })
   const formula = katex.renderToString(
-    String.raw`\frac{\sqrt{a_1^2+a_2^2}}{1+b_i^2}=\frac{x_i}{y^2}`,
-    { displayMode: true, output: "html" },
-  )
-  const result = await renderMarkup(
-    page,
-    `<h2>分式、根号与上下标</h2>${formula}<p>公式保持独立而清晰。</p>`,
-  )
-  expect(result.error).toBeUndefined()
-  const { png } = await saveDirectImage(result, "display-math-geometry", canonical("short"))
-  expect(result.prepared.html).toContain("mfrac")
-  expect(result.prepared.html).toContain("sqrt")
-  expect(result.prepared.html).toContain("msupsub")
-  const box = result.prepared.nodes.find((node) => node.class === "katex")
-  expect(box.height).toBeGreaterThan(30)
-  expect(box.x).toBeGreaterThanOrEqual(23)
-  expect(box.x + box.width).toBeLessThanOrEqual(337)
-  expect(pixelInk(png, box)).toBeGreaterThan(0.02)
-  const tooWide = katex.renderToString(
     String.raw`\frac{\sqrt{a_1^2+a_2^2+a_3^2}}{1+\frac{b_i}{c^{2}}}=\sum_{i=1}^{n}\frac{x_i^2}{y_i}`,
     { displayMode: true, output: "html" },
   )
-  const rejected = await renderMarkup(page, tooWide)
+  const geometries = []
+  for (const sourceWidth of [320, 700]) {
+    const result = await renderMarkup(
+      page,
+      `<h2>分式、根号与上下标</h2>${formula}<p>公式保持独立而清晰。</p>`,
+      { sourceWidth },
+    )
+    await writeFile(
+      path.join(artifacts, `display-math-${sourceWidth}-layout.json`),
+      JSON.stringify(
+        {
+          source: result.sourceMath,
+          capture: await page.evaluate(() => window.qa.mathGeometry),
+          error: result.error,
+        },
+        null,
+        2,
+      ),
+    )
+    expect(result.error).toBeUndefined()
+    const { png } = await saveDirectImage(result, `display-math-${sourceWidth}`, canonical("short"))
+    for (const className of ["mfrac", "sqrt", "msupsub"])
+      expect(result.prepared.html.includes(className), `Formula retains ${className}`).toBe(true)
+    const box = result.prepared.nodes.find((node) => node.class === "katex")
+    expect(box.height).toBeGreaterThan(30)
+    expect(box.x).toBeGreaterThanOrEqual(23)
+    expect(box.x + box.width).toBeLessThanOrEqual(337)
+    expect(pixelInk(png, box)).toBeGreaterThan(0.02)
+    geometries.push({
+      sourceWidth: result.sourceMath[0].width,
+      width: box.width,
+      height: box.height,
+    })
+  }
+  expect(geometries[1].sourceWidth - geometries[0].sourceWidth).toBeGreaterThan(300)
+  expect(Math.abs(geometries[0].width - geometries[1].width)).toBeLessThanOrEqual(1)
+  expect(Math.abs(geometries[0].height - geometries[1].height)).toBeLessThanOrEqual(1)
+  // This mathematical content itself is too wide, independently of its source container.
+  const tooWide = katex.renderToString(
+    String.raw`\sum_{i=1}^{n}\frac{x_i^2}{y_i}=` +
+      Array.from(
+        { length: 18 },
+        (_, index) => String.raw`\frac{x_{${index + 1}}^2+y_{${index + 1}}^2}{1+z_{${index + 1}}}`,
+      ).join("+"),
+    { displayMode: true, output: "html" },
+  )
+  const rejected = await renderMarkup(page, tooWide, { sourceWidth: 320 })
   expect(rejected.error?.name).toBe("SharePosterError")
   expect(rejected.error?.message).toContain("公式过宽")
   expect(rejected.hosts).toBe(0)

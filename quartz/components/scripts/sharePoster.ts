@@ -1,5 +1,5 @@
 import * as QRCode from "qrcode"
-import { toBlob } from "html-to-image"
+import { domToBlob } from "modern-screenshot"
 import { foundations, light } from "../../design/tokens"
 import { sharePosterStyles } from "./sharePosterStyles"
 import {
@@ -222,6 +222,14 @@ export function snapshotArticle(article: Element): HTMLElement {
             "height",
             "min-width",
             "max-width",
+            "min-height",
+            "max-height",
+            "inline-size",
+            "block-size",
+            "min-inline-size",
+            "max-inline-size",
+            "min-block-size",
+            "max-block-size",
           ].includes(property)
         ) {
           cloned.style.setProperty(property, value)
@@ -675,20 +683,31 @@ export async function generateLongSharePoster(input: SharePosterInput): Promise<
     const height = Math.ceil(root.getBoundingClientRect().height)
     if (height > MAX_POSTER_HEIGHT)
       throw new SharePosterError("文章内容过长，暂时无法生成清晰分享图。")
-    const blob = await toBlob(root, {
+    let unexpectedResource: SharePosterError | undefined
+    const rejectUnexpectedResource = () => {
+      unexpectedResource = new SharePosterError("文章仍有未嵌入的图片资源，请刷新页面后重试。")
+      throw unexpectedResource
+    }
+    const blob = await domToBlob(root, {
       width: POSTER_WIDTH,
       height,
-      pixelRatio: POSTER_SCALE,
+      scale: POSTER_SCALE,
       backgroundColor: light["color-canvas"],
-      fontEmbedCSS,
-      skipFonts: !fontEmbedCSS,
-      includeQueryParams: true,
-      cacheBust: false,
-      fetchRequestInit: { mode: "cors", credentials: "omit", signal: controller.signal },
-      onImageErrorHandler: () => {
-        throw new SharePosterError("文章图片未能完整绘制，请重试。")
+      font: fontEmbedCSS ? { cssText: fontEmbedCSS } : false,
+      timeout: GENERATION_TIMEOUT,
+      features: { fixSvgXmlDecode: true },
+      fetch: {
+        bypassingCache: false,
+        requestInit: { mode: "cors", credentials: "omit", signal: controller.signal },
+        placeholderImage: rejectUnexpectedResource,
+      },
+      // Preflight already embedded every image. Never let SDK error recovery hide a miss.
+      fetchFn: async () => rejectUnexpectedResource(),
+      onEmbedNode: () => {
+        if (unexpectedResource) throw unexpectedResource
       },
     })
+    if (unexpectedResource) throw unexpectedResource
     if (!blob || blob.type !== "image/png") throw new SharePosterError("分享图编码失败，请重试。")
     return blob
   }

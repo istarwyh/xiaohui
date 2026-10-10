@@ -1,4 +1,4 @@
-/** html-to-image intentionally tolerates missing resources. Export must not. */
+/** Screenshot SDKs tolerate missing resources. Export must not. */
 export class SharePosterError extends Error {
   override name = "SharePosterError"
 }
