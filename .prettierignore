@@ -14,3 +14,7 @@ extra-pages/
 
 # Generated data files
 scripts/cards-data.json
+
+# Browser QA output
+test-results/
+playwright-report/

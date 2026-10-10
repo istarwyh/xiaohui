@@ -1,3 +1,5 @@
+@use "../../styles/variables.scss" as *;
+
 .copy-page-control {
   position: relative;
   display: inline-flex;
@@ -90,7 +92,7 @@
   display: grid;
   align-items: end;
   justify-items: stretch;
-  background: rgba(0, 0, 0, 0.48);
+  background: var(--color-overlay);
 
   &[hidden] {
     display: none;
@@ -105,7 +107,7 @@
   border: 1px solid var(--lightgray);
   border-radius: 14px 14px 0 0;
   background: var(--light);
-  box-shadow: 0 -0.8rem 2rem rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-overlay);
   padding: 1rem;
 }
 
@@ -123,8 +125,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: var(--control-touch);
+  height: var(--control-touch);
   border: 0;
   border-radius: 999px;
   background: var(--lightgray);
@@ -197,10 +199,11 @@
 .share-page-poster-image {
   display: block;
   width: 100%;
-  max-height: min(46vh, 28rem);
+  height: auto;
+  box-sizing: border-box;
   border: 1px solid var(--lightgray);
   border-radius: 8px;
-  background: white;
+  background: var(--color-surface-raised);
   object-fit: contain;
 }
 
@@ -208,7 +211,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.35rem;
+  min-height: var(--control-touch);
   border: 1px solid var(--lightgray);
   border-radius: 8px;
   background: var(--light);
@@ -275,7 +278,7 @@
   color: var(--secondary);
 }
 
-@media (min-width: 800px) {
+@media not #{$mobile} {
   .share-page-sheet {
     align-items: center;
     justify-items: center;
@@ -284,7 +287,7 @@
   .share-page-panel {
     width: min(28rem, calc(100vw - 2rem));
     border-radius: 8px;
-    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.22);
+    box-shadow: var(--shadow-overlay);
   }
 }
 
@@ -293,4 +296,41 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     row-gap: 1rem;
   }
+}
+
+.share-page-formats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+
+  & > button {
+    min-height: var(--control-touch);
+    border: var(--border-width) solid var(--color-border-strong);
+    border-radius: var(--radius-medium);
+    padding: var(--space-2);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: var(--text-small);
+    cursor: pointer;
+  }
+
+  & > button[aria-pressed="true"] {
+    background: var(--color-accent-soft);
+    color: var(--color-text-strong);
+    border-color: var(--color-accent);
+    font-weight: var(--weight-strong);
+  }
+}
+
+.share-page-sheet :is(button, a):focus-visible,
+.share-page-button:focus-visible {
+  outline: var(--focus-width) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+
+.share-page-sheet[data-poster-format="long"] .share-page-poster-image {
+  // Keep full-width text readable; the panel scrolls instead of shrinking the long image.
+  max-height: none;
 }
