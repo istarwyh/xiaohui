@@ -154,3 +154,9 @@ Generated or derived files/directories include `public/`, `.quartz-cache/`, `tsc
 ## Visual design and AI contributions
 
 Read `design/README.md` before changing the site UI. `quartz/design/tokens.ts` is the single source for brand values; use semantic CSS variables rather than hardcoded colors or a separate dark-mode cascade. Preserve the compact feed contract and keep design documentation outside `content/`. Run `npm run check:design` for visual-system changes and report browser checks plus any existing repository check failures separately.
+
+## Research and reuse before custom implementation
+
+- Before selecting an implementation, research existing open-source SDKs and solutions suited to the problem. Verify capabilities and limitations against official documentation and source code; compare maintenance activity, license compatibility, integration fit, and relevant runtime or platform constraints. Prefer a suitable existing solution over rebuilding it.
+- Before choosing custom implementation, record concrete evidence explaining why the available options do not meet the requirements and define the smallest necessary custom scope. Reuse suitable parts where possible; this does not prohibit justified custom work or mandate a particular library.
+- Validate the choice with a small proof of concept and tests using representative content, data, and flows from this project. Evaluate the actual user experience and failure cases, not just project names or star counts. Synthetic examples can supplement coverage, but their success does not establish that real project content works well.
