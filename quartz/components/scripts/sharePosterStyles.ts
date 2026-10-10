@@ -3,7 +3,7 @@ export const sharePosterStyles = `
 .share-poster-host { position: fixed; left: -10000px; top: 0; width: 360px; pointer-events: none; z-index: -1; }
 .share-poster { box-sizing: border-box; width: 360px; padding: 24px; background: var(--color-canvas); color: var(--color-text); font: 18px/var(--leading-reading) var(--font-body); color-scheme: light; text-align: left; overflow-wrap: anywhere; }
 .share-poster, .share-poster * { box-sizing: border-box; animation: none; transition: none; caret-color: transparent; }
-.share-poster-header { margin: 0 0 24px; }
+.share-poster-header { display: block; position: static; width: 100%; margin: 0 0 24px; opacity: 1; }
 .share-poster-brand { margin: 0 0 12px; color: var(--color-accent); font-size: 14px; line-height: 1.5; font-weight: 600; }
 .share-poster-title { margin: 0; color: var(--color-text-strong); font: 700 27px/var(--leading-tight) var(--font-body); overflow-wrap: anywhere; }
 .share-poster-author { margin: 12px 0 0; color: var(--color-text-muted); font-size: 14px; line-height: 1.5; }
@@ -32,12 +32,15 @@ export const sharePosterStyles = `
 .share-poster-article code { font-family: var(--font-code); font-size: .85em; background: var(--color-surface); border-radius: var(--radius-small); padding: .1em .2em; white-space: break-spaces; overflow-wrap: anywhere; }
 .share-poster-article pre { margin: 16px 0; padding: 10px 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-medium); font: 14px/var(--leading-code) var(--font-code); max-width: 100%; min-width: 0; white-space: pre-wrap; overflow: visible; tab-size: 2; }
 .share-poster-article pre code { display: block; margin: 0; padding: 0; font: inherit; border: 0; background: none; white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; }
-.share-poster-article pre code > [data-line] { display: block; padding: 0 3px; min-height: 1.6em; white-space: pre-wrap; overflow-wrap: anywhere; }
+.share-poster-article pre code:has(> [data-line]) { display: grid; }
+.share-poster-article pre code > [data-line] { display: block; min-width: 0; padding: 0 3px; min-height: 1.6em; white-space: pre-wrap; overflow-wrap: anywhere; }
 .share-poster-article pre code > [data-line]::before { content: none; }
 .share-poster-article [data-highlighted-line] { background: var(--color-accent-soft); border-left: 3px solid var(--color-accent); }
 .share-poster-article [data-highlighted-chars] { background: var(--color-accent-soft); }
 .share-poster-article figure { margin: 16px 0; max-width: 100%; }
 .share-poster-article figcaption, .share-poster-article [data-rehype-pretty-code-title] { font-size: 14px; line-height: 1.5; color: var(--color-text-muted); margin: 6px 0; }
+.share-poster img { content-visibility: visible; contain: none; }
+.share-poster-article p > img + em { transform: none; }
 .share-poster-article img { display: block; max-width: 100%; width: auto; height: auto; max-height: 720px; margin: 12px auto; border-radius: var(--radius-small); object-fit: contain; }
 .share-poster-article .table-container { overflow: visible; width: 100%; }
 .share-poster-article table { border-collapse: collapse; table-layout: fixed; width: 100%; max-width: 100%; margin: 16px 0; padding: 0; font-size: 14px; }
@@ -55,7 +58,7 @@ export const sharePosterStyles = `
 .share-poster-article .katex-mathml { display: none; }
 .share-poster-article svg { max-width: 100%; height: auto; }
 .share-poster-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: linear-gradient(to bottom, transparent, var(--color-canvas)); pointer-events: none; }
-.share-poster-footer { display: flex; align-items: center; gap: 16px; margin: 24px 0 0; padding: 20px 0 0; border-top: 1px solid var(--color-border); color: var(--color-text); }
+.share-poster-footer { display: flex; position: static; width: 100%; opacity: 1; align-items: center; gap: 16px; margin: 24px 0 0; padding: 20px 0 0; border-top: 1px solid var(--color-border); color: var(--color-text); }
 .share-poster-qr { display: block; flex: 0 0 auto; margin: 0; padding: 0; background: var(--color-surface-raised); border-radius: var(--radius-medium); image-rendering: pixelated; }
 .share-poster-footer-copy { display: flex; flex: 1; flex-direction: column; align-self: stretch; justify-content: center; min-width: 0; padding-left: 16px; border-left: 1px solid var(--color-border); }
 .share-poster-footer-label { margin: 0; color: var(--color-accent); font-size: 16px; line-height: 1.5; font-weight: 700; }

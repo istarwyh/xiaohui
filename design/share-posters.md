@@ -23,7 +23,7 @@
 
 自动测试通过 `npm test` 执行，包括长图内容与排版边界、实际 SSR 署名和真实 inline 脚本的异步生命周期。设计契约与类型/格式检查仍使用 `npm run check:design` 和 `npm run check`。
 
-`npm run test:share-browser` 使用 Chromium 对真实组件执行浏览器验收，解码导出的 PNG 二维码并保存 320px / 390px / 桌面截图。首次运行需要 `npx playwright install --with-deps chromium` 和可显示中文的字体。CI 在独立只读 Ubuntu 作业运行这些测试并上传 `share-posters-<SHA>` 证据，不部署网站。详情见 [浏览器测试说明](../tests/browser/README.md)。
+`npm run test:share-browser` 使用 Chromium 与 WebKit 对真实组件执行浏览器验收，解码导出的 PNG 二维码并保存 320px / 390px / 桌面截图。首次运行需要 `npx playwright install --with-deps chromium webkit` 和可显示中文的字体。CI 在独立只读 Ubuntu 作业运行这些测试并上传 `share-posters-<browser>-<SHA>` 证据，不部署网站。详情见 [浏览器测试说明](../tests/browser/README.md)。
 
 真实浏览器还应检查：
 
@@ -58,6 +58,8 @@
 当成资源齐全的证据。导出前由应用明确等待、校验并内联所需图片与字体，失败显示可重试的
 资源错误，不无声漏图。只请求文章已有资源，不上传正文、不使用截图服务或跨域代理。
 第三方服务器不允许浏览器读取时会明确失败；SDK 不能绕过 CORS。
+现有 Assets 构建管线会发布 `content/` 内的本地图片，分享图可直接复用这些同源资源；
+它不会下载或缓存外链图片，本次也不新增图片代理或迁移文章资源。
 
 约 800 字在自然内容块附近收尾，超长单段保留内联结构并按句子或完整字素边界截取。
 图片和结构化内容保留原节点；高度保护与渐隐只作用于正文。预览仍可纵向滚动。

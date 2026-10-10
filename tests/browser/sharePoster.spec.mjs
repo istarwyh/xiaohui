@@ -56,13 +56,15 @@ window.qa.snapshot = () => {
   if (!root) return null;
   const rect = root.getBoundingClientRect();
   const article = root.querySelector('.share-poster-article');
-  const nodes = Array.from(root.querySelectorAll('h1,h2,h3,h4,p,strong,em,a,ol,ul,li,blockquote,pre,code,table,thead,tbody,tr,th,td,img,svg,.katex,.katex-html,.katex-mathml,.share-poster-footer,.share-poster-body,.share-poster-fade')).map(node => {
+  const nodes = Array.from(root.querySelectorAll('h1,h2,h3,h4,p,strong,em,a,ol,ul,li,blockquote,pre,code,table,thead,tbody,tr,th,td,img,svg,[data-line],.katex,.katex-html,.katex-mathml,.share-poster-footer,.share-poster-body,.share-poster-fade')).map(node => {
     const r = node.getBoundingClientRect();
     const style = getComputedStyle(node);
+    let effectiveOpacity=1;
+    for(let ancestor=node;ancestor&&ancestor!==root.parentElement;ancestor=ancestor.parentElement) effectiveOpacity*=Number(getComputedStyle(ancestor).opacity);
     return {tag:node.tagName.toLowerCase(), class:node.className?.baseVal ?? node.className, text:node.textContent, html:node.outerHTML,
       x:r.x-rect.x,y:r.y-rect.y,width:r.width,height:r.height,
-      naturalWidth:node.naturalWidth,naturalHeight:node.naturalHeight,
-      style:{color:style.color,background:style.backgroundColor,fontSize:style.fontSize,fontWeight:style.fontWeight,fontStyle:style.fontStyle,fontFamily:style.fontFamily,display:style.display,whiteSpace:style.whiteSpace,overflow:style.overflow,listStyleType:style.listStyleType,borderLeftWidth:style.borderLeftWidth}};
+      naturalWidth:node.naturalWidth,naturalHeight:node.naturalHeight,codeLine:node.hasAttribute('data-line'),effectiveOpacity,
+      style:{opacity:style.opacity,color:style.color,background:style.backgroundColor,fontSize:style.fontSize,fontWeight:style.fontWeight,fontStyle:style.fontStyle,fontFamily:style.fontFamily,display:style.display,whiteSpace:style.whiteSpace,lineHeight:style.lineHeight,overflow:style.overflow,listStyleType:style.listStyleType,borderLeftWidth:style.borderLeftWidth}};
   });
   const snapshot = {text:root.textContent,body:article?.textContent,html:article?.innerHTML,rootHtml:root.outerHTML,truncated:root.dataset.truncated,width:rect.width,height:rect.height,nodes};
   window.qa.snapshots.push(snapshot);
@@ -503,6 +505,7 @@ async function exportImage(page, name, width, expectedUrl) {
   )
   if (width === 720) {
     expect(prepared, "DOM snapshot exists at native PNG encoding").toBeTruthy()
+    assertHeaderLayout(prepared)
     const body = prepared.nodes.find((node) => node.class?.includes("share-poster-body"))
     expect(
       pixelInk(png, body),
@@ -511,6 +514,8 @@ async function exportImage(page, name, width, expectedUrl) {
     expect(prepared.text).not.toContain(expectedUrl)
     const footer = prepared.nodes.find((node) => node.class?.includes("share-poster-footer"))
     const qr = prepared.nodes.find((node) => node.class?.includes("share-poster-qr"))
+    expect(footer.style.opacity).toBe("1")
+    expect(qr.effectiveOpacity).toBe(1)
     expect(footer.height).toBeLessThanOrEqual(170)
     expect(qr.x).toBeLessThan(prepared.width / 2)
     expect(qr.y).toBeGreaterThanOrEqual(footer.y)
@@ -536,6 +541,24 @@ async function exportImage(page, name, width, expectedUrl) {
   }))
   await writeFile(path.join(artifacts, name + "-generation.json"), JSON.stringify(stages, null, 2))
   return { width: png.width, height: png.height, filename, stages }
+}
+
+function assertHeaderLayout(prepared) {
+  const brand = prepared.nodes.find((node) => node.class === "share-poster-brand")
+  const title = prepared.nodes.find((node) => node.class === "share-poster-title")
+  expect(
+    brand.width,
+    "Export brand must occupy the reading width, not a narrow flex column",
+  ).toBeGreaterThanOrEqual(300)
+  expect(title.width).toBeGreaterThanOrEqual(300)
+  expect(title.y).toBeGreaterThanOrEqual(brand.y + brand.height)
+  expect(brand.height, "Brand domain must fit on one line").toBeLessThanOrEqual(
+    parseFloat(brand.style.lineHeight) + 1,
+  )
+  const footer = prepared.nodes.find((node) => node.class === "share-poster-footer")
+  const qr = prepared.nodes.find((node) => node.class === "share-poster-qr")
+  expect(footer.style.opacity).toBe("1")
+  expect(qr.effectiveOpacity).toBe(1)
 }
 
 function pixelInk(png, rect) {
@@ -574,6 +597,7 @@ async function saveDirectImage(result, name, expectedUrl) {
   expect(png.height).toBeGreaterThan(200)
   expect(png.height).toBeLessThanOrEqual(8000)
   expect(jsQR(new Uint8ClampedArray(png.data), png.width, png.height)?.data).toBe(expectedUrl)
+  assertHeaderLayout(result.prepared)
   const body = result.prepared.nodes.find((node) => node.class?.includes("share-poster-body"))
   expect(pixelInk(png, body)).toBeGreaterThan(0.015)
   return { png, bytes }
@@ -588,7 +612,7 @@ async function renderMarkup(page, html, options = {}) {
       article.innerHTML = html
       try {
         const blob = await window.SharePosterQA.generateLongSharePoster({
-          title: "结构保真与资源验证",
+          title: options.title || "结构保真与资源验证",
           url: document.querySelector('link[rel="canonical"]').href,
           article,
         })
@@ -942,7 +966,8 @@ if (process.env.SHARE_QA_REAL_ARTICLES === "1") {
       )
       const image = await saveDirectImage(result, `built-vector-${section}-excerpt`, canonicalUrl)
       expect(result.prepared.html).toContain('class="katex')
-      expect(result.prepared.html).toContain("mfrac")
+      expect(result.prepared.html).toContain(section === "euclidean" ? "sqrt" : "mfrac")
+      expect(result.prepared.html).toContain("msupsub")
       const formula = result.prepared.nodes.find((node) => node.class === "katex")
       expect(
         pixelInk(image.png, formula),
@@ -1040,7 +1065,7 @@ test("nested inline semantics, safe SVG, images and grapheme truncation survive 
 }) => {
   await page.goto(`${base}/short.html`)
   await page.addScriptTag({ url: `${base}/renderer.js` })
-  const markup = `<h2>保留原始结构</h2><p><strong>粗体 <em>嵌套斜体</em></strong> <a href="https://xiaohui.cool/">原文链接</a> <code>inlineCode()</code> 👩🏽‍💻 é</p><ol start="3"><li>第三项<ul><li>嵌套列表</li></ul></li><li value="8">第八项</li></ol><blockquote><p>真实引用结构</p></blockquote><pre><code data-theme="github-light github-dark"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583">const</span> answer = 42;</code></pre><table><thead><tr><th>方法</th><th>特点</th></tr></thead><tbody><tr><td>DOM</td><td>结构保真</td></tr></tbody></table><p><img src="/actual-image.png" alt="两色测试图片" width="96" height="64"></p><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40" width="100" height="40"><rect width="100" height="40" fill="#168F64"/></svg>`
+  const markup = `<h2>保留原始结构</h2><p><strong>粗体 <em>嵌套斜体</em></strong> <a href="https://xiaohui.cool/">原文链接</a> <code>inlineCode()</code> 👩🏽‍💻 é</p><ol start="3"><li>第三项<ul><li>嵌套列表</li></ul></li><li value="8">第八项</li></ol><blockquote><p>真实引用结构</p></blockquote><pre><code data-theme="github-light github-dark"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583">const</span> answer = 42;</code></pre><table><thead><tr><th>方法</th><th>特点</th></tr></thead><tbody><tr><td>DOM</td><td>结构保真</td></tr></tbody></table><p><img src="/actual-image.png" alt="两色测试图片" width="96" height="64"><em>图片说明不得压住原图</em></p><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40" width="100" height="40"><rect width="100" height="40" fill="#168F64"/></svg>`
   const result = await renderMarkup(page, markup)
   expect(result.error).toBeUndefined()
   const { png } = await saveDirectImage(result, "rich-structure", canonical("short"))
@@ -1063,6 +1088,10 @@ test("nested inline semantics, safe SVG, images and grapheme truncation survive 
   )
   expect(image.naturalWidth).toBe(96)
   expect(image.width / image.height).toBeCloseTo(1.5, 1)
+  const caption = dom.nodes.find(
+    (node) => node.tag === "em" && node.text === "图片说明不得压住原图",
+  )
+  expect(caption.y).toBeGreaterThanOrEqual(image.y + image.height)
   const sample = (xFraction) => {
     const x = Math.round((image.x + image.width * xFraction) * 2)
     const y = Math.round((image.y + image.height * 0.5) * 2)
@@ -1204,7 +1233,7 @@ test("display math retains fraction, radical and superscript geometry in actual 
   await page.addScriptTag({ url: `${base}/renderer.js` })
   await page.addStyleTag({ url: `${base}/katex/katex.min.css` })
   const formula = katex.renderToString(
-    String.raw`\frac{\sqrt{a_1^2+a_2^2+a_3^2}}{1+\frac{b_i}{c^{2}}}=\sum_{i=1}^{n}\frac{x_i^2}{y_i}`,
+    String.raw`\frac{\sqrt{a_1^2+a_2^2}}{1+b_i^2}=\frac{x_i}{y^2}`,
     { displayMode: true, output: "html" },
   )
   const result = await renderMarkup(
@@ -1221,6 +1250,18 @@ test("display math retains fraction, radical and superscript geometry in actual 
   expect(box.x).toBeGreaterThanOrEqual(23)
   expect(box.x + box.width).toBeLessThanOrEqual(337)
   expect(pixelInk(png, box)).toBeGreaterThan(0.02)
+  const tooWide = katex.renderToString(
+    String.raw`\frac{\sqrt{a_1^2+a_2^2+a_3^2}}{1+\frac{b_i}{c^{2}}}=\sum_{i=1}^{n}\frac{x_i^2}{y_i}`,
+    { displayMode: true, output: "html" },
+  )
+  const rejected = await renderMarkup(page, tooWide)
+  expect(rejected.error?.name).toBe("SharePosterError")
+  expect(rejected.error?.message).toContain("公式过宽")
+  expect(rejected.hosts).toBe(0)
+  await writeFile(
+    path.join(artifacts, "oversized-formula-failure.json"),
+    JSON.stringify(rejected, null, 2),
+  )
 })
 
 test("height protection preserves a complete tall image and avoids orphan section titles", async ({
@@ -1250,4 +1291,54 @@ test("height protection preserves a complete tall image and avoids orphan sectio
   expect(
     Array.from(png.data.subarray((y * png.width + x) * 4, (y * png.width + x) * 4 + 3)),
   ).toEqual([15, 180, 215])
+})
+
+test("highlighted code keeps adjacent lines while raw code preserves original whitespace", async ({
+  page,
+}) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  const plain = 'function plain() {\n  return "原始缩进";\n}\n'
+  const highlighted =
+    '<pre><code data-theme="github-light github-dark"><span data-line><span style="--shiki-light:#D73A49">const</span> value = 1;</span>\n<span data-line>  consume(value);</span>\n<span data-line></span>\n<span data-line>done();</span></code></pre>'
+  const result = await renderMarkup(
+    page,
+    `<h2>高亮代码</h2>${highlighted}<h2>原始代码</h2><pre><code>${escape(plain)}</code></pre>`,
+  )
+  expect(result.error).toBeUndefined()
+  await saveDirectImage(result, "code-line-spacing", canonical("short"))
+  const lines = result.prepared.nodes.filter((node) => node.codeLine)
+  expect(lines).toHaveLength(4)
+  expect(lines[1].text).toBe("  consume(value);")
+  expect(lines[2].text).toBe("")
+  expect(lines[2].height).toBeGreaterThan(0)
+  for (let index = 1; index < lines.length; index++) {
+    const previous = lines[index - 1]
+    expect(
+      Math.abs(lines[index].y - (previous.y + previous.height)),
+      "Shiki separator newlines must not create anonymous blank rows",
+    ).toBeLessThanOrEqual(1)
+  }
+  const codes = result.prepared.nodes.filter((node) => node.tag === "code")
+  expect(codes).toHaveLength(2)
+  expect(codes[0].style.display).toBe("grid")
+  expect(codes[1].style.display).toBe("block")
+  expect(codes[0].height).toBeLessThanOrEqual(
+    lines.reduce((height, line) => height + line.height, 0) + 1,
+  )
+  expect(codes[1].text).toBe(plain)
+  expect(codes[1].style.whiteSpace).toBe("pre-wrap")
+  expect(codes[1].height).toBeGreaterThanOrEqual(parseFloat(codes[1].style.lineHeight) * 3 - 1)
+})
+
+test("long mixed-language titles stay below the single-line brand", async ({ page }) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  const title = "长中英文标题：Building Reliable DOM Sharing for Rich Articles 与公式图片排版"
+  const result = await renderMarkup(page, "<p>标题与站点品牌各自完整呈现，页脚二维码清晰。</p>", {
+    title,
+  })
+  expect(result.error).toBeUndefined()
+  expect(result.prepared.nodes.find((node) => node.class === "share-poster-title").text).toBe(title)
+  await saveDirectImage(result, "long-mixed-title", canonical("short"))
 })
