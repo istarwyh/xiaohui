@@ -3,6 +3,7 @@ import { build } from "esbuild"
 import * as sass from "sass"
 import { PNG } from "pngjs"
 import jsQR from "jsqr"
+import QRCode from "qrcode"
 import katex from "katex"
 import { createServer } from "node:http"
 import { createHash } from "node:crypto"
@@ -67,7 +68,7 @@ window.qa.snapshot = () => {
   if (!root) return null;
   const rect = root.getBoundingClientRect();
   const article = root.querySelector('.share-poster-article');
-  const nodes = Array.from(root.querySelectorAll('h1,h2,h3,h4,p,strong,em,a,ol,ul,li,blockquote,pre,code,table,thead,tbody,tr,th,td,img,svg,[data-line],.frac-line,.katex,.katex-html,.katex-mathml,.share-poster-footer,.share-poster-body,.share-poster-fade')).map(node => {
+  const nodes = Array.from(root.querySelectorAll('h1,h2,h3,h4,p,strong,em,a,ol,ul,li,blockquote,pre,code,table,thead,tbody,tr,th,td,img,svg,[data-line],.frac-line,.katex,.katex-html,.katex-mathml,.share-poster-footer,.share-poster-footer-copy,.share-poster-body,.share-poster-fade')).map(node => {
     const r = node.getBoundingClientRect();
     const style = getComputedStyle(node);
     let effectiveOpacity=1;
@@ -75,7 +76,7 @@ window.qa.snapshot = () => {
     return {tag:node.tagName.toLowerCase(), class:node.className?.baseVal ?? node.className, text:node.textContent, html:node.outerHTML,
       x:r.x-rect.x,y:r.y-rect.y,width:r.width,height:r.height,
       naturalWidth:node.naturalWidth,naturalHeight:node.naturalHeight,codeLine:node.hasAttribute('data-line'),sqrtSvg:node.matches('.katex .sqrt svg'),fractionLine:node.matches('.katex .frac-line'),effectiveOpacity,
-      style:{opacity:style.opacity,color:style.color,background:style.backgroundColor,fontSize:style.fontSize,fontWeight:style.fontWeight,fontStyle:style.fontStyle,fontFamily:style.fontFamily,display:style.display,whiteSpace:style.whiteSpace,lineHeight:style.lineHeight,overflow:style.overflow,listStyleType:style.listStyleType,borderLeftWidth:style.borderLeftWidth,borderBottomWidth:style.borderBottomWidth}};
+      style:{opacity:style.opacity,color:style.color,background:style.backgroundColor,fontSize:style.fontSize,fontWeight:style.fontWeight,fontStyle:style.fontStyle,fontFamily:style.fontFamily,display:style.display,whiteSpace:style.whiteSpace,lineHeight:style.lineHeight,overflow:style.overflow,listStyleType:style.listStyleType,borderLeftWidth:style.borderLeftWidth,borderRightWidth:style.borderRightWidth,paddingRight:style.paddingRight,borderBottomWidth:style.borderBottomWidth}};
   });
   const snapshot = {text:root.textContent,body:article?.textContent,html:article?.innerHTML,rootHtml:root.outerHTML,truncated:root.dataset.truncated,width:rect.width,height:rect.height,nodes};
   window.qa.snapshots.push(snapshot);
@@ -543,8 +544,23 @@ async function exportImage(page, name, width, expectedUrl) {
     expect(footer.style.opacity).toBe("1")
     expect(qr.effectiveOpacity).toBe(1)
     expect(footer.height).toBeLessThanOrEqual(170)
-    expect(qr.x).toBeLessThan(prepared.width / 2)
+    expect(qr.x).toBeGreaterThan(prepared.width / 2)
     expect(qr.y).toBeGreaterThanOrEqual(footer.y)
+    if (name === "built-ddd-390") {
+      const top = Math.max(0, Math.floor(footer.y * 2) - 12)
+      const crop = new PNG({ width: png.width, height: png.height - top })
+      for (let row = 0; row < crop.height; row++)
+        png.data.copy(
+          crop.data,
+          row * png.width * 4,
+          (top + row) * png.width * 4,
+          (top + row + 1) * png.width * 4,
+        )
+      expect(jsQR(new Uint8ClampedArray(crop.data), crop.width, crop.height)?.data).toBe(
+        expectedUrl,
+      )
+      await writeFile(path.join(artifacts, name + "-footer.png"), PNG.sync.write(crop))
+    }
     for (const node of prepared.nodes.filter((node) =>
       ["pre", "table", "img", "svg"].includes(node.tag),
     )) {
@@ -570,21 +586,31 @@ async function exportImage(page, name, width, expectedUrl) {
 }
 
 function assertHeaderLayout(prepared) {
-  const brand = prepared.nodes.find((node) => node.class === "share-poster-brand")
+  expect(prepared.nodes.some((node) => node.class === "share-poster-brand")).toBe(false)
   const title = prepared.nodes.find((node) => node.class === "share-poster-title")
-  expect(
-    brand.width,
-    "Export brand must occupy the reading width, not a narrow flex column",
-  ).toBeGreaterThanOrEqual(300)
   expect(title.width).toBeGreaterThanOrEqual(300)
-  expect(title.y).toBeGreaterThanOrEqual(brand.y + brand.height)
-  expect(brand.height, "Brand domain must fit on one line").toBeLessThanOrEqual(
-    parseFloat(brand.style.lineHeight) + 1,
-  )
+  expect(title.x).toBe(24)
+  expect(title.y, "Article title starts the poster without a brand row").toBe(24)
   const footer = prepared.nodes.find((node) => node.class === "share-poster-footer")
   const qr = prepared.nodes.find((node) => node.class === "share-poster-qr")
   expect(footer.style.opacity).toBe("1")
   expect(qr.effectiveOpacity).toBe(1)
+  const label = prepared.nodes.find((node) => node.class === "share-poster-footer-label")
+  if (qr.width > 140) {
+    const copy = prepared.nodes.find((node) => node.class === "share-poster-footer-copy")
+    expect(copy.y + copy.height).toBeLessThan(qr.y)
+    expect(copy.style.borderRightWidth).toBe("0px")
+    expect(copy.style.paddingRight).toBe("0px")
+    expect(Math.abs(qr.x + qr.width / 2 - prepared.width / 2)).toBeLessThanOrEqual(0.5)
+  } else {
+    expect(label.x, "Footer text aligns with the article's left edge").toBe(title.x)
+    expect(
+      label.x + label.width,
+      "Footer text leaves a clear gap before the right QR",
+    ).toBeLessThan(qr.x)
+    expect(qr.x).toBeGreaterThan(prepared.width / 2)
+  }
+  expect(qr.x + qr.width).toBeLessThanOrEqual(prepared.width - 24 + 1)
 }
 
 function strokeCoverage(png, rect) {
@@ -702,7 +728,7 @@ async function renderMarkup(page, html, options = {}) {
       try {
         const blob = await window.SharePosterQA.generateLongSharePoster({
           title: options.title || "结构保真与资源验证",
-          url: document.querySelector('link[rel="canonical"]').href,
+          url: options.url || document.querySelector('link[rel="canonical"]').href,
           article,
         })
         return {
@@ -1489,7 +1515,9 @@ test("highlighted code keeps adjacent lines while raw code preserves original wh
   expect(codes[1].height).toBeGreaterThanOrEqual(parseFloat(codes[1].style.lineHeight) * 3 - 1)
 })
 
-test("long mixed-language titles stay below the single-line brand", async ({ page }) => {
+test("long mixed-language titles lead the poster without a duplicate brand row", async ({
+  page,
+}) => {
   await page.goto(`${base}/short.html`)
   await page.addScriptTag({ url: `${base}/renderer.js` })
   const title = "长中英文标题：Building Reliable DOM Sharing for Rich Articles 与公式图片排版"
@@ -1512,4 +1540,34 @@ test("native PNG encoding fallback remains usable when toDataURL succeeds", asyn
   ).toBe(true)
   await exportImage(page, "native-encoding-fallback", 720, canonical("short"))
   await expect(page.locator(".share-poster-host")).toHaveCount(0)
+})
+
+test("dense canonical URLs keep a complete QR below the footer text", async ({ page }) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  const url = "https://xiaohui.cool/article?source=" + "long-reference-".repeat(100)
+  const result = await renderMarkup(page, "<p>长链接仍保留清晰完整的二维码与阅读全文提示。</p>", {
+    url,
+  })
+  expect(result.error).toBeUndefined()
+  const { png } = await saveDirectImage(result, "dense-url-footer", url)
+  const qr = result.prepared.nodes.find((node) => node.class === "share-poster-qr")
+  expect(qr.width).toBeGreaterThan(140)
+  const modules = QRCode.create(url, { errorCorrectionLevel: "M" }).modules.size
+  const modulePixels = (qr.width * 2) / (modules + 8)
+  expect(Number.isInteger(modulePixels)).toBe(true)
+  expect(modulePixels).toBeGreaterThanOrEqual(3)
+  const quiet = modulePixels * 4
+  const left = Math.round(qr.x * 2),
+    top = Math.round(qr.y * 2),
+    side = Math.round(qr.width * 2)
+  let darkestQuietPixel = 255
+  for (let y = 0; y < side; y++) {
+    for (let x = 0; x < side; x++) {
+      if (x >= quiet && x < side - quiet && y >= quiet && y < side - quiet) continue
+      const offset = ((top + y) * png.width + left + x) * 4
+      darkestQuietPixel = Math.min(darkestQuietPixel, ...png.data.subarray(offset, offset + 3))
+    }
+  }
+  expect(darkestQuietPixel, "Four-module quiet zone contains no dark pixels").toBeGreaterThan(240)
 })

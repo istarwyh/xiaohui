@@ -557,10 +557,7 @@ export async function generateLongSharePoster(input: SharePosterInput): Promise<
   style.textContent = sharePosterStyles
   const header = document.createElement("header")
   header.className = "share-poster-header"
-  header.append(
-    createText(document, "p", "share-poster-brand", "晓灰 · xiaohui.cool"),
-    createText(document, "h1", "share-poster-title", title),
-  )
+  header.append(createText(document, "h1", "share-poster-title", title))
   if (author) header.append(createText(document, "p", "share-poster-author", `作者：${author}`))
   const body = document.createElement("div")
   body.className = "share-poster-body"
@@ -583,7 +580,7 @@ export async function generateLongSharePoster(input: SharePosterInput): Promise<
     note,
     createText(document, "p", "share-poster-footer-site", "晓灰 · xiaohui.cool"),
   )
-  footer.append(qr, copy)
+  footer.append(copy, qr)
   root.append(header, body, footer)
   host.append(style, root)
   prepareTables(excerpt.article)
@@ -616,8 +613,8 @@ export async function generateLongSharePoster(input: SharePosterInput): Promise<
     qr.style.height = `${qrSize}px`
     if (qrSize > 140) {
       footer.style.flexDirection = "column"
-      copy.style.borderLeft = "0"
-      copy.style.paddingLeft = "0"
+      copy.style.borderRight = "0"
+      copy.style.paddingRight = "0"
       copy.style.alignSelf = "center"
       copy.style.textAlign = "center"
     }

@@ -4,7 +4,6 @@ export const sharePosterStyles = `
 .share-poster { box-sizing: border-box; width: 360px; padding: 24px; background: var(--color-canvas); color: var(--color-text); font: 18px/var(--leading-reading) var(--font-body); color-scheme: light; text-align: left; overflow-wrap: anywhere; }
 .share-poster, .share-poster * { box-sizing: border-box; animation: none; transition: none; caret-color: transparent; }
 .share-poster-header { display: block; position: static; width: 100%; margin: 0 0 24px; opacity: 1; }
-.share-poster-brand { margin: 0 0 12px; color: var(--color-accent); font-size: 14px; line-height: 1.5; font-weight: 600; }
 .share-poster-title { margin: 0; color: var(--color-text-strong); font: 700 27px/var(--leading-tight) var(--font-body); overflow-wrap: anywhere; }
 .share-poster-author { margin: 12px 0 0; color: var(--color-text-muted); font-size: 14px; line-height: 1.5; }
 .share-poster-body { position: relative; overflow: hidden; }
@@ -61,7 +60,7 @@ export const sharePosterStyles = `
 .share-poster-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: linear-gradient(to bottom, transparent, var(--color-canvas)); pointer-events: none; }
 .share-poster-footer { display: flex; position: static; width: 100%; opacity: 1; align-items: center; gap: 16px; margin: 24px 0 0; padding: 20px 0 0; border-top: 1px solid var(--color-border); color: var(--color-text); }
 .share-poster-qr { display: block; flex: 0 0 auto; margin: 0; padding: 0; background: var(--color-surface-raised); border-radius: var(--radius-medium); image-rendering: pixelated; }
-.share-poster-footer-copy { display: flex; flex: 1; flex-direction: column; align-self: stretch; justify-content: center; min-width: 0; padding-left: 16px; border-left: 1px solid var(--color-border); }
+.share-poster-footer-copy { display: flex; flex: 1; flex-direction: column; align-self: stretch; justify-content: center; min-width: 0; padding-right: 16px; border-right: 1px solid var(--color-border); }
 .share-poster-footer-label { margin: 0; color: var(--color-accent); font-size: 16px; line-height: 1.5; font-weight: 700; }
 .share-poster-footer-note { margin: 5px 0 0; color: var(--color-text-muted); font-size: 13px; line-height: 1.6; }
 .share-poster-footer-site { margin: 12px 0 0; color: var(--color-text-muted); font-size: 12px; line-height: 1.5; }
