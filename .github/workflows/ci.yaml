@@ -71,6 +71,14 @@ jobs:
         run: npm run test:share-browser
         env:
           SHARE_QA_SITE_DIRECTORY: public
+      - name: Build actual blog articles for share validation
+        run: npx quartz build -o .quartz-cache/share-production
+      - name: Verify a real blog article and its canonical QR
+        run: npm run test:share-browser -- --grep 'built Quartz article'
+        env:
+          SHARE_QA_SITE_DIRECTORY: .quartz-cache/share-production
+          SHARE_QA_ARTICLE_PATH: program/学习-思考-冷静/DDD.html
+          SHARE_QA_ARTICLE_TITLE: DDD
       - name: Upload share-image evidence
         if: always()
         uses: actions/upload-artifact@v7

@@ -609,9 +609,7 @@ test("dark page keeps paper-colored export and keyboard dismissal returns focus"
   expect(errors).toEqual([])
 })
 
-test("built Quartz documentation page exports and decodes its real canonical QR", async ({
-  page,
-}) => {
+test("built Quartz article exports and decodes its real canonical QR", async ({ page }) => {
   expect(
     process.env.SHARE_QA_SITE_DIRECTORY,
     "Set SHARE_QA_SITE_DIRECTORY to the fresh docs build; this integration smoke must not be silently skipped",
@@ -621,6 +619,16 @@ test("built Quartz documentation page exports and decodes its real canonical QR"
   await page.route("**/*", async (route) => {
     const request = route.request()
     if (new URL(request.url()).origin === new URL(base).origin) return route.continue()
+    // Use the production Mermaid SDK bytes for real articles with diagrams;
+    // an empty JavaScript stub would cause an unrelated initialize error.
+    if (request.url().startsWith("https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.0/")) {
+      const response = await fetch(request.url(), { signal: AbortSignal.timeout(30_000) })
+      return route.fulfill({
+        status: response.status,
+        contentType: response.headers.get("content-type") || "application/javascript",
+        body: Buffer.from(await response.arrayBuffer()),
+      })
+    }
     blockedRemoteRequests.push(request.url())
     // Empty, typed local responses prevent analytics/network access without manufacturing
     // unrelated ERR_BLOCKED_BY_CLIENT or stylesheet MIME errors in the acceptance result.
@@ -636,9 +644,12 @@ test("built Quartz documentation page exports and decodes its real canonical QR"
     })
   })
   await page.setViewportSize({ width: 390, height: 900 })
-  await page.goto(`${base}/built/index.html`)
-  await expect(page.locator(".article-title")).toContainText("Welcome to Quartz")
-  const canonicalUrl = await page.locator('link[rel="canonical"]').getAttribute("href")
+  await page.goto(`${base}/built/${process.env.SHARE_QA_ARTICLE_PATH || "index.html"}`)
+  await expect(page.locator(".article-title")).toContainText(
+    process.env.SHARE_QA_ARTICLE_TITLE || "Welcome to Quartz",
+  )
+  const canonicalUrl = new URL(await page.locator('link[rel="canonical"]').getAttribute("href"))
+    .href
   await openLong(page)
   await exportImage(page, "built-quartz-docs-390", 720, canonicalUrl)
   await page.getByRole("button", { name: "关闭分享面板" }).focus()
