@@ -67,15 +67,15 @@ window.qa.snapshot = () => {
   if (!root) return null;
   const rect = root.getBoundingClientRect();
   const article = root.querySelector('.share-poster-article');
-  const nodes = Array.from(root.querySelectorAll('h1,h2,h3,h4,p,strong,em,a,ol,ul,li,blockquote,pre,code,table,thead,tbody,tr,th,td,img,svg,[data-line],.katex,.katex-html,.katex-mathml,.share-poster-footer,.share-poster-body,.share-poster-fade')).map(node => {
+  const nodes = Array.from(root.querySelectorAll('h1,h2,h3,h4,p,strong,em,a,ol,ul,li,blockquote,pre,code,table,thead,tbody,tr,th,td,img,svg,[data-line],.frac-line,.katex,.katex-html,.katex-mathml,.share-poster-footer,.share-poster-body,.share-poster-fade')).map(node => {
     const r = node.getBoundingClientRect();
     const style = getComputedStyle(node);
     let effectiveOpacity=1;
     for(let ancestor=node;ancestor&&ancestor!==root.parentElement;ancestor=ancestor.parentElement) effectiveOpacity*=Number(getComputedStyle(ancestor).opacity);
     return {tag:node.tagName.toLowerCase(), class:node.className?.baseVal ?? node.className, text:node.textContent, html:node.outerHTML,
       x:r.x-rect.x,y:r.y-rect.y,width:r.width,height:r.height,
-      naturalWidth:node.naturalWidth,naturalHeight:node.naturalHeight,codeLine:node.hasAttribute('data-line'),effectiveOpacity,
-      style:{opacity:style.opacity,color:style.color,background:style.backgroundColor,fontSize:style.fontSize,fontWeight:style.fontWeight,fontStyle:style.fontStyle,fontFamily:style.fontFamily,display:style.display,whiteSpace:style.whiteSpace,lineHeight:style.lineHeight,overflow:style.overflow,listStyleType:style.listStyleType,borderLeftWidth:style.borderLeftWidth}};
+      naturalWidth:node.naturalWidth,naturalHeight:node.naturalHeight,codeLine:node.hasAttribute('data-line'),sqrtSvg:node.matches('.katex .sqrt svg'),fractionLine:node.matches('.katex .frac-line'),effectiveOpacity,
+      style:{opacity:style.opacity,color:style.color,background:style.backgroundColor,fontSize:style.fontSize,fontWeight:style.fontWeight,fontStyle:style.fontStyle,fontFamily:style.fontFamily,display:style.display,whiteSpace:style.whiteSpace,lineHeight:style.lineHeight,overflow:style.overflow,listStyleType:style.listStyleType,borderLeftWidth:style.borderLeftWidth,borderBottomWidth:style.borderBottomWidth}};
   });
   const snapshot = {text:root.textContent,body:article?.textContent,html:article?.innerHTML,rootHtml:root.outerHTML,truncated:root.dataset.truncated,width:rect.width,height:rect.height,nodes};
   window.qa.snapshots.push(snapshot);
@@ -89,6 +89,21 @@ CanvasRenderingContext2D.prototype.fillText = function(text, ...args) {
   return originalFillText.call(this,text,...args);
 };
 const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+const originalToDataURL=HTMLCanvasElement.prototype.toDataURL;
+const failedEncodingCanvases=new WeakSet();
+const fallbackEncodingCanvases=new WeakSet();
+HTMLCanvasElement.prototype.toDataURL=function(...args){
+  if(failedEncodingCanvases.has(this)){
+    failedEncodingCanvases.delete(this);
+    throw new DOMException('QA complete canvas encoding failure','EncodingError');
+  }
+  const data=originalToDataURL.apply(this,args);
+  if(fallbackEncodingCanvases.has(this)){
+    fallbackEncodingCanvases.delete(this);
+    window.qa.exports.push({width:this.width,height:this.height,dom:window.qa.snapshot(),encoding:'toDataURL',lines:window.qa.draws.get(this)||[]});
+  }
+  return data;
+};
 let failed = false;
 HTMLCanvasElement.prototype.toBlob = function(callback, ...args) {
   const canvas = this;
@@ -97,7 +112,7 @@ HTMLCanvasElement.prototype.toBlob = function(callback, ...args) {
     window.qa.exports.push({width:canvas.width,height:canvas.height,size:blob?.size,dom,lines:window.qa.draws.get(canvas)||[]});
     callback(blob);
   }, ...args);
-  if ((fault === 'fail' || (fault === 'fail-long' && canvas.width === 720)) && !failed) { failed=true; callback(null); return; }
+  if ((fault === 'fail' || ((fault === 'fail-long' || fault === 'fallback-long') && canvas.width === 720)) && !failed) { failed=true; (fault==='fallback-long'?fallbackEncodingCanvases:failedEncodingCanvases).add(canvas); callback(null); return; }
   if (fault === 'delay' || (fault === 'delay-long' && canvas.width === 720)) { window.qa.pending.push(run); return; }
   run();
 };
@@ -572,6 +587,60 @@ function assertHeaderLayout(prepared) {
   expect(qr.effectiveOpacity).toBe(1)
 }
 
+function strokeCoverage(png, rect) {
+  let maximum = 0
+  const scale = png.width / 360
+  const start = Math.max(0, Math.ceil((rect.x + 1) * scale))
+  const end = Math.min(png.width, Math.floor((rect.x + rect.width - 1) * scale))
+  for (
+    let y = Math.max(0, Math.floor((rect.y - 1) * scale));
+    y < Math.min(png.height, Math.ceil((rect.y + Math.max(rect.height, 1) + 1) * scale));
+    y++
+  ) {
+    let ink = 0
+    for (let x = start; x < end; x++) {
+      const offset = (y * png.width + x) * 4
+      if (png.data[offset] < 150 && png.data[offset + 1] < 150 && png.data[offset + 2] < 150) ink++
+    }
+    maximum = Math.max(maximum, ink / Math.max(1, end - start))
+  }
+  return maximum
+}
+
+function assertMathStrokes(png, prepared, { sqrt = false, fraction = false } = {}) {
+  const radicals = prepared.nodes.filter((node) => node.sqrtSvg)
+  const fractions = prepared.nodes.filter((node) => node.fractionLine)
+  if (sqrt) expect(radicals.length, "Expected a real radical SVG").toBeGreaterThan(0)
+  if (fraction) expect(fractions.length, "Expected real fraction bars").toBeGreaterThan(0)
+  for (const radical of radicals) {
+    expect(radical.height, "Radical SVG must retain its vertical geometry").toBeGreaterThan(10)
+    expect(
+      pixelInk(png, { ...radical, width: Math.min(12, radical.width) }),
+      "The radical's left stem must be drawn",
+    ).toBeGreaterThan(0.015)
+    expect(
+      pixelInk(png, radical),
+      "The radical SVG must contribute actual PNG strokes",
+    ).toBeGreaterThan(0.015)
+    expect(
+      strokeCoverage(png, {
+        x: radical.x + 14,
+        y: radical.y,
+        width: radical.width - 14,
+        height: radical.height * 0.25,
+      }),
+      "The radical overbar must span the radicand, independently of adjacent text",
+    ).toBeGreaterThan(0.7)
+  }
+  for (const line of fractions) {
+    expect(line.width).toBeGreaterThan(3)
+    expect(
+      strokeCoverage(png, line),
+      "Fraction bar must span its rendered numerator/denominator",
+    ).toBeGreaterThan(0.7)
+  }
+}
+
 function pixelInk(png, rect) {
   if (!rect || rect.width <= 0 || rect.height <= 0) return 0
   let ink = 0,
@@ -918,8 +987,31 @@ for (const article of builtArticles) {
       expect(prepared.body).toContain("from vectordb import Memory")
     }
     await exportImage(page, `built-${article.key}-390`, 720, canonicalUrl)
+    const panel = page.locator(".share-page-panel")
+    await expect(panel).toBeVisible()
     await page.getByRole("button", { name: "关闭分享面板" }).focus()
-    await page.screenshot({ path: path.join(artifacts, `built-${article.key}-390-panel.png`) })
+    await panel.evaluate((element) => element.scrollTo(0, 0))
+    await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBe(0)
+    // Capture the visible product surface. WebKit's full-page capture stalled
+    // after this article's export had passed; the panel is the intended evidence.
+    await panel.screenshot({
+      path: path.join(artifacts, `built-${article.key}-390-panel.png`),
+      animations: "disabled",
+      timeout: 15_000,
+    })
+    expect(
+      await panel.evaluate((element) => element.scrollHeight - element.clientHeight),
+    ).toBeGreaterThan(0)
+    await panel.hover({ position: { x: 20, y: 20 } })
+    await page.mouse.wheel(0, 2000)
+    await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+    await page.getByRole("link", { name: "保存分享图" }).scrollIntoViewIfNeeded()
+    await expect(page.getByRole("link", { name: "保存分享图" })).toBeInViewport()
+    await panel.screenshot({
+      path: path.join(artifacts, `built-${article.key}-390-panel-scrolled.png`),
+      animations: "disabled",
+      timeout: 15_000,
+    })
     await page.keyboard.press("Escape")
     await expect(page.locator(".share-page-sheet")).toBeHidden()
     await expect(page.locator(".share-page-button")).toBeFocused()
@@ -997,6 +1089,10 @@ if (process.env.SHARE_QA_REAL_ARTICLES === "1") {
       const image = await saveDirectImage(result, `built-vector-${section}-excerpt`, canonicalUrl)
       expect(result.prepared.html).toContain('class="katex')
       expect(result.prepared.html).toContain(section === "euclidean" ? "sqrt" : "mfrac")
+      assertMathStrokes(image.png, result.prepared, {
+        sqrt: section === "euclidean",
+        fraction: section === "jaccard",
+      })
       expect(result.prepared.html).toContain("msupsub")
       const formula = result.prepared.nodes.find((node) => node.class === "katex")
       expect(
@@ -1286,6 +1382,9 @@ test("display math preserves intrinsic geometry across narrow and wide source ar
       ),
     )
     expect(result.error).toBeUndefined()
+    await page
+      .locator("article .katex-display")
+      .screenshot({ path: path.join(artifacts, `display-math-${sourceWidth}-source.png`) })
     const { png } = await saveDirectImage(result, `display-math-${sourceWidth}`, canonical("short"))
     for (const className of ["mfrac", "sqrt", "msupsub"])
       expect(result.prepared.html.includes(className), `Formula retains ${className}`).toBe(true)
@@ -1294,6 +1393,7 @@ test("display math preserves intrinsic geometry across narrow and wide source ar
     expect(box.x).toBeGreaterThanOrEqual(23)
     expect(box.x + box.width).toBeLessThanOrEqual(337)
     expect(pixelInk(png, box)).toBeGreaterThan(0.02)
+    assertMathStrokes(png, result.prepared, { sqrt: true, fraction: true })
     geometries.push({
       sourceWidth: result.sourceMath[0].width,
       width: box.width,
@@ -1399,4 +1499,17 @@ test("long mixed-language titles stay below the single-line brand", async ({ pag
   expect(result.error).toBeUndefined()
   expect(result.prepared.nodes.find((node) => node.class === "share-poster-title").text).toBe(title)
   await saveDirectImage(result, "long-mixed-title", canonical("short"))
+})
+
+test("native PNG encoding fallback remains usable when toDataURL succeeds", async ({ page }) => {
+  await page.goto(`${base}/short.html?fault=fallback-long`)
+  await openLong(page)
+  await expect(page.locator(".share-page-status")).not.toContainText("失败")
+  expect(
+    await page.evaluate(() =>
+      window.qa.exports.some((entry) => entry.width === 720 && entry.encoding === "toDataURL"),
+    ),
+  ).toBe(true)
+  await exportImage(page, "native-encoding-fallback", 720, canonical("short"))
+  await expect(page.locator(".share-poster-host")).toHaveCount(0)
 })

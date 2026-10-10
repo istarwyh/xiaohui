@@ -57,6 +57,7 @@ export const sharePosterStyles = `
 .share-poster-article .katex-display { margin: 16px 0; overflow: visible; }
 .share-poster-article .katex-mathml { display: none; }
 .share-poster-article svg { max-width: 100%; height: auto; }
+.share-poster-article .katex svg { max-width: none; width: 100%; height: inherit; }
 .share-poster-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: linear-gradient(to bottom, transparent, var(--color-canvas)); pointer-events: none; }
 .share-poster-footer { display: flex; position: static; width: 100%; opacity: 1; align-items: center; gap: 16px; margin: 24px 0 0; padding: 20px 0 0; border-top: 1px solid var(--color-border); color: var(--color-text); }
 .share-poster-qr { display: block; flex: 0 0 auto; margin: 0; padding: 0; background: var(--color-surface-raised); border-radius: var(--radius-medium); image-rendering: pixelated; }
