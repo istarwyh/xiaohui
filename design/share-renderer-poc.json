@@ -1,0 +1,60 @@
+{
+  "article": "program/学习-思考-冷静/DDD.html",
+  "engine": "Actual Chromium via Playwright",
+  "results": [
+    {
+      "library": "html-to-image",
+      "version": "1.11.13",
+      "variant": "full",
+      "success": true,
+      "width": 720,
+      "height": 9160,
+      "characters": 2968,
+      "horizontalOverflow": false,
+      "pngBytes": 1571049,
+      "elapsedMs": 17693
+    },
+    {
+      "library": "html-to-image",
+      "version": "1.11.13",
+      "variant": "bounded",
+      "success": true,
+      "width": 720,
+      "height": 4016,
+      "characters": 943,
+      "horizontalOverflow": false,
+      "pngBytes": 683447,
+      "elapsedMs": 7609
+    },
+    {
+      "library": "html2canvas",
+      "version": "1.4.1",
+      "variant": "full",
+      "success": true,
+      "width": 720,
+      "height": 8472,
+      "characters": 6679,
+      "horizontalOverflow": false,
+      "pngBytes": 1489761,
+      "elapsedMs": 7463
+    },
+    {
+      "library": "html2canvas",
+      "version": "1.4.1",
+      "variant": "bounded",
+      "success": true,
+      "width": 720,
+      "height": 4018,
+      "characters": 943,
+      "horizontalOverflow": false,
+      "pngBytes": 670537,
+      "elapsedMs": 4021
+    }
+  ],
+  "limits": [
+    "Chromium only",
+    "Public-resource transport through runtime proxy",
+    "No native OS sharing claim",
+    "No production renderer changes"
+  ]
+}
