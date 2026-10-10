@@ -293,7 +293,13 @@ function setupShare(
     "---\ndescription: 分享摘要。\n---\n\n文章正文。"
   const qrRequests: Array<{ url: string; pending: ReturnType<typeof deferred<string>> }> = []
   const longRequests: Array<{
-    input: { title: string; url: string; author?: string; article: TestElement }
+    input: {
+      title: string
+      url: string
+      author?: string
+      article: TestElement
+      signal: AbortSignal
+    }
     pending: ReturnType<typeof deferred<Blob>>
   }> = []
   const shareRequests: Array<{ data: FileShareData; pending: ReturnType<typeof deferred<void>> }> =
@@ -348,6 +354,8 @@ function setupShare(
       revokeObjectURL: (url: string) => revoked.push(url),
     },
     File,
+    Error,
+    AbortController,
     Image: class {
       onload?: () => void
       set src(_value: string) {
@@ -993,4 +1001,42 @@ test("short poster uses fallback fonts when font loading stalls or rejects", asy
     assert.equal(h.status.textContent, "")
     assert.equal(h.timers.size, 0)
   }
+})
+
+test("long poster resource failures explain the missing resource and remain retryable", async () => {
+  const h = setupShare()
+  h.open()
+  h.select("long")
+  await setImmediate()
+  const error = new Error("文章图片未能加载，请检查网络后重试。")
+  error.name = "SharePosterError"
+  h.longRequests[0].pending.reject(error)
+  await setImmediate()
+  assert.match(h.status.textContent, /文章图片未能加载/)
+  assert.match(h.status.textContent, /复制链接/)
+  assert.equal(h.preview.hidden, true)
+  assert.equal(h.downloads.length, 0)
+  h.action("poster")
+  await setImmediate()
+  assert.equal(h.longRequests.length, 2)
+  await h.finishLong(1)
+  assert.equal(h.preview.hidden, false)
+  assert.equal(h.downloads.length, 1)
+})
+
+test("long poster resources are cancelled on SPA cleanup but not on closing the preview", async () => {
+  const h = setupShare()
+  h.open()
+  h.select("long")
+  await setImmediate()
+  const signal = h.longRequests[0].input.signal
+  assert.equal(signal.aborted, false)
+  h.close.click()
+  assert.equal(signal.aborted, false)
+  h.cleanup()
+  assert.equal(signal.aborted, true)
+  h.longRequests[0].pending.reject(new Error("aborted"))
+  await setImmediate()
+  assert.equal(h.downloads.length, 0)
+  assert.equal(h.errors.length, 0)
 })

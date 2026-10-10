@@ -1,52 +1,43 @@
-# Share poster browser acceptance
+# Share-image browser acceptance
 
-Run from the repository root after installing development dependencies:
+Run `npx playwright install --with-deps chromium webkit` once, then build the
+Quartz docs and run the share suite:
 
 ```sh
-npx playwright install --with-deps chromium
-npx quartz build -d docs -o public
-SHARE_QA_SITE_DIRECTORY=public npx playwright test tests/browser/sharePoster.spec.mjs --workers=1
+npx quartz build -d docs
+SHARE_QA_SITE_DIRECTORY=public npm run test:share-browser
 ```
 
-For readable CJK screenshots, the runner needs a CJK font such as the Ubuntu
-`fonts-noto-cjk` package. The renderer retains its production fallback font stack.
+The Playwright config runs Chromium and WebKit independently. The suite checks
+actual PNG bytes and QR decoding, semantic DOM and computed styles, resource
+failures and retries, real HTTP CORS, and the existing preview/download/share,
+format-switch, dismissal and SPA lifecycle behavior. It does not replace
+production rendering with mocked image output. Source-resource tests use the
+actual SDK and fail when required images or fonts are unavailable.
 
-The suite compiles the real share component, renderer, SCSS and design tokens, then
-serves synthetic articles on a temporary loopback server. It does not build or
-publish the writing vault, contact sharing services, or send any messages. It uses
-real Chromium canvas export and independently decodes QR pixels with `jsqr`.
+For freshly built real articles:
 
-A required integration smoke also serves the fresh Quartz documentation build
-specified by `SHARE_QA_SITE_DIRECTORY`, opens its actual share control, exports a
-long PNG and decodes its canonical QR. Missing build configuration fails the test
-rather than silently skipping it. Remote requests in this smoke are fulfilled
-with empty typed responses, so analytics and remote assets never leave the runner.
-The requested remote URLs are recorded in an artifact for transparency.
+```sh
+npx quartz build -o .quartz-cache/share-production
+SHARE_QA_SITE_DIRECTORY=.quartz-cache/share-production \
+SHARE_QA_REAL_ARTICLES=1 SHARE_QA_RUN=production \
+npm run test:share-browser -- --grep 'built Quartz article'
+```
 
-Evidence is saved in `test-results/share-posters`:
+Real examples include DDD, vector-database, and explicitly labeled source
+sections from vector-database that exercise formulas, a table, and an image.
+The image's original bytes, source and SHA256 are recorded in
+[fixtures/README.md](./fixtures/README.md). A same-origin copy is not evidence
+that its source host permits cross-origin browser reads. Independent local HTTP
+origins test both permissive and denied CORS without a server-side fetch proxy.
 
-- Full exported PNGs for short, near-800-character, long, structured and single
-  long-paragraph content at 320, 390 and 1280 pixel viewports
-- Short-card PNGs, panel screenshots, side-by-side mobile iframe screenshots and
-  a delayed-generation screenshot, dark-page evidence, and a built-Quartz smoke image
-- Per-viewport JSON with measured preview geometry and exported image dimensions
+Images, mobile panels and generation metadata are saved under
+`test-results/{fixtures,production}/share-posters/{chromium,webkit}`. Separate run
+and browser paths prevent later article checks from overwriting earlier
+fixtures. CI uploads each browser's evidence for the exact pull request SHA.
 
-The tests also exercise repeated format switches, close/reopen, late generation,
-export failure/retry and simulated Web Share cancellation/rejection. These mocks
-validate application behavior; they do not validate an operating system share
-sheet or WeChat. The fixture uses the production component styles/tokens in a
-minimal article shell; the separate built-Quartz smoke checks integration. These
-focused checks are not a full-site browser audit.
-
-Review the complete PNGs visually in addition to the assertions. In particular,
-check glyph quality, comfortable spacing, fade transition, code and quote layout,
-and the footer/QR on long images. A successful assertion run does not replace
-this visual review.
-
-The suite currently contains ten tests. It records canvas encoding and preview
-readiness timings alongside successful PNGs, and keeps screenshots, traces and
-state diagnostics for failures. Poster readiness has a bounded 15-second wait:
-Chromium's native PNG encoder can use a 1-second idle-start watchdog plus a
-5.7-second completion watchdog, in addition to the renderer's 1.2-second font
-wait. This allows the browser's documented scheduling behavior without relaxing
-image, QR, content or interaction assertions. See the [Chromium encoder source](https://chromium.googlesource.com/chromium/src/+/lkgr/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc).
+Review actual full PNGs and the footer at phone width; DOM presence, pixel counts
+and QR decoding alone do not establish visual quality. WebKit automation does
+not establish iPhone/WeChat or native OS share-sheet compatibility. Record any
+launch/network limitations and which checks actually ran. The suite retains
+bounded waits and does not silently skip required article builds.

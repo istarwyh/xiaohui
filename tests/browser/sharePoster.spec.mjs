@@ -3,23 +3,29 @@ import { build } from "esbuild"
 import * as sass from "sass"
 import { PNG } from "pngjs"
 import jsQR from "jsqr"
+import QRCode from "qrcode"
+import katex from "katex"
 import { createServer } from "node:http"
+import { createHash } from "node:crypto"
 import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 const repo = fileURLToPath(new URL("../../", import.meta.url))
-const artifacts = path.join(repo, "test-results/share-posters")
+let artifacts
 let directory
 let server
+let imageServer
+let imageBase
 let base
 let posterCanvas
 const errorBuffers = new WeakMap()
 // Chromium PNG toBlob may use 1s idle-start + 5.7s encoding watchdogs, in
-// addition to the renderer's 1.2s font wait. This bounds readiness, not quality.
+// addition to bounded image/font loading. The 40s UI limit includes the renderer's
+// 30s operation deadline plus native encoding and preview scheduling.
 // https://chromium.googlesource.com/chromium/src/+/lkgr/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
-const POSTER_READY_TIMEOUT = 15_000
+const POSTER_READY_TIMEOUT = 40_000
 
 test.use({ trace: "retain-on-failure", screenshot: "only-on-failure" })
 
@@ -35,13 +41,47 @@ const canonical = (sample) => new URL(`https://xiaohui.cool/笔记/长文分享-
 const escape = (text) =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
 
-// Test-only instrumentation observes actual canvas drawing and intercepts only explicit
-// failure fixtures. It never replaces the production renderer or its layout algorithm.
+// Test-only instrumentation snapshots the prepared DOM at native PNG encoding and
+// intercepts explicit failure fixtures. It never replaces the renderer or layout.
+// Canvas fillText records remain short-card telemetry; long-body assertions use DOM + pixels.
 const instrumentation = `
 const params = new URLSearchParams(location.search);
 const fault = params.get('fault');
-if (params.get('theme') === 'dark') document.documentElement.setAttribute('saved-theme', 'dark');
-window.qa = { exports: [], shares: [], pending: [], draws: new WeakMap() };
+if (params.get('theme') === 'dark') {
+  const applyTheme=()=>document.documentElement?.setAttribute('saved-theme','dark');
+  applyTheme();document.addEventListener('DOMContentLoaded',applyTheme,{once:true});
+}
+window.qa = { exports: [], shares: [], pending: [], draws: new WeakMap(), snapshots: [], mathGeometry: [] };
+const scrollWidthDescriptor=Object.getOwnPropertyDescriptor(Element.prototype,'scrollWidth');
+if(scrollWidthDescriptor?.get&&scrollWidthDescriptor.configurable){
+  Object.defineProperty(Element.prototype,'scrollWidth',{...scrollWidthDescriptor,get(){
+    const value=scrollWidthDescriptor.get.call(this);
+    if(this.matches?.('.share-poster .katex')){
+      const r=this.getBoundingClientRect(),style=getComputedStyle(this);
+      window.qa.mathGeometry.push({scrollWidth:value,clientWidth:this.clientWidth,width:r.width,height:r.height,fontSize:style.fontSize,inlineSize:style.inlineSize,blockSize:style.blockSize,transform:style.transform,available:this.parentElement?.clientWidth,text:this.textContent});
+    }
+    return value;
+  }});
+}
+window.qa.snapshot = () => {
+  const root = document.querySelector('.share-poster');
+  if (!root) return null;
+  const rect = root.getBoundingClientRect();
+  const article = root.querySelector('.share-poster-article');
+  const nodes = Array.from(root.querySelectorAll('h1,h2,h3,h4,p,strong,em,a,ol,ul,li,blockquote,pre,code,table,thead,tbody,tr,th,td,img,svg,[data-line],.frac-line,.katex,.katex-html,.katex-mathml,.share-poster-footer,.share-poster-footer-copy,.share-poster-body,.share-poster-fade')).map(node => {
+    const r = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    let effectiveOpacity=1;
+    for(let ancestor=node;ancestor&&ancestor!==root.parentElement;ancestor=ancestor.parentElement) effectiveOpacity*=Number(getComputedStyle(ancestor).opacity);
+    return {tag:node.tagName.toLowerCase(), class:node.className?.baseVal ?? node.className, text:node.textContent, html:node.outerHTML,
+      x:r.x-rect.x,y:r.y-rect.y,width:r.width,height:r.height,
+      naturalWidth:node.naturalWidth,naturalHeight:node.naturalHeight,codeLine:node.hasAttribute('data-line'),sqrtSvg:node.matches('.katex .sqrt svg'),fractionLine:node.matches('.katex .frac-line'),effectiveOpacity,
+      style:{opacity:style.opacity,color:style.color,background:style.backgroundColor,fontSize:style.fontSize,fontWeight:style.fontWeight,fontStyle:style.fontStyle,fontFamily:style.fontFamily,display:style.display,whiteSpace:style.whiteSpace,lineHeight:style.lineHeight,overflow:style.overflow,listStyleType:style.listStyleType,borderLeftWidth:style.borderLeftWidth,borderRightWidth:style.borderRightWidth,paddingRight:style.paddingRight,borderBottomWidth:style.borderBottomWidth}};
+  });
+  const snapshot = {text:root.textContent,body:article?.textContent,html:article?.innerHTML,rootHtml:root.outerHTML,truncated:root.dataset.truncated,width:rect.width,height:rect.height,nodes};
+  window.qa.snapshots.push(snapshot);
+  return snapshot;
+};
 const originalFillText = CanvasRenderingContext2D.prototype.fillText;
 CanvasRenderingContext2D.prototype.fillText = function(text, ...args) {
   const lines = window.qa.draws.get(this.canvas) || [];
@@ -50,15 +90,31 @@ CanvasRenderingContext2D.prototype.fillText = function(text, ...args) {
   return originalFillText.call(this,text,...args);
 };
 const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+const originalToDataURL=HTMLCanvasElement.prototype.toDataURL;
+const failedEncodingCanvases=new WeakSet();
+const fallbackEncodingCanvases=new WeakSet();
+HTMLCanvasElement.prototype.toDataURL=function(...args){
+  if(failedEncodingCanvases.has(this)){
+    failedEncodingCanvases.delete(this);
+    throw new DOMException('QA complete canvas encoding failure','EncodingError');
+  }
+  const data=originalToDataURL.apply(this,args);
+  if(fallbackEncodingCanvases.has(this)){
+    fallbackEncodingCanvases.delete(this);
+    window.qa.exports.push({width:this.width,height:this.height,dom:window.qa.snapshot(),encoding:'toDataURL',lines:window.qa.draws.get(this)||[]});
+  }
+  return data;
+};
 let failed = false;
 HTMLCanvasElement.prototype.toBlob = function(callback, ...args) {
   const canvas = this;
+  const dom = window.qa.snapshot();
   const run = () => originalToBlob.call(canvas, blob => {
-    window.qa.exports.push({width:canvas.width,height:canvas.height,size:blob?.size,lines:window.qa.draws.get(canvas)||[]});
+    window.qa.exports.push({width:canvas.width,height:canvas.height,size:blob?.size,dom,lines:window.qa.draws.get(canvas)||[]});
     callback(blob);
   }, ...args);
-  if (fault === 'fail' && !failed) { failed=true; callback(null); return; }
-  if (fault === 'delay') { window.qa.pending.push(run); return; }
+  if ((fault === 'fail' || ((fault === 'fail-long' || fault === 'fallback-long') && canvas.width === 720)) && !failed) { failed=true; (fault==='fallback-long'?fallbackEncodingCanvases:failedEncodingCanvases).add(canvas); callback(null); return; }
+  if (fault === 'delay' || (fault === 'delay-long' && canvas.width === 720)) { window.qa.pending.push(run); return; }
   run();
 };
 if (fault === 'cancel' || fault === 'reject') {
@@ -71,6 +127,11 @@ if (fault === 'cancel' || fault === 'reject') {
   // Stable no-Web-Share fixture exercises the supported save-image fallback.
   Object.defineProperty(navigator,'share',{value:undefined,configurable:true});
 }
+window.qa.createdUrls=[];window.qa.revokedUrls=[];
+const createObjectURL=URL.createObjectURL.bind(URL);
+const revokeObjectURL=URL.revokeObjectURL.bind(URL);
+URL.createObjectURL=blob=>{const url=createObjectURL(blob);window.qa.createdUrls.push(url);return url};
+URL.revokeObjectURL=url=>{window.qa.revokedUrls.push(url);return revokeObjectURL(url)};
 window.addCleanup = fn => (window.cleanups ||= []).push(fn);
 `
 
@@ -78,7 +139,14 @@ function fixture(sample, body, css) {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><link rel="icon" href="data:,"><meta name="viewport" content="width=device-width,initial-scale=1"><title>长文分享测试：${sample}</title><meta name="author" content="不应冒充作者的网站名"><meta name="description" content="META-DESCRIPTION-NOT-ARTICLE"><link rel="canonical" href="${canonical(sample)}"><style>${css}</style></head><body><h1 class="article-title">长文分享测试：${sample}</h1><article${sample === "structures" ? ' data-share-author="晓灰"' : ""}>${body}</article><textarea hidden id="copy-page-markdown-source">${escape(body.replace(/<[^>]+>/g, "\n"))}</textarea><script>${instrumentation}</script><script src="/share.js"></script><script>document.dispatchEvent(new CustomEvent('nav'));</script></body></html>`
 }
 
-test.beforeAll(async () => {
+test.beforeAll(async ({}, info) => {
+  artifacts = path.join(
+    repo,
+    "test-results",
+    process.env.SHARE_QA_RUN || "fixtures",
+    "share-posters",
+    info.project.name,
+  )
   directory = await mkdtemp(path.join(tmpdir(), "xiaohui-share-browser-"))
   await mkdir(artifacts, { recursive: true })
   await build({
@@ -118,9 +186,39 @@ test.beforeAll(async () => {
   const darkTokens = Object.entries(darkVariables)
     .map(([key, value]) => `--${key}:${value}`)
     .join(";")
+  const articleCss = sass.compile(path.join(repo, "quartz/styles/base.scss")).css
   const componentCss = sass.compile(path.join(repo, "quartz/components/styles/copyPage.scss")).css
-  const css = `:root{${tokens}}:root[saved-theme="dark"]{${darkTokens}}body{margin:0;padding:16px;box-sizing:border-box;color:var(--color-text);background:var(--color-canvas);font-family:var(--font-body);font-size:16px}article{max-width:700px;overflow-wrap:anywhere}h1{font-size:28px}pre{white-space:pre-wrap}button,a{-webkit-tap-highlight-color:transparent}${componentCss}`
+  const css = `:root{${tokens};--bodyFont:var(--font-body);--headerFont:var(--font-heading);--codeFont:var(--font-code)}:root[saved-theme="dark"]{${darkTokens}}body{margin:0;padding:16px;box-sizing:border-box;color:var(--color-text);background:var(--color-canvas);font-family:var(--font-body);font-size:16px}article{max-width:700px;overflow-wrap:anywhere}h1{font-size:28px}pre{white-space:pre-wrap}button,a{-webkit-tap-highlight-color:transparent}${articleCss}${componentCss}`
   const fixtureSamples = { ...samples, shortNoEmoji: samples.short.replace("👩🏽‍💻", "开发者") }
+  const image = new PNG({ width: 96, height: 64 })
+  for (let y = 0; y < 64; y++)
+    for (let x = 0; x < 96; x++) {
+      const offset = (y * 96 + x) * 4
+      const color = x < 48 ? [220, 25, 160, 255] : [15, 180, 215, 255]
+      color.forEach((v, i) => (image.data[offset + i] = v))
+    }
+  const tallImage = new PNG({ width: 320, height: 2400 })
+  for (let y = 0; y < 2400; y++)
+    for (let x = 0; x < 320; x++) {
+      const color = y < 1200 ? [220, 25, 160, 255] : [15, 180, 215, 255]
+      color.forEach((value, index) => (tallImage.data[(y * 320 + x) * 4 + index] = value))
+    }
+  await writeFile(path.join(directory, "tall-image.png"), PNG.sync.write(tallImage))
+  const imageBytes = PNG.sync.write(image)
+  await writeFile(path.join(directory, "actual-image.png"), imageBytes)
+  const realImage = await readFile(path.join(repo, "tests/browser/fixtures/vector-euclidean.png"))
+  expect(realImage.length).toBe(13962)
+  expect(createHash("sha256").update(realImage).digest("hex")).toBe(
+    "092cc26b171edad61bd0ba5fe131cba98f04dea36e3a2b93efb7dbc2345677f4",
+  )
+  await writeFile(path.join(directory, "vector-euclidean.png"), realImage)
+  imageServer = createServer((req, res) => {
+    if (req.url.startsWith("/cors")) res.setHeader("Access-Control-Allow-Origin", "*")
+    res.setHeader("Content-Type", "image/png")
+    res.end(imageBytes)
+  })
+  await new Promise((resolve) => imageServer.listen(0, "127.0.0.1", resolve))
+  imageBase = `http://127.0.0.1:${imageServer.address().port}`
   for (const [sample, body] of Object.entries(fixtureSamples)) {
     await writeFile(path.join(directory, sample + ".html"), fixture(sample, body, css))
   }
@@ -130,6 +228,24 @@ test.beforeAll(async () => {
   )
   server = createServer(async (req, res) => {
     const requested = decodeURIComponent(new URL(req.url, "http://localhost").pathname)
+    if (requested.startsWith("/katex/")) {
+      const filename = path.resolve(repo, "node_modules/katex/dist", requested.slice(7))
+      const allowed = path.resolve(repo, "node_modules/katex/dist") + path.sep
+      if (!filename.startsWith(allowed)) {
+        res.writeHead(404)
+        res.end()
+        return
+      }
+      try {
+        const bytes = await readFile(filename)
+        res.setHeader("Content-Type", filename.endsWith(".css") ? "text/css" : "font/woff2")
+        res.end(bytes)
+      } catch {
+        res.writeHead(404)
+        res.end()
+      }
+      return
+    }
     const built = requested.startsWith("/built/")
     const root =
       built && process.env.SHARE_QA_SITE_DIRECTORY
@@ -169,6 +285,7 @@ test.afterAll(async () => {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     )
+  if (imageServer) await new Promise((resolve) => imageServer.close(resolve))
   if (directory) await rm(directory, { recursive: true, force: true })
 })
 
@@ -410,6 +527,55 @@ async function exportImage(page, name, width, expectedUrl) {
   expect(decoded?.data, "Exported PNG QR must decode to the complete canonical URL").toBe(
     expectedUrl,
   )
+  const prepared = await page.evaluate(
+    () => window.qa?.exports.findLast((entry) => entry.width === 720)?.dom,
+  )
+  if (width === 720) {
+    expect(prepared, "DOM snapshot exists at native PNG encoding").toBeTruthy()
+    assertHeaderLayout(prepared)
+    const body = prepared.nodes.find((node) => node.class?.includes("share-poster-body"))
+    expect(
+      pixelInk(png, body),
+      "PNG contains actual body pixels, not just the QR/footer",
+    ).toBeGreaterThan(0.015)
+    expect(prepared.text).not.toContain(expectedUrl)
+    const footer = prepared.nodes.find((node) => node.class?.includes("share-poster-footer"))
+    const qr = prepared.nodes.find((node) => node.class?.includes("share-poster-qr"))
+    expect(footer.style.opacity).toBe("1")
+    expect(qr.effectiveOpacity).toBe(1)
+    expect(footer.height).toBeLessThanOrEqual(170)
+    expect(qr.x).toBeGreaterThan(prepared.width / 2)
+    expect(qr.y).toBeGreaterThanOrEqual(footer.y)
+    if (name === "built-ddd-390") {
+      const top = Math.max(0, Math.floor(footer.y * 2) - 12)
+      const crop = new PNG({ width: png.width, height: png.height - top })
+      for (let row = 0; row < crop.height; row++)
+        png.data.copy(
+          crop.data,
+          row * png.width * 4,
+          (top + row) * png.width * 4,
+          (top + row + 1) * png.width * 4,
+        )
+      expect(jsQR(new Uint8ClampedArray(crop.data), crop.width, crop.height)?.data).toBe(
+        expectedUrl,
+      )
+      await writeFile(path.join(artifacts, name + "-footer.png"), PNG.sync.write(crop))
+    }
+    for (const node of prepared.nodes.filter((node) =>
+      ["pre", "table", "img", "svg"].includes(node.tag),
+    )) {
+      expect(node.width, `Readable positive width: ${node.tag}`).toBeGreaterThan(0)
+      expect(node.x + node.width, `No horizontal overflow: ${node.tag}`).toBeLessThanOrEqual(
+        prepared.width + 1,
+      )
+    }
+    const fade = prepared.nodes.find((node) => node.class?.includes("share-poster-fade"))
+    if (fade) expect(fade.y + fade.height).toBeLessThanOrEqual(footer.y + 1)
+    await writeFile(
+      path.join(artifacts, name + "-prepared-dom.json"),
+      JSON.stringify(prepared, null, 2),
+    )
+  }
   const stages = await page.evaluate(() => ({
     fonts: window.shareFontStages,
     canvases: window.shareCanvasStages,
@@ -417,6 +583,177 @@ async function exportImage(page, name, width, expectedUrl) {
   }))
   await writeFile(path.join(artifacts, name + "-generation.json"), JSON.stringify(stages, null, 2))
   return { width: png.width, height: png.height, filename, stages }
+}
+
+function assertHeaderLayout(prepared) {
+  expect(prepared.nodes.some((node) => node.class === "share-poster-brand")).toBe(false)
+  const title = prepared.nodes.find((node) => node.class === "share-poster-title")
+  expect(title.width).toBeGreaterThanOrEqual(300)
+  expect(title.x).toBe(24)
+  expect(title.y, "Article title starts the poster without a brand row").toBe(24)
+  const footer = prepared.nodes.find((node) => node.class === "share-poster-footer")
+  const qr = prepared.nodes.find((node) => node.class === "share-poster-qr")
+  expect(footer.style.opacity).toBe("1")
+  expect(qr.effectiveOpacity).toBe(1)
+  const label = prepared.nodes.find((node) => node.class === "share-poster-footer-label")
+  if (qr.width > 140) {
+    const copy = prepared.nodes.find((node) => node.class === "share-poster-footer-copy")
+    expect(copy.y + copy.height).toBeLessThan(qr.y)
+    expect(copy.style.borderRightWidth).toBe("0px")
+    expect(copy.style.paddingRight).toBe("0px")
+    expect(Math.abs(qr.x + qr.width / 2 - prepared.width / 2)).toBeLessThanOrEqual(0.5)
+  } else {
+    expect(label.x, "Footer text aligns with the article's left edge").toBe(title.x)
+    expect(
+      label.x + label.width,
+      "Footer text leaves a clear gap before the right QR",
+    ).toBeLessThan(qr.x)
+    expect(qr.x).toBeGreaterThan(prepared.width / 2)
+  }
+  expect(qr.x + qr.width).toBeLessThanOrEqual(prepared.width - 24 + 1)
+}
+
+function strokeCoverage(png, rect) {
+  let maximum = 0
+  const scale = png.width / 360
+  const start = Math.max(0, Math.ceil((rect.x + 1) * scale))
+  const end = Math.min(png.width, Math.floor((rect.x + rect.width - 1) * scale))
+  for (
+    let y = Math.max(0, Math.floor((rect.y - 1) * scale));
+    y < Math.min(png.height, Math.ceil((rect.y + Math.max(rect.height, 1) + 1) * scale));
+    y++
+  ) {
+    let ink = 0
+    for (let x = start; x < end; x++) {
+      const offset = (y * png.width + x) * 4
+      if (png.data[offset] < 150 && png.data[offset + 1] < 150 && png.data[offset + 2] < 150) ink++
+    }
+    maximum = Math.max(maximum, ink / Math.max(1, end - start))
+  }
+  return maximum
+}
+
+function assertMathStrokes(png, prepared, { sqrt = false, fraction = false } = {}) {
+  const radicals = prepared.nodes.filter((node) => node.sqrtSvg)
+  const fractions = prepared.nodes.filter((node) => node.fractionLine)
+  if (sqrt) expect(radicals.length, "Expected a real radical SVG").toBeGreaterThan(0)
+  if (fraction) expect(fractions.length, "Expected real fraction bars").toBeGreaterThan(0)
+  for (const radical of radicals) {
+    expect(radical.height, "Radical SVG must retain its vertical geometry").toBeGreaterThan(10)
+    expect(
+      pixelInk(png, { ...radical, width: Math.min(12, radical.width) }),
+      "The radical's left stem must be drawn",
+    ).toBeGreaterThan(0.015)
+    expect(
+      pixelInk(png, radical),
+      "The radical SVG must contribute actual PNG strokes",
+    ).toBeGreaterThan(0.015)
+    expect(
+      strokeCoverage(png, {
+        x: radical.x + 14,
+        y: radical.y,
+        width: radical.width - 14,
+        height: radical.height * 0.25,
+      }),
+      "The radical overbar must span the radicand, independently of adjacent text",
+    ).toBeGreaterThan(0.7)
+  }
+  for (const line of fractions) {
+    expect(line.width).toBeGreaterThan(3)
+    expect(
+      strokeCoverage(png, line),
+      "Fraction bar must span its rendered numerator/denominator",
+    ).toBeGreaterThan(0.7)
+  }
+}
+
+function pixelInk(png, rect) {
+  if (!rect || rect.width <= 0 || rect.height <= 0) return 0
+  let ink = 0,
+    total = 0
+  const background = Array.from(png.data.subarray(0, 3))
+  const scale = png.width / 360
+  for (
+    let y = Math.max(0, Math.floor(rect.y * scale));
+    y < Math.min(png.height, Math.ceil((rect.y + rect.height) * scale));
+    y += 2
+  ) {
+    for (
+      let x = Math.max(0, Math.floor(rect.x * scale));
+      x < Math.min(png.width, Math.ceil((rect.x + rect.width) * scale));
+      x += 2
+    ) {
+      const offset = (y * png.width + x) * 4
+      total++
+      if (background.some((value, i) => Math.abs(png.data[offset + i] - value) > 28)) ink++
+    }
+  }
+  return ink / Math.max(total, 1)
+}
+
+async function saveDirectImage(result, name, expectedUrl) {
+  const bytes = Buffer.from(result.bytes)
+  const png = PNG.sync.read(bytes)
+  await writeFile(path.join(artifacts, name + ".png"), bytes)
+  await writeFile(
+    path.join(artifacts, name + "-prepared-dom.json"),
+    JSON.stringify(result.prepared, null, 2),
+  )
+  expect(png.width).toBe(720)
+  expect(png.height).toBeGreaterThan(200)
+  expect(png.height).toBeLessThanOrEqual(8000)
+  expect(jsQR(new Uint8ClampedArray(png.data), png.width, png.height)?.data).toBe(expectedUrl)
+  assertHeaderLayout(result.prepared)
+  const body = result.prepared.nodes.find((node) => node.class?.includes("share-poster-body"))
+  expect(pixelInk(png, body)).toBeGreaterThan(0.015)
+  return { png, bytes }
+}
+
+async function renderMarkup(page, html, options = {}) {
+  return page.evaluate(
+    async ({ html, options }) => {
+      const article = options.detached
+        ? document.createElement("article")
+        : document.querySelector("article")
+      article.innerHTML = html
+      if (options.sourceWidth) article.style.width = options.sourceWidth + "px"
+      const sourceMath = Array.from(article.querySelectorAll(".katex"), (node) => ({
+        text: node.textContent,
+        scrollWidth: node.scrollWidth,
+        clientWidth: node.clientWidth,
+        width: node.getBoundingClientRect().width,
+        fontSize: getComputedStyle(node).fontSize,
+        inlineSize: getComputedStyle(node).inlineSize,
+      }))
+      try {
+        const blob = await window.SharePosterQA.generateLongSharePoster({
+          title: options.title || "结构保真与资源验证",
+          url: options.url || document.querySelector('link[rel="canonical"]').href,
+          article,
+        })
+        return {
+          bytes: Array.from(new Uint8Array(await blob.arrayBuffer())),
+          prepared: window.qa.exports.findLast((entry) => entry.width === 720)?.dom,
+          sourceMath,
+        }
+      } catch (error) {
+        return {
+          error: { name: error.name, message: error.message },
+          hosts: document.querySelectorAll(".share-poster-host").length,
+          mathGeometry: window.qa.mathGeometry,
+          sourceMath: Array.from(article.querySelectorAll(".katex"), (node) => ({
+            text: node.textContent,
+            scrollWidth: node.scrollWidth,
+            clientWidth: node.clientWidth,
+            width: node.getBoundingClientRect().width,
+            fontSize: getComputedStyle(node).fontSize,
+            inlineSize: getComputedStyle(node).inlineSize,
+          })),
+        }
+      }
+    },
+    { html, options },
+  )
 }
 
 for (const width of [320, 390, 1280]) {
@@ -441,23 +778,28 @@ for (const width of [320, 390, 1280]) {
       expect(dimensions.page).toBeLessThanOrEqual(width)
       expect(dimensions.panel).toBeLessThanOrEqual(width)
       expect(dimensions.image).toBeGreaterThan(width === 1280 ? 360 : width - 70)
-      const drawn = await page.evaluate(() =>
-        window.qa.exports
-          .findLast((entry) => entry.width === 720)
-          .lines.map((line) => line.text)
-          .join(""),
+      const prepared = await page.evaluate(
+        () => window.qa.exports.findLast((entry) => entry.width === 720)?.dom,
       )
+      expect(
+        prepared,
+        "The real DOM capture must remain inspectable while its PNG is encoding",
+      ).toBeTruthy()
+      const drawn = prepared.text
       expect(drawn).not.toContain("META-DESCRIPTION-NOT-ARTICLE")
       expect(drawn).not.toContain("不应冒充作者的网站名")
       if (sample === "short") expect(drawn).toContain("SHORT-END")
       if (sample === "near") expect(drawn).toContain("NEAR-END")
       if (sample === "structures") {
         expect(drawn).toContain("作者：晓灰")
-        for (const text of ["1.", "2.", "引用段落内容", "const title", "STRUCTURE-END"])
+        expect(prepared.nodes.filter((node) => node.tag === "li")).toHaveLength(2)
+        expect(prepared.nodes.find((node) => node.tag === "ol").style.listStyleType).toBe("decimal")
+        expect(prepared.nodes.find((node) => node.tag === "pre").style.whiteSpace).toBe("pre-wrap")
+        for (const text of ["引用段落内容", "const title", "STRUCTURE-END"])
           expect(drawn).toContain(text)
       } else expect(drawn).not.toContain("作者：")
       if (["long", "paragraph"].includes(sample)) {
-        expect(drawn).toContain("正文未完，扫码继续阅读")
+        expect(drawn).toContain("正文未完，继续阅读")
         expect(drawn).not.toContain(sample === "long" ? "LONG-FINAL-MARKER" : "PARAGRAPH-END")
       } else expect(drawn).not.toContain("正文未完")
       evidence.push({
@@ -609,60 +951,205 @@ test("dark page keeps paper-colored export and keyboard dismissal returns focus"
   expect(errors).toEqual([])
 })
 
-test("built Quartz article exports and decodes its real canonical QR", async ({ page }) => {
+const builtArticles =
+  process.env.SHARE_QA_REAL_ARTICLES === "1"
+    ? [
+        { slug: "program/学习-思考-冷静/DDD.html", title: "DDD", key: "ddd" },
+        { slug: "program/llm/vector-database.html", title: "vector-database", key: "vector" },
+      ]
+    : [
+        {
+          slug: process.env.SHARE_QA_ARTICLE_PATH || "index.html",
+          title: process.env.SHARE_QA_ARTICLE_TITLE || "Welcome to Quartz",
+          key: "docs",
+        },
+      ]
+
+async function loadBuilt(page, article) {
   expect(
     process.env.SHARE_QA_SITE_DIRECTORY,
-    "Set SHARE_QA_SITE_DIRECTORY to the fresh docs build; this integration smoke must not be silently skipped",
+    "A fresh Quartz build is required; never silently skip real integration",
   ).toBeTruthy()
-  const errors = observeErrors(page)
-  const blockedRemoteRequests = []
-  await page.route("**/*", async (route) => {
-    const request = route.request()
-    if (new URL(request.url()).origin === new URL(base).origin) return route.continue()
-    // Use the production Mermaid SDK bytes for real articles with diagrams;
-    // an empty JavaScript stub would cause an unrelated initialize error.
-    if (request.url().startsWith("https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.0/")) {
-      const response = await fetch(request.url(), { signal: AbortSignal.timeout(30_000) })
-      return route.fulfill({
-        status: response.status,
-        contentType: response.headers.get("content-type") || "application/javascript",
-        body: Buffer.from(await response.arrayBuffer()),
-      })
-    }
-    blockedRemoteRequests.push(request.url())
-    // Empty, typed local responses prevent analytics/network access without manufacturing
-    // unrelated ERR_BLOCKED_BY_CLIENT or stylesheet MIME errors in the acceptance result.
-    const image = request.resourceType() === "image"
-    await route.fulfill({
-      status: 200,
-      contentType: image
-        ? "image/svg+xml"
-        : request.resourceType() === "stylesheet"
-          ? "text/css"
-          : "application/javascript",
-      body: image ? '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>' : "",
-    })
+  await page.addInitScript(instrumentation)
+  const remoteRequests = []
+  await page.route("**/*", (route) => {
+    const url = new URL(route.request().url())
+    if (url.origin !== new URL(base).origin) remoteRequests.push(url.href)
+    if (url.hostname === "plausible.io")
+      return route.fulfill({ status: 200, contentType: "application/javascript", body: "" })
+    // The browser loads all other production resources itself. In particular,
+    // images are never fetched through Node or fulfilled to manufacture CORS.
+    return route.continue()
   })
   await page.setViewportSize({ width: 390, height: 900 })
-  await page.goto(`${base}/built/${process.env.SHARE_QA_ARTICLE_PATH || "index.html"}`)
-  await expect(page.locator(".article-title")).toContainText(
-    process.env.SHARE_QA_ARTICLE_TITLE || "Welcome to Quartz",
-  )
-  const canonicalUrl = new URL(await page.locator('link[rel="canonical"]').getAttribute("href"))
-    .href
-  await openLong(page)
-  await exportImage(page, "built-quartz-docs-390", 720, canonicalUrl)
-  await page.getByRole("button", { name: "关闭分享面板" }).focus()
-  await page.screenshot({ path: path.join(artifacts, "built-quartz-docs-390-panel.png") })
-  await page.keyboard.press("Escape")
-  await expect(page.locator(".share-page-sheet")).toBeHidden()
-  await expect(page.locator(".share-page-button")).toBeFocused()
-  await writeFile(
-    path.join(artifacts, "built-quartz-docs-network.json"),
-    JSON.stringify({ canonicalUrl, blockedRemoteRequests }, null, 2),
-  )
-  expect(errors).toEqual([])
-})
+  await page.goto(`${base}/built/${article.slug}`, { waitUntil: "domcontentloaded" })
+  await expect(page.locator(".article-title")).toContainText(article.title)
+  return {
+    remoteRequests,
+    canonicalUrl: new URL(await page.locator('link[rel="canonical"]').getAttribute("href")).href,
+  }
+}
+
+for (const article of builtArticles) {
+  test(`built Quartz article ${article.key} exports its actual opening and canonical QR`, async ({
+    page,
+  }) => {
+    test.setTimeout(120_000)
+    const { remoteRequests, canonicalUrl } = await loadBuilt(page, article)
+    await openLong(page)
+    const prepared = await page.evaluate(
+      () => window.qa.exports.findLast((entry) => entry.width === 720)?.dom,
+    )
+    expect(prepared?.body.length).toBeGreaterThan(100)
+    expect(prepared.body).not.toContain("META-DESCRIPTION-NOT-ARTICLE")
+    if (article.key === "ddd") {
+      expect(prepared.html).toContain("<strong")
+      expect(prepared.html).toContain("<blockquote")
+      expect(prepared.body).toContain("通用语言")
+    }
+    if (article.key === "vector") {
+      expect(prepared.html).toContain("<pre")
+      expect(prepared.html).toContain("<code")
+      expect(prepared.body).toContain("from vectordb import Memory")
+    }
+    await exportImage(page, `built-${article.key}-390`, 720, canonicalUrl)
+    const panel = page.locator(".share-page-panel")
+    await expect(panel).toBeVisible()
+    await page.getByRole("button", { name: "关闭分享面板" }).focus()
+    await panel.evaluate((element) => element.scrollTo(0, 0))
+    await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBe(0)
+    // Capture the visible product surface. WebKit's full-page capture stalled
+    // after this article's export had passed; the panel is the intended evidence.
+    await panel.screenshot({
+      path: path.join(artifacts, `built-${article.key}-390-panel.png`),
+      animations: "disabled",
+      timeout: 15_000,
+    })
+    expect(
+      await panel.evaluate((element) => element.scrollHeight - element.clientHeight),
+    ).toBeGreaterThan(0)
+    await panel.hover({ position: { x: 20, y: 20 } })
+    await page.mouse.wheel(0, 2000)
+    await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+    await page.getByRole("link", { name: "保存分享图" }).scrollIntoViewIfNeeded()
+    await expect(page.getByRole("link", { name: "保存分享图" })).toBeInViewport()
+    await panel.screenshot({
+      path: path.join(artifacts, `built-${article.key}-390-panel-scrolled.png`),
+      animations: "disabled",
+      timeout: 15_000,
+    })
+    await page.keyboard.press("Escape")
+    await expect(page.locator(".share-page-sheet")).toBeHidden()
+    await expect(page.locator(".share-page-button")).toBeFocused()
+    await writeFile(
+      path.join(artifacts, `built-${article.key}-network.json`),
+      JSON.stringify({ canonicalUrl, remoteRequests, errors: observeErrors(page) }, null, 2),
+    )
+    // Remote resources outside the selected excerpt may fail independently.
+    // Export readiness, actual excerpt pixels, and QR remain strict assertions.
+    expect(
+      observeErrors(page).filter((error) => !error.startsWith("Failed to load resource:")),
+    ).toEqual([])
+  })
+}
+
+if (process.env.SHARE_QA_REAL_ARTICLES === "1") {
+  for (const section of ["euclidean", "jaccard"]) {
+    test(`built Quartz article vector real ${section} section excerpt retains rich layout`, async ({
+      page,
+    }) => {
+      test.setTimeout(120_000)
+      const { canonicalUrl } = await loadBuilt(
+        page,
+        builtArticles.find((article) => article.key === "vector"),
+      )
+      await page.addScriptTag({ url: `${base}/renderer.js` })
+      // A local copy of the installed KaTeX stylesheet/fonts makes formula
+      // rendering deterministic; formulas themselves come from the fresh build.
+      await page.addStyleTag({ url: `${base}/katex/katex.min.css` })
+      const result = await page.evaluate(
+        async ({ section, canonicalUrl, base }) => {
+          const source = document.querySelector("article")
+          const heading = Array.from(source.querySelectorAll("h4")).find((node) =>
+            node.textContent.includes(section === "euclidean" ? "欧几里得距离" : "Jaccard系数"),
+          )
+          if (!heading) throw new Error("Required real article section not found")
+          const excerpt = document.createElement("article")
+          excerpt.className = source.className
+          let include = section === "euclidean"
+          for (let node = heading; node; node = node.nextElementSibling) {
+            if (node !== heading && /^H[1-4]$/.test(node.tagName)) break
+            // The Jaccard section exceeds the share budget. This explicitly
+            // labeled excerpt begins at its real Dice/F1 comparison paragraph,
+            // preserving the article's original order through the complete table.
+            if (section === "jaccard" && node.textContent.startsWith("可以看出")) include = true
+            if (node === heading || include) excerpt.append(node.cloneNode(true))
+          }
+          // Preserve the exact published diagram pixels while making this fixture
+          // same-origin; this is explicitly separate from real CORS tests below.
+          for (const image of excerpt.querySelectorAll("img")) {
+            if (image.src.endsWith("/202311220110685.png")) {
+              image.removeAttribute("srcset")
+              image.src = base + "/vector-euclidean.png"
+            }
+          }
+          document.body.append(excerpt)
+          const sourceHtml = excerpt.innerHTML
+          try {
+            const blob = await window.SharePosterQA.generateLongSharePoster({
+              title: "vector-database · 真实章节节选",
+              url: canonicalUrl,
+              article: excerpt,
+            })
+            return {
+              bytes: Array.from(new Uint8Array(await blob.arrayBuffer())),
+              prepared: window.qa.exports.findLast((entry) => entry.width === 720)?.dom,
+              sourceHtml,
+            }
+          } finally {
+            excerpt.remove()
+          }
+        },
+        { section, canonicalUrl, base },
+      )
+      const image = await saveDirectImage(result, `built-vector-${section}-excerpt`, canonicalUrl)
+      expect(result.prepared.html).toContain('class="katex')
+      expect(result.prepared.html).toContain(section === "euclidean" ? "sqrt" : "mfrac")
+      assertMathStrokes(image.png, result.prepared, {
+        sqrt: section === "euclidean",
+        fraction: section === "jaccard",
+      })
+      expect(result.prepared.html).toContain("msupsub")
+      const formula = result.prepared.nodes.find((node) => node.class === "katex")
+      expect(
+        pixelInk(image.png, formula),
+        "Formula has visible mathematical glyphs in the PNG",
+      ).toBeGreaterThan(0.02)
+      expect(
+        result.prepared.nodes.some(
+          (node) => node.class?.includes("katex") && node.width > 0 && node.height > 0,
+        ),
+      ).toBe(true)
+      if (section === "euclidean") {
+        const diagram = result.prepared.nodes.find(
+          (node) => node.tag === "img" && !node.class.includes("share-poster-qr"),
+        )
+        expect(diagram?.naturalWidth).toBeGreaterThan(1)
+        // This published line diagram has only 2.2% dark source pixels.
+        expect(pixelInk(image.png, diagram)).toBeGreaterThan(0.01)
+      } else {
+        expect(result.prepared.html).toContain("<table")
+        expect(
+          result.prepared.nodes.filter((node) => node.tag === "tr").length,
+        ).toBeGreaterThanOrEqual(4)
+      }
+      await writeFile(
+        path.join(artifacts, `built-vector-${section}-excerpt-source.html`),
+        result.sourceHtml,
+      )
+    })
+  }
+}
 
 test("direct renderer exports original text with and without a color emoji", async ({ page }) => {
   const errors = observeErrors(page)
@@ -720,12 +1207,367 @@ test("direct renderer exports original text with and without a color emoji", asy
     expect(jsQR(new Uint8ClampedArray(png.data), png.width, png.height)?.data).toBe(
       canonical(sample),
     )
-    expect(
-      result.exports
-        .findLast((entry) => entry.width === 720)
-        .lines.map((line) => line.text)
-        .join(""),
-    ).toContain("SHORT-END")
+    expect(result.exports.findLast((entry) => entry.width === 720)?.dom.body).toContain("SHORT-END")
   }
   expect(errors).toEqual([])
+})
+
+test("nested inline semantics, safe SVG, images and grapheme truncation survive DOM rasterization", async ({
+  page,
+}) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  const markup = `<h2>保留原始结构</h2><p><strong>粗体 <em>嵌套斜体</em></strong> <a href="https://xiaohui.cool/">原文链接</a> <code>inlineCode()</code> 👩🏽‍💻 é</p><ol start="3"><li>第三项<ul><li>嵌套列表</li></ul></li><li value="8">第八项</li></ol><blockquote><p>真实引用结构</p></blockquote><pre><code data-theme="github-light github-dark"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583">const</span> answer = 42;</code></pre><table><thead><tr><th>方法</th><th>特点</th></tr></thead><tbody><tr><td>DOM</td><td>结构保真</td></tr></tbody></table><p><img src="/actual-image.png" alt="两色测试图片" width="96" height="64"><em>图片说明不得压住原图</em></p><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40" width="100" height="40"><rect width="100" height="40" fill="#168F64"/></svg>`
+  const result = await renderMarkup(page, markup)
+  expect(result.error).toBeUndefined()
+  const { png } = await saveDirectImage(result, "rich-structure", canonical("short"))
+  const dom = result.prepared
+  for (const tag of ["strong", "em", "a", "ol", "ul", "blockquote", "pre", "code", "table", "svg"])
+    expect(
+      dom.nodes.some((node) => node.tag === tag && node.width > 0 && node.height > 0),
+      tag,
+    ).toBe(true)
+  expect(
+    Number(dom.nodes.find((node) => node.tag === "strong").style.fontWeight),
+  ).toBeGreaterThanOrEqual(600)
+  expect(dom.nodes.find((node) => node.tag === "em").style.fontStyle).toBe("italic")
+  expect(dom.html).toContain('start="3"')
+  expect(dom.html).toContain('value="8"')
+  expect(dom.html).toContain("👩🏽‍💻")
+  expect(dom.html).toContain("é")
+  const image = dom.nodes.find(
+    (node) => node.tag === "img" && !node.class.includes("share-poster-qr"),
+  )
+  expect(image.naturalWidth).toBe(96)
+  expect(image.width / image.height).toBeCloseTo(1.5, 1)
+  const caption = dom.nodes.find(
+    (node) => node.tag === "em" && node.text === "图片说明不得压住原图",
+  )
+  expect(caption.y).toBeGreaterThanOrEqual(image.y + image.height)
+  const sample = (xFraction) => {
+    const x = Math.round((image.x + image.width * xFraction) * 2)
+    const y = Math.round((image.y + image.height * 0.5) * 2)
+    return Array.from(png.data.subarray((y * png.width + x) * 4, (y * png.width + x) * 4 + 3))
+  }
+  expect(sample(0.25)).toEqual([220, 25, 160])
+  expect(sample(0.75)).toEqual([15, 180, 215])
+  const long = await renderMarkup(page, `<p>${"👩🏽‍💻é".repeat(650)}</p><p>HIDDEN-END</p>`)
+  expect(long.error).toBeUndefined()
+  expect(long.prepared.truncated).toBe("true")
+  expect(long.prepared.body).not.toContain("HIDDEN-END")
+  const text = long.prepared.body.replace(/[…\s]/g, "")
+  expect(text.replace(/(?:👩🏽‍💻|é)/gu, "")).toBe("")
+  await saveDirectImage(long, "grapheme-boundary", canonical("short"))
+})
+
+test("sanitization removes active content and controls without flattening safe content", async ({
+  page,
+}) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  const result = await renderMarkup(
+    page,
+    `<p id="unsafe-id" onclick="window.exploited=true">安全<strong>强调</strong><a href="javascript:window.exploited=true">链接</a></p><script>window.exploited=true</script><iframe srcdoc="unsafe"></iframe><button>CONTROL-SECRET</button><p hidden>HIDDEN-SECRET</p><p data-share-exclude>EXCLUDED-SECRET</p><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><script>window.exploited=true</script><foreignObject><div>静态图形标签</div><iframe srcdoc="unsafe">ACTIVE-SECRET</iframe></foreignObject><rect width="20" height="20" fill="#168F64" onload="window.exploited=true"/></svg>`,
+    { detached: true },
+  )
+  expect(result.error).toBeUndefined()
+  expect(await page.evaluate(() => window.exploited)).toBeUndefined()
+  expect(result.prepared.html).not.toMatch(
+    /<script|<iframe|<button|onclick=|onload=|javascript:|CONTROL-SECRET|HIDDEN-SECRET|EXCLUDED-SECRET|ACTIVE-SECRET/i,
+  )
+  expect(result.prepared.html).toContain("<strong")
+  expect(result.prepared.html).toContain("<rect")
+  expect(result.prepared.body).toContain("静态图形标签")
+  await saveDirectImage(result, "sanitized-structure", canonical("short"))
+})
+
+test("actual browser CORS fetch succeeds only with permission and failure is retryable", async ({
+  page,
+}) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  // Separate loopback port is a genuinely different origin. No route.fulfill,
+  // request-context fetch, or Node proxy is allowed on these image requests.
+  const allowed = await renderMarkup(
+    page,
+    `<p>跨域图片</p><img src="${imageBase}/cors.png" width="96" height="64">`,
+  )
+  expect(allowed.error).toBeUndefined()
+  await saveDirectImage(allowed, "cors-image-allowed", canonical("short"))
+  const denied = await renderMarkup(
+    page,
+    `<p>缺少跨域许可</p><img src="${imageBase}/denied.png" width="96" height="64">`,
+  )
+  expect(denied.error?.name).toBe("SharePosterError")
+  expect(denied.error?.message).toMatch(/图片|资源|跨域/)
+  expect(denied.hosts).toBe(0)
+  const retry = await renderMarkup(
+    page,
+    `<p>修复后重试</p><img src="${imageBase}/cors-retry.png" width="96" height="64">`,
+  )
+  expect(retry.error).toBeUndefined()
+  await saveDirectImage(retry, "cors-image-retry", canonical("short"))
+  await writeFile(path.join(artifacts, "cors-failure.json"), JSON.stringify(denied, null, 2))
+})
+
+test("a required web font failure reports an error and leaves generation retryable", async ({
+  page,
+}) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  const style = await page.addStyleTag({
+    content: `@font-face{font-family:"Noto Sans SC";src:url("${base}/missing-required-font.woff2") format("woff2");font-weight:100 900;}`,
+  })
+  const result = await renderMarkup(page, "<p>必须使用的字体加载失败不能生成缺字图片。</p>")
+  expect(result.error?.name).toBe("SharePosterError")
+  expect(result.error?.message).toMatch(/字体|资源/)
+  expect(result.hosts).toBe(0)
+  await style.evaluate((node) => node.remove())
+  const retry = await renderMarkup(page, "<p>允许使用系统后备字体的页面可以重新生成。</p>")
+  expect(retry.error).toBeUndefined()
+  await saveDirectImage(retry, "font-failure-retry", canonical("short"))
+  await writeFile(path.join(artifacts, "font-failure.json"), JSON.stringify(result, null, 2))
+})
+
+test("long-image encoder failure is visible and saving retries with a real PNG", async ({
+  page,
+}) => {
+  await page.goto(`${base}/short.html?fault=fail-long`)
+  await page.locator(".share-page-button").click()
+  await ready(page, 1144)
+  await page.getByRole("button", { name: "长文分享图", exact: true }).click()
+  await expect(page.locator(".share-page-status")).toContainText("失败")
+  await expect(page.locator(".share-page-poster")).toBeHidden()
+  await exportImage(page, "long-error-retry", 720, canonical("short"))
+  await ready(page, 720)
+  await expect(page.locator(".share-poster-host")).toHaveCount(0)
+})
+
+test("SPA cleanup releases late exports and cancels a pending download", async ({ page }) => {
+  const downloads = []
+  page.on("download", (download) => downloads.push(download.suggestedFilename()))
+  await page.goto(`${base}/short.html?fault=delay-long`)
+  await page.locator(".share-page-button").click()
+  await ready(page, 1144)
+  await page.getByRole("button", { name: "长文分享图", exact: true }).click()
+  await expect.poll(() => page.evaluate(() => window.qa.pending.length)).toBe(1)
+  await page.getByRole("button", { name: "保存图片", exact: true }).click()
+  await page.evaluate(() => {
+    window.cleanups.splice(0).forEach((fn) => fn())
+    document.querySelector(".copy-page-control")?.remove()
+    document.querySelector(".article-title").textContent = "下一篇文章"
+    document.querySelector("article").innerHTML = "<p>SPA 新页面</p>"
+    document.dispatchEvent(new CustomEvent("nav"))
+    window.qa.pending.splice(0).forEach((fn) => fn())
+  })
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.qa.exports.filter((entry) => entry.width === 720).length),
+    )
+    .toBe(1)
+  await expect(page.locator(".share-page-sheet")).toBeHidden()
+  await expect(page.locator(".share-poster-host")).toHaveCount(0)
+  const urls = await page.evaluate(() => ({
+    created: window.qa.createdUrls,
+    revoked: window.qa.revokedUrls,
+  }))
+  expect(urls.created.every((url) => urls.revoked.includes(url))).toBe(true)
+  expect(downloads).toEqual([])
+  await page.locator(".share-page-button").click()
+  await ready(page, 1144)
+  await expect(page.locator(".share-page-preview-title")).toContainText("下一篇文章")
+})
+
+test("display math preserves intrinsic geometry across narrow and wide source articles", async ({
+  page,
+}) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  await page.addStyleTag({ url: `${base}/katex/katex.min.css` })
+  const formula = katex.renderToString(
+    String.raw`\frac{\sqrt{a_1^2+a_2^2+a_3^2}}{1+\frac{b_i}{c^{2}}}=\sum_{i=1}^{n}\frac{x_i^2}{y_i}`,
+    { displayMode: true, output: "html" },
+  )
+  const geometries = []
+  for (const sourceWidth of [320, 700]) {
+    const result = await renderMarkup(
+      page,
+      `<h2>分式、根号与上下标</h2>${formula}<p>公式保持独立而清晰。</p>`,
+      { sourceWidth },
+    )
+    await writeFile(
+      path.join(artifacts, `display-math-${sourceWidth}-layout.json`),
+      JSON.stringify(
+        {
+          source: result.sourceMath,
+          capture: await page.evaluate(() => window.qa.mathGeometry),
+          error: result.error,
+        },
+        null,
+        2,
+      ),
+    )
+    expect(result.error).toBeUndefined()
+    await page
+      .locator("article .katex-display")
+      .screenshot({ path: path.join(artifacts, `display-math-${sourceWidth}-source.png`) })
+    const { png } = await saveDirectImage(result, `display-math-${sourceWidth}`, canonical("short"))
+    for (const className of ["mfrac", "sqrt", "msupsub"])
+      expect(result.prepared.html.includes(className), `Formula retains ${className}`).toBe(true)
+    const box = result.prepared.nodes.find((node) => node.class === "katex")
+    expect(box.height).toBeGreaterThan(30)
+    expect(box.x).toBeGreaterThanOrEqual(23)
+    expect(box.x + box.width).toBeLessThanOrEqual(337)
+    expect(pixelInk(png, box)).toBeGreaterThan(0.02)
+    assertMathStrokes(png, result.prepared, { sqrt: true, fraction: true })
+    geometries.push({
+      sourceWidth: result.sourceMath[0].width,
+      width: box.width,
+      height: box.height,
+    })
+  }
+  expect(geometries[1].sourceWidth - geometries[0].sourceWidth).toBeGreaterThan(300)
+  expect(Math.abs(geometries[0].width - geometries[1].width)).toBeLessThanOrEqual(1)
+  expect(Math.abs(geometries[0].height - geometries[1].height)).toBeLessThanOrEqual(1)
+  // This mathematical content itself is too wide, independently of its source container.
+  const tooWide = katex.renderToString(
+    String.raw`\sum_{i=1}^{n}\frac{x_i^2}{y_i}=` +
+      Array.from(
+        { length: 18 },
+        (_, index) => String.raw`\frac{x_{${index + 1}}^2+y_{${index + 1}}^2}{1+z_{${index + 1}}}`,
+      ).join("+"),
+    { displayMode: true, output: "html" },
+  )
+  const rejected = await renderMarkup(page, tooWide, { sourceWidth: 320 })
+  expect(rejected.error?.name).toBe("SharePosterError")
+  expect(rejected.error?.message).toContain("公式过宽")
+  expect(rejected.hosts).toBe(0)
+  await writeFile(
+    path.join(artifacts, "oversized-formula-failure.json"),
+    JSON.stringify(rejected, null, 2),
+  )
+})
+
+test("height protection preserves a complete tall image and avoids orphan section titles", async ({
+  page,
+}) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  const result = await renderMarkup(
+    page,
+    `<h2>完整高图</h2><img src="/tall-image.png" alt="上下两色完整图片"><h2>后续代码</h2><pre><code>${"x\n".repeat(180)}</code></pre><h2>ORPHAN-SECTION</h2><p>最后的说明。</p>`,
+  )
+  expect(result.error).toBeUndefined()
+  const { png } = await saveDirectImage(result, "height-protection", canonical("short"))
+  expect(result.prepared.truncated).toBe("true")
+  const body = result.prepared.nodes.find((node) => node.class?.includes("share-poster-body"))
+  const image = result.prepared.nodes.find(
+    (node) => node.tag === "img" && !node.class.includes("share-poster-qr"),
+  )
+  expect(image.naturalHeight).toBe(2400)
+  expect(image.width / image.height).toBeCloseTo(320 / 2400, 2)
+  expect(image.y + image.height).toBeLessThanOrEqual(body.y + body.height + 1)
+  const last = result.prepared.html.trim()
+  expect(last).not.toMatch(/<h[1-6][^>]*>[^<]*<\/h[1-6]>$/)
+  expect(result.prepared.body).not.toContain("ORPHAN-SECTION")
+  const x = Math.round((image.x + image.width / 2) * 2)
+  const y = Math.round((image.y + image.height * 0.75) * 2)
+  expect(
+    Array.from(png.data.subarray((y * png.width + x) * 4, (y * png.width + x) * 4 + 3)),
+  ).toEqual([15, 180, 215])
+})
+
+test("highlighted code keeps adjacent lines while raw code preserves original whitespace", async ({
+  page,
+}) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  const plain = 'function plain() {\n  return "原始缩进";\n}\n'
+  const highlighted =
+    '<pre><code data-theme="github-light github-dark"><span data-line><span style="--shiki-light:#D73A49">const</span> value = 1;</span>\n<span data-line>  consume(value);</span>\n<span data-line></span>\n<span data-line>done();</span></code></pre>'
+  const result = await renderMarkup(
+    page,
+    `<h2>高亮代码</h2>${highlighted}<h2>原始代码</h2><pre><code>${escape(plain)}</code></pre>`,
+  )
+  expect(result.error).toBeUndefined()
+  await saveDirectImage(result, "code-line-spacing", canonical("short"))
+  const lines = result.prepared.nodes.filter((node) => node.codeLine)
+  expect(lines).toHaveLength(4)
+  expect(lines[1].text).toBe("  consume(value);")
+  expect(lines[2].text).toBe("")
+  expect(lines[2].height).toBeGreaterThan(0)
+  for (let index = 1; index < lines.length; index++) {
+    const previous = lines[index - 1]
+    expect(
+      Math.abs(lines[index].y - (previous.y + previous.height)),
+      "Shiki separator newlines must not create anonymous blank rows",
+    ).toBeLessThanOrEqual(1)
+  }
+  const codes = result.prepared.nodes.filter((node) => node.tag === "code")
+  expect(codes).toHaveLength(2)
+  expect(codes[0].style.display).toBe("grid")
+  expect(codes[1].style.display).toBe("block")
+  expect(codes[0].height).toBeLessThanOrEqual(
+    lines.reduce((height, line) => height + line.height, 0) + 1,
+  )
+  expect(codes[1].text).toBe(plain)
+  expect(codes[1].style.whiteSpace).toBe("pre-wrap")
+  expect(codes[1].height).toBeGreaterThanOrEqual(parseFloat(codes[1].style.lineHeight) * 3 - 1)
+})
+
+test("long mixed-language titles lead the poster without a duplicate brand row", async ({
+  page,
+}) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  const title = "长中英文标题：Building Reliable DOM Sharing for Rich Articles 与公式图片排版"
+  const result = await renderMarkup(page, "<p>标题与站点品牌各自完整呈现，页脚二维码清晰。</p>", {
+    title,
+  })
+  expect(result.error).toBeUndefined()
+  expect(result.prepared.nodes.find((node) => node.class === "share-poster-title").text).toBe(title)
+  await saveDirectImage(result, "long-mixed-title", canonical("short"))
+})
+
+test("native PNG encoding fallback remains usable when toDataURL succeeds", async ({ page }) => {
+  await page.goto(`${base}/short.html?fault=fallback-long`)
+  await openLong(page)
+  await expect(page.locator(".share-page-status")).not.toContainText("失败")
+  expect(
+    await page.evaluate(() =>
+      window.qa.exports.some((entry) => entry.width === 720 && entry.encoding === "toDataURL"),
+    ),
+  ).toBe(true)
+  await exportImage(page, "native-encoding-fallback", 720, canonical("short"))
+  await expect(page.locator(".share-poster-host")).toHaveCount(0)
+})
+
+test("dense canonical URLs keep a complete QR below the footer text", async ({ page }) => {
+  await page.goto(`${base}/short.html`)
+  await page.addScriptTag({ url: `${base}/renderer.js` })
+  const url = "https://xiaohui.cool/article?source=" + "long-reference-".repeat(100)
+  const result = await renderMarkup(page, "<p>长链接仍保留清晰完整的二维码与阅读全文提示。</p>", {
+    url,
+  })
+  expect(result.error).toBeUndefined()
+  const { png } = await saveDirectImage(result, "dense-url-footer", url)
+  const qr = result.prepared.nodes.find((node) => node.class === "share-poster-qr")
+  expect(qr.width).toBeGreaterThan(140)
+  const modules = QRCode.create(url, { errorCorrectionLevel: "M" }).modules.size
+  const modulePixels = (qr.width * 2) / (modules + 8)
+  expect(Number.isInteger(modulePixels)).toBe(true)
+  expect(modulePixels).toBeGreaterThanOrEqual(3)
+  const quiet = modulePixels * 4
+  const left = Math.round(qr.x * 2),
+    top = Math.round(qr.y * 2),
+    side = Math.round(qr.width * 2)
+  let darkestQuietPixel = 255
+  for (let y = 0; y < side; y++) {
+    for (let x = 0; x < side; x++) {
+      if (x >= quiet && x < side - quiet && y >= quiet && y < side - quiet) continue
+      const offset = ((top + y) * png.width + left + x) * 4
+      darkestQuietPixel = Math.min(darkestQuietPixel, ...png.data.subarray(offset, offset + 3))
+    }
+  }
+  expect(darkestQuietPixel, "Four-module quiet zone contains no dark pixels").toBeGreaterThan(240)
 })
