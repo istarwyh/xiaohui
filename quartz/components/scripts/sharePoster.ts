@@ -1,20 +1,23 @@
 import * as QRCode from "qrcode"
+import { toBlob } from "html-to-image"
 import { foundations, light } from "../../design/tokens"
+import { sharePosterStyles } from "./sharePosterStyles"
+import {
+  SharePosterError,
+  PosterResources,
+  snapshotFontSources,
+  embedPosterFonts,
+  embedPosterImages,
+} from "./sharePosterResources"
+
+export { SharePosterError } from "./sharePosterResources"
 
 export interface SharePosterInput {
   title: string
   url: string
   author?: string
   article: Element
-}
-
-export interface PosterBlock {
-  kind: "paragraph" | "heading" | "list" | "quote" | "code" | "table"
-  text: string
-  level?: number
-  depth?: number
-  marker?: string
-  quoted?: boolean
+  signal?: AbortSignal
 }
 
 // Logical pixels match a phone-sized page. The PNG has twice this resolution.
@@ -23,14 +26,9 @@ export const POSTER_SCALE = 2
 export const MAX_POSTER_HEIGHT = 4000
 export const POSTER_CHARACTER_TARGET = 800
 const BLOCK_OVERRUN = 200
-const rem = (value: string) => Number.parseFloat(value) * 16
-const margin = rem(foundations["space-6"])
-const contentWidth = POSTER_WIDTH - margin * 2
-const bodySize = rem(foundations["text-h3"])
-const bodyLeading = bodySize * Number(foundations["leading-reading"])
-const gap = rem(foundations["space-4"])
-const smallGap = rem(foundations["space-2"])
-
+const GENERATION_TIMEOUT = 30000
+const MAX_BODY_HEIGHT = 2900
+const SVG_NS = "http://www.w3.org/2000/svg"
 const omitted = [
   "script",
   "style",
@@ -40,17 +38,20 @@ const omitted = [
   "input",
   "textarea",
   "select",
-  "svg",
+  "form",
   "nav",
   "footer",
   "aside",
   "iframe",
+  "object",
+  "embed",
   "canvas",
   "audio",
   "video",
-  "img",
+  "source",
+  "link",
+  "meta",
   "[hidden]",
-  '[aria-hidden="true"]',
   '[role="button"]',
   '[role="navigation"]',
   '[role="toolbar"]',
@@ -61,616 +62,645 @@ const omitted = [
   ".share-page-sheet",
   ".anchor",
   ".footnote-backref",
-  ".katex-html",
+  ".katex-mathml",
 ].join(",")
-const blockTags = new Set([
-  "P",
-  "H1",
-  "H2",
-  "H3",
-  "H4",
-  "H5",
-  "H6",
-  "UL",
-  "OL",
-  "LI",
-  "BLOCKQUOTE",
-  "PRE",
-  "TABLE",
-  "DIV",
-  "SECTION",
-  "ARTICLE",
-  "FIGURE",
-  "FIGCAPTION",
-  "DETAILS",
-  "SUMMARY",
-  "DL",
-  "DT",
-  "DD",
-  "HR",
+const htmlTags = new Set(
+  "article section div span p br wbr h1 h2 h3 h4 h5 h6 strong b em i u s del ins mark small sub sup abbr q cite a code pre kbd samp var blockquote ul ol li dl dt dd figure figcaption img picture table thead tbody tfoot tr th td caption colgroup col hr details summary math mrow mi mo mn mfrac msup msub msqrt mtext semantics annotation".split(
+    " ",
+  ),
+)
+const svgTags = new Set(
+  "svg g image foreignobject path rect circle ellipse line polyline polygon text tspan defs marker clippath mask use symbol title desc lineargradient radialgradient stop".split(
+    " ",
+  ),
+)
+const passiveAttributes = new Set(
+  "class title lang dir start reversed value colspan rowspan scope alt viewBox width height d x y x1 y1 x2 y2 cx cy r rx ry points fill fill-rule stroke stroke-width stroke-linecap stroke-linejoin stroke-dasharray opacity transform preserveAspectRatio xmlns offset stop-color stop-opacity markerWidth markerHeight markerUnits refX refY orient marker-start marker-mid marker-end clip-path clipPathUnits mask maskUnits maskContentUnits gradientUnits gradientTransform text-anchor dominant-baseline"
+    .toLowerCase()
+    .split(" "),
+)
+const inlineProperties = new Set([
+  "font-weight",
+  "font-style",
+  "text-decoration",
+  "text-decoration-line",
+  "text-align",
+  "text-indent",
+  "white-space",
+  "vertical-align",
+  "color",
+  "background-color",
+  "--shiki-light",
+  "--shiki-light-bg",
+  "--shiki-dark",
+  "--shiki-dark-bg",
 ])
 
-function isOmitted(element: Element) {
-  return (
-    element.matches(omitted) ||
-    /(?:display\s*:\s*none|visibility\s*:\s*hidden)/i.test(element.getAttribute("style") ?? "")
-  )
-}
-
-function inlineText(node: Node): string {
-  if (node.nodeType === 3) return node.textContent ?? ""
-  if (node.nodeType !== 1) return ""
-  const element = node as Element
-  if (isOmitted(element)) return ""
-  if (element.tagName === "BR") return "\n"
-  // KaTeX exposes both visual and accessible trees; preserve the source only once.
-  if (element.classList.contains("katex-mathml")) {
-    return element.querySelector("annotation")?.textContent ?? element.textContent ?? ""
-  }
-  return Array.from(element.childNodes, inlineText).join("")
-}
-
-function cleanText(text: string, code = false) {
-  const normalized = text.replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ")
-  if (code) return normalized.replace(/^\n|\n$/g, "").replace(/\t/g, "  ")
-  return normalized
-    .split("\n")
-    .map((line) => line.replace(/\s+/g, " ").trim())
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim()
-}
-
-/** Read rendered article content in DOM order, without mutating it or copying controls. */
-export function extractArticleBlocks(article: Element): PosterBlock[] {
-  const result: PosterBlock[] = []
-  type Scope = { depth?: number; marker?: string; quoted?: boolean }
-
-  function emit(text: string, kind: PosterBlock["kind"], scope: Scope, level?: number) {
-    const cleaned = cleanText(text, kind === "code")
-    if (!cleaned.trim()) return
-    result.push({ kind, text: cleaned, ...scope, ...(level ? { level } : {}) })
-    scope.marker = undefined
-  }
-
-  function children(container: Element, scope: Scope = {}) {
-    let pending = ""
-    const flush = () => {
-      emit(
-        pending,
-        scope.depth !== undefined ? "list" : scope.quoted ? "quote" : "paragraph",
-        scope,
+/** Copy passive content only. Images hold a source URL, never initiate an unvetted clone request. */
+export function snapshotArticle(article: Element): HTMLElement {
+  const document = article.ownerDocument
+  const view = document.defaultView
+  const result = document.createElement("article")
+  result.className = "share-poster-article"
+  const ids = new Map<string, string>()
+  const prefix = `share-poster-${Date.now()}-`
+  let nodes = 0
+  function copy(node: Node, into: Node, math = false, svg = false) {
+    if (++nodes > 30000) throw new SharePosterError("文章内容过于复杂，暂时无法生成分享图。")
+    if (node.nodeType === 3) {
+      into.appendChild(document.createTextNode(node.textContent ?? ""))
+      return
+    }
+    if (node.nodeType !== 1) return
+    const source = node as HTMLElement
+    if (source.matches(omitted)) return
+    const tag = source.localName.toLowerCase()
+    const isMath = math || source.classList.contains("katex")
+    if (source.getAttribute("aria-hidden") === "true" && !isMath && source.namespaceURI !== SVG_NS)
+      return
+    const computed =
+      typeof view?.getComputedStyle === "function" ? view.getComputedStyle(source) : undefined
+    if (computed?.display === "none" || computed?.visibility === "hidden") return
+    const isSvg =
+      source.namespaceURI === SVG_NS ||
+      (svg && source.namespaceURI !== "http://www.w3.org/1999/xhtml")
+    if (!(isSvg ? svgTags : htmlTags).has(tag)) {
+      // Unknown passive wrappers contribute their readable children, never their behavior.
+      if (/^(animate|animatetransform|set)$/i.test(tag)) return
+      if (isSvg) throw new SharePosterError("文章图形含有暂不支持的内容，无法保证完整导出。")
+      for (const child of Array.from(source.childNodes)) copy(child, into, isMath, isSvg)
+      return
+    }
+    const cloned = (
+      isSvg ? document.createElementNS(SVG_NS, source.tagName) : document.createElement(tag)
+    ) as HTMLElement
+    for (const attribute of Array.from(source.attributes)) {
+      const name = attribute.name.toLowerCase()
+      if (
+        passiveAttributes.has(name) ||
+        /^data-(?:line(?:-numbers(?:-max-digits)?)?|highlighted-(?:line|chars)|rehype-pretty-code-(?:figure|title)|language|theme)$/.test(
+          name,
+        )
+      ) {
+        if (!/url\(/i.test(attribute.value) || /^url\(#[^)]+\)$/.test(attribute.value))
+          cloned.setAttribute(attribute.name, attribute.value)
+      }
+    }
+    if (source.id) {
+      const id = prefix + source.id
+      ids.set(source.id, id)
+      cloned.id = id
+    }
+    if (tag === "a") {
+      const href = source.getAttribute("href")
+      if (href && /^(?:https?:|mailto:|#|\/|\.?\.?\/)/i.test(href))
+        cloned.setAttribute("href", href)
+    }
+    if (isSvg && tag === "use") {
+      const href = source.getAttribute("href") ?? source.getAttribute("xlink:href")
+      if (!href?.startsWith("#"))
+        throw new SharePosterError("文章图形含有外部引用，暂时无法完整导出。")
+      cloned.setAttribute("href", href)
+    }
+    if (tag === "img" || (isSvg && tag === "image")) {
+      const image = source as HTMLImageElement
+      const url =
+        image.currentSrc ||
+        image.getAttribute("src") ||
+        source.getAttribute("href") ||
+        source.getAttribute("xlink:href")
+      if (url) {
+        try {
+          cloned.dataset.shareSource = new URL(
+            url,
+            document.baseURI || "https://xiaohui.cool/",
+          ).href
+        } catch {
+          throw new SharePosterError("文章图片地址无效，请刷新页面后重试。")
+        }
+      }
+      if (tag === "img") {
+        cloned.removeAttribute("width")
+        cloned.removeAttribute("height")
+      }
+    }
+    if (tag === "details") cloned.setAttribute("open", "")
+    if (tag === "ol" && source.hasAttribute("reversed") && !source.hasAttribute("start"))
+      cloned.setAttribute("start", String(source.children.length))
+    // KaTeX and SVG geometry comes from the rendered source, including its visual tree.
+    // Ordinary prose uses the share-scoped reading rules, never desktop pixel widths.
+    const inGraphic = svg || isSvg
+    if ((isMath || inGraphic) && computed) {
+      for (const property of Array.from(computed)) {
+        const computedValue = computed.getPropertyValue(property)
+        const value = computedValue.replace(
+          /url\(\s*(["']?)(.*?)\1\s*\)/gi,
+          (original, _quote: string, reference: string) => {
+            try {
+              const resource = new URL(reference, document.baseURI)
+              const page = new URL(document.baseURI)
+              return resource.hash &&
+                resource.origin === page.origin &&
+                resource.pathname === page.pathname &&
+                resource.search === page.search
+                ? `url(${resource.hash})`
+                : original
+            } catch {
+              return original
+            }
+          },
+        )
+        if (
+          (!/url\(/i.test(value) || /^url\(#[^)]+\)$/.test(value)) &&
+          !property.startsWith("--") &&
+          ![
+            "color",
+            "background-color",
+            "background-image",
+            "font-size",
+            "width",
+            "height",
+            "min-width",
+            "max-width",
+          ].includes(property)
+        ) {
+          cloned.style.setProperty(property, value)
+        }
+      }
+      // Preserve relative KaTeX sizing (superscripts, vlist struts) from its original CSS.
+      for (const property of ["font-size", "width", "height", "min-width", "max-width"]) {
+        const value =
+          inGraphic && tag !== "svg"
+            ? computed.getPropertyValue(property)
+            : source.style.getPropertyValue(property)
+        if (value && !/url\(/i.test(value)) cloned.style.setProperty(property, value)
+      }
+      if (isMath) {
+        cloned.style.color = light["color-text-strong"]
+        if (computed.fontSize) cloned.style.fontSize = computed.fontSize
+      }
+    }
+    if (!isMath && !inGraphic && computed) {
+      if (computed.textIndent && computed.textIndent !== "0px")
+        cloned.style.textIndent = computed.textIndent
+      if (["center", "right", "justify"].includes(computed.textAlign))
+        cloned.style.textAlign = computed.textAlign
+    }
+    for (const property of Array.from(source.style ?? [])) {
+      const value = source.style.getPropertyValue(property)
+      if (
+        (inlineProperties.has(property) || (isMath && !/url\(/i.test(value))) &&
+        !/url\(|expression\(/i.test(value)
       )
-      pending = ""
+        cloned.style.setProperty(property, value)
     }
-    for (const node of Array.from(container.childNodes)) {
-      if (node.nodeType !== 1) {
-        pending += inlineText(node)
-        continue
-      }
-      const element = node as Element
-      if (isOmitted(element)) continue
-      if (!blockTags.has(element.tagName)) {
-        pending += inlineText(element)
-        continue
-      }
-      flush()
-      visit(element, scope)
-    }
-    flush()
+    if (source.style?.getPropertyValue("--shiki-light"))
+      cloned.style.color = source.style.getPropertyValue("--shiki-light")
+    if (source.style?.getPropertyValue("--shiki-light-bg"))
+      cloned.style.backgroundColor = source.style.getPropertyValue("--shiki-light-bg")
+    into.appendChild(cloned)
+    for (const child of Array.from(source.childNodes)) copy(child, cloned, isMath, inGraphic)
   }
-
-  function visit(element: Element, scope: Scope) {
-    const tag = element.tagName
-    if (tag === "UL" || tag === "OL") {
-      const items = Array.from(element.children).filter((child) => child.tagName === "LI")
-      const reversed = element.hasAttribute("reversed")
-      let ordinal = Number(element.getAttribute("start") ?? (reversed ? items.length : 1))
-      for (const item of items) {
-        if (isOmitted(item)) continue
-        if (item.hasAttribute("value")) ordinal = Number(item.getAttribute("value"))
-        children(item, {
-          ...scope,
-          depth: (scope.depth ?? -1) + 1,
-          marker: tag === "OL" ? `${ordinal}.` : "•",
-        })
-        ordinal += reversed ? -1 : 1
-      }
-    } else if (tag === "BLOCKQUOTE") {
-      const quoteScope = { ...scope, quoted: true }
-      children(element, quoteScope)
-      scope.marker = quoteScope.marker
-    } else if (tag === "PRE") {
-      emit(inlineText(element), "code", scope)
-    } else if (tag === "TABLE") {
-      const caption = element.querySelector("caption")
-      if (caption) emit(inlineText(caption), "paragraph", scope)
-      for (const row of Array.from(element.querySelectorAll("tr"))) {
-        if (isOmitted(row)) continue
-        const cells = Array.from(row.children)
-          .filter((cell) => /^(TH|TD)$/.test(cell.tagName) && !isOmitted(cell))
-          .map((cell) => cleanText(inlineText(cell)))
-        // A linear row is legible at phone width, unlike a miniature screenshot table.
-        emit(cells.join(" | "), "table", scope)
-      }
-    } else if (/^H[1-6]$/.test(tag)) {
-      emit(inlineText(element), "heading", scope, Number(tag[1]))
-    } else if (tag !== "HR") {
-      children(element, scope)
+  for (const node of Array.from(article.childNodes)) copy(node, result)
+  for (const element of Array.from(result.querySelectorAll("*"))) {
+    for (const attribute of Array.from(element.attributes)) {
+      let value = attribute.value.replace(/url\(#([^)]+)\)/g, (original, id: string) =>
+        ids.has(id) ? `url(#${ids.get(id)})` : original,
+      )
+      if (attribute.name === "href" && value.startsWith("#") && ids.has(value.slice(1)))
+        value = `#${ids.get(value.slice(1))}`
+      if (value !== attribute.value) element.setAttribute(attribute.name, value)
     }
   }
-
-  children(article)
   return result
 }
 
-const graphemes = (text: string): string[] => {
-  if (typeof Intl.Segmenter === "function") {
-    return Array.from(
-      new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text),
-      (part) => part.segment,
-    )
+const segments = (text: string) =>
+  typeof Intl.Segmenter === "function"
+    ? Array.from(
+        new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text),
+        (part) => part.segment,
+      )
+    : Array.from(text)
+
+/** UTF-16 endpoint, at a nearby sentence boundary or a complete grapheme. */
+export function posterTextBoundary(text: string, target = POSTER_CHARACTER_TARGET): number {
+  const units = segments(text)
+  if (units.length <= target + BLOCK_OVERRUN) return text.length
+  let end = Math.min(target, units.length)
+  for (let index = end; index < Math.min(units.length, target + BLOCK_OVERRUN); index++) {
+    if (/[。！？.!?\n]/u.test(units[index])) {
+      end = index + 1
+      break
+    }
   }
-  return Array.from(text)
+  return units.slice(0, end).join("").length
 }
 
-/** Soft, source-text budget: keep complete blocks when reasonably close to 800 characters. */
-export function selectPosterExcerpt(blocks: PosterBlock[], target = POSTER_CHARACTER_TARGET) {
-  const selected: PosterBlock[] = []
+function trimText(element: HTMLElement, limit: number) {
+  let remaining = posterTextBoundary(element.textContent ?? "", limit)
+  let stopped = false
+  function trim(parent: Node) {
+    for (const child of Array.from(parent.childNodes)) {
+      if (stopped) {
+        parent.removeChild(child)
+        continue
+      }
+      if (child.nodeType === 3) {
+        const text = child.textContent ?? ""
+        if (text.length > remaining) {
+          child.textContent = text.slice(0, remaining)
+          stopped = true
+        }
+        remaining -= Math.min(remaining, text.length)
+      } else if (child.nodeType === 1) {
+        const current = child as HTMLElement
+        // Mathematical expressions and visual assets are indivisible, even at the boundary.
+        if (current.matches(".katex,svg,img"))
+          remaining -= Math.min(remaining, current.textContent?.length ?? 0)
+        else trim(current)
+      }
+      if (remaining === 0) stopped = true
+    }
+  }
+  trim(element)
+}
+
+/** Select real DOM blocks, retaining their inline ancestors and nearby natural endings. */
+export function selectPosterExcerpt(article: HTMLElement, target = POSTER_CHARACTER_TARGET) {
+  const selected = article.cloneNode(true) as HTMLElement
   let count = 0
+  let stopped = false
   let truncated = false
-  for (const block of blocks) {
-    if (count >= target && selected.at(-1)?.kind !== "heading") {
-      truncated = true
-      break
-    }
-    const units = graphemes(block.text)
-    const remaining = Math.max(target - count, 80)
-    if (units.length > remaining + BLOCK_OVERRUN) {
-      let end = remaining
-      // Prefer a sentence or explicit line boundary over a fixed character cutoff.
-      for (
-        let index = remaining;
-        index < Math.min(units.length, remaining + BLOCK_OVERRUN);
-        index++
+  let headingNeedsBody = false
+  function visit(parent: HTMLElement) {
+    for (const child of Array.from(parent.childNodes)) {
+      const meaningful =
+        Boolean(child.textContent?.trim()) ||
+        (child.nodeType === 1 &&
+          Boolean(
+            (child as Element).querySelector("img,svg") || (child as Element).matches("img,svg,hr"),
+          ))
+      if (stopped || (count >= target && !headingNeedsBody)) {
+        if (meaningful) truncated = true
+        child.remove()
+        continue
+      }
+      if (child.nodeType !== 1) {
+        count += segments(child.textContent ?? "").length
+        continue
+      }
+      const element = child as HTMLElement
+      const text = element.textContent ?? ""
+      const length = segments(text).length
+      const heading = /^H[1-6]$/.test(element.tagName)
+      const structural = /^(DIV|SECTION|ARTICLE|DETAILS|UL|OL|BLOCKQUOTE|TBODY|THEAD|TFOOT)$/.test(
+        element.tagName,
+      )
+      if (
+        structural &&
+        element.children.length &&
+        length > Math.max(target - count, 80) + BLOCK_OVERRUN
       ) {
-        if (/[。！？.!?\n]/u.test(units[index])) {
-          end = index + 1
-          break
-        }
+        visit(element)
+        continue
       }
-      selected.push({ ...block, text: units.slice(0, end).join("").trimEnd() })
-      truncated = true
-      break
-    }
-    selected.push(block)
-    count += units.length
-  }
-  return { blocks: selected, truncated }
-}
-
-type TextMeasurer = Pick<CanvasRenderingContext2D, "font" | "measureText">
-export interface WrappedPosterText {
-  lines: string[]
-  truncated: boolean
-}
-
-/** Word-aware Latin wrapping, CJK wrapping, explicit newlines and intact emoji clusters. */
-export function wrapPosterText(
-  context: Pick<TextMeasurer, "measureText">,
-  text: string,
-  maxWidth: number,
-  maxLines = Number.POSITIVE_INFINITY,
-  preserveIndent = false,
-): WrappedPosterText {
-  const lines: string[] = []
-  const paragraphs = text.replace(/\r\n?/g, "\n").split("\n")
-  for (let paragraphIndex = 0; paragraphIndex < paragraphs.length; paragraphIndex++) {
-    let remaining = graphemes(paragraphs[paragraphIndex])
-    if (remaining.length === 0) {
-      if (lines.length >= maxLines) return { lines, truncated: true }
-      lines.push("")
-    }
-    while (remaining.length > 0) {
-      if (lines.length >= maxLines) return { lines, truncated: true }
-      let end = 0
-      while (
-        end < remaining.length &&
-        (context.measureText(remaining.slice(0, end + 1).join("")).width <= maxWidth || end === 0)
-      ) {
-        end++
+      const remaining = Math.max(target - count, 80)
+      if (!heading && length > remaining + BLOCK_OVERRUN) {
+        trimText(element, remaining)
+        count += segments(element.textContent ?? "").length
+        truncated = true
+        stopped = true
+      } else {
+        count += length
+        if (meaningful) headingNeedsBody = heading
       }
-      if (end < remaining.length && !preserveIndent) {
-        // CJK does not require spaces around Latin words. Find the entire word at
-        // the proposed break, moving it to the next line if it fits there.
-        const isWordUnit = (unit: string) => /^[\p{Script=Latin}\p{N}\p{M}'’_-]+$/u.test(unit)
-        if (isWordUnit(remaining[end - 1]) && isWordUnit(remaining[end])) {
-          let start = end - 1
-          let wordEnd = end + 1
-          while (start > 0 && isWordUnit(remaining[start - 1])) start--
-          while (wordEnd < remaining.length && isWordUnit(remaining[wordEnd])) wordEnd++
-          const word = remaining.slice(start, wordEnd).join("")
-          // Only a token wider than an entire line falls back to grapheme breaks.
-          if (start > 0 && context.measureText(word).width <= maxWidth) end = start
-        }
-        // Avoid introducing a line that starts with CJK closing punctuation.
-        // Carry its preceding character/word forward rather than dropping text
-        // or allowing punctuation to hang outside the body clipping rectangle.
-        const isClosing = (unit: string) =>
-          /^[，。！？；：、）》」』】〕〉〗〙〛…,.!?;:%)\]}>”’]+$/u.test(unit)
-        if (isClosing(remaining[end])) {
-          let boundary = end - 1
-          while (boundary > 0 && isClosing(remaining[boundary])) boundary--
-          if (isWordUnit(remaining[boundary])) {
-            let wordStart = boundary
-            let punctuationEnd = end
-            while (wordStart > 0 && isWordUnit(remaining[wordStart - 1])) wordStart--
-            while (punctuationEnd < remaining.length && isClosing(remaining[punctuationEnd]))
-              punctuationEnd++
-            if (
-              wordStart > 0 &&
-              context.measureText(remaining.slice(wordStart, punctuationEnd).join("")).width <=
-                maxWidth
-            ) {
-              boundary = wordStart
-            }
-          }
-          if (boundary > 0) end = boundary
-        }
-      }
-      const line = remaining.slice(0, end).join("")
-      lines.push(preserveIndent ? line : line.trimEnd())
-      remaining = remaining.slice(end)
-      if (!preserveIndent) while (/^\s$/u.test(remaining[0] ?? "")) remaining.shift()
     }
   }
-  return { lines, truncated: false }
+  visit(selected)
+  return { article: selected, truncated }
 }
 
-interface TextLine {
-  text: string
-  x: number
-  y: number
-  font: string
-  color: string
-}
-interface PlacedBlock {
-  lines: TextLine[]
-  x: number
-  y: number
-  width: number
-  height: number
-  kind: PosterBlock["kind"]
-  quoted: boolean
-}
-export interface PosterLayout {
-  width: number
-  height: number
-  header: TextLine[]
-  body: PlacedBlock[]
-  footer: TextLine[]
-  bodyTop: number
-  bodyBottom: number
-  footerTop: number
-  truncated: boolean
-  fade?: { x: number; y: number; width: number; height: number }
-  qr: { x: number; y: number; size: number }
-}
-
-function font(size: number, weight: string = foundations["weight-regular"], code = false) {
-  return `${weight} ${size}px ${foundations[code ? "font-code" : "font-body"]}`
-}
-
-function fitEllipsis(context: TextMeasurer, text: string, width: number) {
-  const units = graphemes(text)
-  while (units.length && context.measureText(`${units.join("")}…`).width > width) units.pop()
-  return `${units.join("")}…`
-}
-
-/** Human-readable path only; QR data and query/fragment escapes remain canonical. */
+/** Retained for consumers which need a human-readable canonical URL. */
 export function displayPosterUrl(url: string): string {
   const parts = url.match(/^(https?:\/\/[^/?#]+)([^?#]*)(.*)$/i)
   if (!parts) return url
   try {
-    // decodeURI retains escaped URL delimiters such as %2F, %3F and %23. Keep
-    // control characters and spaces escaped so they cannot look like new lines.
     const path = decodeURI(parts[2]).replace(/[\u0000-\u0020\u007f]/g, encodeURIComponent)
     return `${parts[1]}${path}${parts[3]}`
   } catch {
-    // A malformed escape must not prevent a perfectly usable QR from rendering.
     return url
   }
 }
 
-/** Pure measured layout keeps footer/QR outside the clipped or faded article body. */
-export function layoutSharePoster(
-  context: TextMeasurer,
-  input: { title: string; url: string; author?: string; blocks: PosterBlock[]; qrSize: number },
-): PosterLayout {
-  const header: TextLine[] = []
-  const footer: TextLine[] = []
-  const body: PlacedBlock[] = []
-  let y = margin
-  function place(
-    into: TextLine[],
-    text: string,
-    size: number,
-    color: string,
-    weight: string = foundations["weight-regular"],
-    maxLines = Number.POSITIVE_INFINITY,
-    lineHeight = size * Number(foundations["leading-ui"]),
-  ) {
-    context.font = font(size, weight)
-    const wrapped = wrapPosterText(context, text, contentWidth, maxLines)
-    if (wrapped.truncated && wrapped.lines.length) {
-      wrapped.lines[wrapped.lines.length - 1] = fitEllipsis(
-        context,
-        wrapped.lines.at(-1)!,
-        contentWidth,
-      )
-    }
-    for (const line of wrapped.lines) {
-      into.push({ text: line, x: margin, y, font: context.font, color })
-      y += lineHeight
-    }
-  }
-  place(
-    header,
-    "晓灰 · xiaohui.cool",
-    rem(foundations["text-small"]),
-    light["color-accent"],
-    foundations["weight-strong"],
-  )
-  y += gap
-  // Article title uses the lower end of the shared 28–36px article title scale.
-  place(
-    header,
-    cleanText(input.title) || "晓灰",
-    28,
-    light["color-text-strong"],
-    foundations["weight-heading"],
-    8,
-    28 * Number(foundations["leading-tight"]),
-  )
-  if (input.author?.trim()) {
-    y += smallGap
-    place(
-      header,
-      `作者：${cleanText(input.author)}`,
-      rem(foundations["text-small"]),
-      light["color-text-muted"],
-      foundations["weight-regular"],
-      2,
-    )
-  }
-  y += rem(foundations["space-8"])
-  const bodyTop = y
+function createText(document: Document, tag: string, className: string, text: string) {
+  const element = document.createElement(tag)
+  element.className = className
+  element.textContent = text
+  return element
+}
 
-  // Measure the entire canonical URL first, reserving its space before any body text.
-  const footerSize = rem(foundations["text-caption"])
-  const footerLeading = footerSize * Number(foundations["leading-ui"])
-  context.font = font(footerSize)
-  const urlLines = wrapPosterText(context, displayPosterUrl(input.url), contentWidth).lines
-  const footerReserve =
-    gap + bodyLeading + gap + gap + input.qrSize + gap + urlLines.length * footerLeading + margin
-  const bodyLimit = MAX_POSTER_HEIGHT - footerReserve
-  const excerpt = selectPosterExcerpt(input.blocks)
-  let truncated = excerpt.truncated
-
-  for (let index = 0; index < excerpt.blocks.length; index++) {
-    const block = excerpt.blocks[index]
-    const code = block.kind === "code"
-    const heading = block.kind === "heading"
-    const size = heading
-      ? rem(foundations[block.level === 1 || block.level === 2 ? "text-h2" : "text-h3"])
-      : bodySize
-    const lineHeight =
-      size *
-      Number(foundations[heading ? "leading-tight" : code ? "leading-code" : "leading-reading"])
-    const padding = code || block.kind === "table" ? smallGap : 0
-    const quoted = block.quoted === true || block.kind === "quote"
-    const indent = Math.min(block.depth ?? 0, 4) * gap + (quoted ? gap : 0)
-    const markerWidth = block.marker
-      ? Math.max(gap, String(block.marker).length * bodySize * 0.6) + smallGap
-      : block.depth !== undefined
-        ? gap + smallGap
-        : 0
-    const x = margin + indent + padding + markerWidth
-    const width = Math.max(bodySize * 4, contentWidth - indent - padding * 2 - markerWidth)
-    const spaceBefore = body.length ? (heading ? gap : smallGap) : 0
-    const available = bodyLimit - y - spaceBefore - padding * 2
-    const maxLines = Math.floor(available / lineHeight)
-    if (maxLines < (heading ? 2 : 1)) {
-      truncated = true
-      break
-    }
-    context.font = font(
-      size,
-      heading ? foundations["weight-heading"] : foundations["weight-regular"],
-      code,
+function prepareTables(article: HTMLElement) {
+  for (const table of Array.from(article.querySelectorAll("table"))) {
+    const rows = Array.from(table.rows)
+    const columns = Math.max(
+      0,
+      ...rows.map((row) => Array.from(row.cells).reduce((total, cell) => total + cell.colSpan, 0)),
     )
-    const wrapped = wrapPosterText(context, block.text, width, maxLines, code)
-    y += spaceBefore
-    const top = y
-    const lines: TextLine[] = wrapped.lines.map((text, lineIndex) => ({
-      text,
-      x,
-      y: top + padding + lineIndex * lineHeight,
-      font: context.font,
-      color: light[heading ? "color-text-strong" : "color-text"],
-    }))
-    if (block.marker)
-      lines.push({
-        text: block.marker,
-        x: x - markerWidth,
-        y: top + padding,
-        font: font(bodySize),
-        color: light["color-text-muted"],
+    if (columns <= 3) continue
+    if (
+      rows.some((row) => Array.from(row.cells).some((cell) => cell.colSpan > 1 || cell.rowSpan > 1))
+    ) {
+      throw new SharePosterError("文章表格含有复杂合并单元格，暂时无法清晰导出。")
+    }
+    table.classList.add("share-poster-table-wide")
+    const headings =
+      rows[0] && Array.from(rows[0].cells).every((cell) => cell.tagName === "TH")
+        ? Array.from(rows[0].cells).map((cell) => cell.textContent ?? "")
+        : []
+    for (const row of rows.slice(headings.length ? 1 : 0)) {
+      Array.from(row.cells).forEach((cell, index) => {
+        if (headings[index])
+          cell.prepend(
+            createText(article.ownerDocument, "span", "share-poster-cell-label", headings[index]),
+          )
       })
-    y += wrapped.lines.length * lineHeight + padding * 2
-    body.push({
-      lines,
-      x: margin + indent,
-      y: top,
-      width: contentWidth - indent,
-      height: y - top,
-      kind: block.kind,
-      quoted,
-    })
-    if (wrapped.truncated) {
-      truncated = true
-      break
     }
-  }
-  // Do not leave a heading hanging at the height boundary without the content it introduces.
-  if (truncated && body.at(-1)?.kind === "heading") {
-    y = body.pop()!.y
-  }
-  const bodyBottom = y
-  const fadeHeight = Math.min(bodyLeading * 3, bodyBottom - bodyTop)
-  const fade =
-    truncated && fadeHeight > 0
-      ? { x: margin, y: bodyBottom - fadeHeight, width: contentWidth, height: fadeHeight }
-      : undefined
-  y += gap
-  if (truncated) {
-    place(
-      footer,
-      "正文未完，扫码继续阅读",
-      bodySize,
-      light["color-accent"],
-      foundations["weight-strong"],
-    )
-    y += gap
-  }
-  const footerTop = y
-  y += gap
-  if (!truncated) {
-    place(footer, "扫码查看原文", rem(foundations["text-small"]), light["color-text-muted"])
-    y += smallGap
-  }
-  y = Math.ceil(y * POSTER_SCALE) / POSTER_SCALE
-  const qr = {
-    x: Math.round(((POSTER_WIDTH - input.qrSize) * POSTER_SCALE) / 2) / POSTER_SCALE,
-    y,
-    size: input.qrSize,
-  }
-  y += input.qrSize + gap
-  context.font = font(footerSize)
-  for (const line of urlLines) {
-    footer.push({ text: line, x: margin, y, font: context.font, color: light["color-text-muted"] })
-    y += footerLeading
-  }
-  return {
-    width: POSTER_WIDTH,
-    height: Math.ceil(y + margin),
-    header,
-    body,
-    footer,
-    bodyTop,
-    bodyBottom,
-    footerTop,
-    truncated,
-    fade,
-    qr,
   }
 }
 
-/** Draw in logical pixels; callers provide the high-DPI canvas transform. */
-export function paintSharePoster(
-  context: CanvasRenderingContext2D,
-  layout: PosterLayout,
-  qr: ReturnType<typeof QRCode.create>,
-) {
-  context.fillStyle = light["color-canvas"]
-  context.fillRect(0, 0, layout.width, layout.height)
-  context.textBaseline = "top"
-  const drawText = (line: TextLine) => {
-    context.font = line.font
-    context.fillStyle = line.color
-    context.fillText(line.text, line.x, line.y)
-  }
-  layout.header.forEach(drawText)
-  context.save()
-  context.beginPath()
-  context.rect(margin, layout.bodyTop, contentWidth, layout.bodyBottom - layout.bodyTop)
-  context.clip()
-  for (const block of layout.body) {
-    if (block.kind === "code" || block.kind === "table") {
-      context.fillStyle = light["color-surface"]
-      context.fillRect(block.x, block.y, block.width, block.height)
-    }
-    if (block.quoted) {
-      context.fillStyle = light["color-border-strong"]
-      context.fillRect(block.x - smallGap, block.y, 2, block.height)
-    }
-    block.lines.forEach(drawText)
-  }
-  if (layout.fade) {
-    const fade = layout.fade
-    const gradient = context.createLinearGradient(0, fade.y, 0, fade.y + fade.height)
-    gradient.addColorStop(0, `${light["color-canvas"]}00`)
-    gradient.addColorStop(0.6, `${light["color-canvas"]}b3`)
-    gradient.addColorStop(1, light["color-canvas"])
-    context.fillStyle = gradient
-    context.fillRect(fade.x, fade.y, fade.width, fade.height)
-  }
-  context.restore()
-  context.fillStyle = light["color-border"]
-  context.fillRect(margin, layout.footerTop, contentWidth, 1)
-  layout.footer.forEach(drawText)
-  const quietZone = 4
-  const moduleSize = layout.qr.size / (qr.modules.size + quietZone * 2)
-  context.fillStyle = light["color-surface-raised"]
-  context.fillRect(layout.qr.x, layout.qr.y, layout.qr.size, layout.qr.size)
-  context.fillStyle = light["color-text-strong"]
-  for (let row = 0; row < qr.modules.size; row++) {
-    for (let column = 0; column < qr.modules.size; column++) {
-      if (qr.modules.get(row, column)) {
-        context.fillRect(
-          layout.qr.x + (column + quietZone) * moduleSize,
-          layout.qr.y + (row + quietZone) * moduleSize,
-          moduleSize,
-          moduleSize,
-        )
+function clearDecorativeResources(root: HTMLElement) {
+  const view = root.ownerDocument.defaultView!
+  for (const element of [root, ...root.querySelectorAll<HTMLElement>("*")]) {
+    if (!element.style) continue
+    const computed = view.getComputedStyle(element)
+    for (const property of [
+      "background-image",
+      "mask-image",
+      "-webkit-mask-image",
+      "border-image-source",
+      "list-style-image",
+    ]) {
+      if (/url\(/i.test(computed.getPropertyValue(property))) {
+        if (element.namespaceURI === SVG_NS && property.includes("mask")) {
+          // The SDK re-fetches CSS mask URLs, even local fragments, and swallows failures.
+          throw new SharePosterError("文章图形使用了特殊蒙版，暂时无法保证完整导出。")
+        }
+        element.style.setProperty(property, "none")
       }
     }
   }
 }
 
+/** Prefer whole rendered blocks/rows before using the emergency single-block guard. */
+function fitBodyHeight(article: HTMLElement, maximum: number): boolean {
+  if (article.getBoundingClientRect().height <= maximum) return false
+  const bottom = article.getBoundingClientRect().top + maximum
+  let clipped = false
+  let keptContent = false
+  function fit(container: HTMLElement) {
+    let stopped = false
+    for (const node of Array.from(container.childNodes)) {
+      if (stopped) {
+        node.remove()
+        continue
+      }
+      if (node.nodeType !== 1) continue
+      const element = node as HTMLElement
+      const rect = element.getBoundingClientRect()
+      if (rect.bottom <= bottom + 0.5) {
+        if (
+          element.textContent?.trim() ||
+          element.querySelector("img,svg") ||
+          element.matches("img,svg")
+        )
+          keptContent = true
+        continue
+      }
+      if (
+        /^(DIV|SECTION|ARTICLE|BLOCKQUOTE|UL|OL|TABLE|THEAD|TBODY|TFOOT)$/.test(element.tagName) &&
+        element.children.length
+      ) {
+        fit(element)
+        if (!element.textContent?.trim() && !element.querySelector("img,svg")) element.remove()
+      } else if (
+        !keptContent &&
+        element.matches("p,pre") &&
+        !element.querySelector("img,svg,.katex")
+      ) {
+        // A pathological first paragraph/code block can contain hundreds of blank lines.
+        const height = Math.floor(bottom - rect.top)
+        if (height < 160) throw new SharePosterError("文章开头内容过高，暂时无法清晰导出。")
+        element.style.maxHeight = `${height}px`
+        element.style.overflow = "hidden"
+        keptContent = true
+      } else {
+        element.remove()
+      }
+      clipped = true
+      stopped = true
+    }
+    // A section heading cannot be the last thing before the continuation fade.
+    while (container.lastElementChild && /^H[1-6]$/.test(container.lastElementChild.tagName))
+      container.lastElementChild.remove()
+  }
+  fit(article)
+  if (!article.textContent?.trim() && !article.querySelector("img,svg"))
+    throw new SharePosterError("文章开头内容过高，暂时无法清晰导出。")
+  return clipped
+}
+
 export async function generateLongSharePoster(input: SharePosterInput): Promise<Blob> {
-  // Snapshot before awaiting fonts: SPA navigation must never change an in-flight article.
-  const blocks = extractArticleBlocks(input.article)
+  // All source content and stylesheet references are frozen before the first await.
+  if (input.signal?.aborted) throw new SharePosterError("分享图生成已取消。")
+  const snapshot = snapshotArticle(input.article)
+  const excerpt = selectPosterExcerpt(snapshot)
   const document = input.article.ownerDocument
-  const qr = QRCode.create(input.url, { errorCorrectionLevel: "M" })
-  const modules = qr.modules.size + 8
-  const modulePixels = Math.max(3, Math.ceil((112 * POSTER_SCALE) / modules))
-  const qrSize = (modules * modulePixels) / POSTER_SCALE
-  const canvas = document.createElement("canvas")
-  const context = canvas.getContext("2d")
-  if (!context) throw new Error("Canvas is not supported in this browser.")
-  if (document.fonts?.ready) {
-    let timer: ReturnType<typeof setTimeout> | undefined
-    await Promise.race([
-      document.fonts.ready.catch(() => undefined),
-      new Promise<void>((resolve) => {
-        timer = setTimeout(resolve, 1200)
-      }),
-    ])
-    clearTimeout(timer)
-  }
-  const layout = layoutSharePoster(context, { ...input, blocks, qrSize })
-  if (layout.height > MAX_POSTER_HEIGHT || qrSize > contentWidth) {
-    throw new Error("The article URL is too large for a readable share image.")
-  }
-  canvas.width = layout.width * POSTER_SCALE
-  canvas.height = layout.height * POSTER_SCALE
-  context.scale(POSTER_SCALE, POSTER_SCALE)
-  paintSharePoster(context, layout, qr)
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Unable to render share image."))),
-      "image/png",
-    )
+  const fontSources = snapshotFontSources(document)
+  const title = String(input.title)
+  const author = input.author ? String(input.author) : undefined
+  const url = String(input.url)
+  const controller = new AbortController()
+  const resources = new PosterResources(controller.signal)
+  const host = document.createElement("div")
+  host.className = "share-poster-host"
+  host.setAttribute("aria-hidden", "true")
+  const root = document.createElement("section")
+  root.className = "share-poster"
+  root.dataset.truncated = String(excerpt.truncated)
+  for (const [name, value] of Object.entries({ ...foundations, ...light }))
+    root.style.setProperty(`--${name}`, value)
+  for (const [alias, token] of Object.entries({
+    light: "color-canvas",
+    lightgray: "color-border",
+    gray: "color-text-muted",
+    darkgray: "color-text",
+    dark: "color-text-strong",
+    secondary: "color-accent",
+    tertiary: "color-accent-hover",
+    highlight: "color-accent-soft",
+    textHighlight: "color-mark",
+    bodyFont: "font-body",
+    headerFont: "font-body",
+    codeFont: "font-code",
+  }))
+    root.style.setProperty(`--${alias}`, `var(--${token})`)
+  const style = document.createElement("style")
+  style.textContent = sharePosterStyles
+  const header = document.createElement("header")
+  header.className = "share-poster-header"
+  header.append(
+    createText(document, "p", "share-poster-brand", "晓灰 · xiaohui.cool"),
+    createText(document, "h1", "share-poster-title", title),
+  )
+  if (author) header.append(createText(document, "p", "share-poster-author", `作者：${author}`))
+  const body = document.createElement("div")
+  body.className = "share-poster-body"
+  body.append(excerpt.article)
+  const footer = document.createElement("footer")
+  footer.className = "share-poster-footer"
+  const qr = document.createElement("img")
+  qr.className = "share-poster-qr"
+  qr.alt = "扫码阅读全文"
+  const copy = document.createElement("div")
+  copy.className = "share-poster-footer-copy"
+  const note = createText(
+    document,
+    "p",
+    "share-poster-footer-note",
+    excerpt.truncated ? "正文未完，继续阅读" : "打开原文，查看完整内容",
+  )
+  copy.append(
+    createText(document, "p", "share-poster-footer-label", "扫码阅读全文"),
+    note,
+    createText(document, "p", "share-poster-footer-site", "晓灰 · xiaohui.cool"),
+  )
+  footer.append(qr, copy)
+  root.append(header, body, footer)
+  host.append(style, root)
+  prepareTables(excerpt.article)
+
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let rejectAborted: (error: Error) => void = () => undefined
+  const aborted = new Promise<never>((_, reject) => {
+    rejectAborted = reject
   })
+  const cancel = () => {
+    controller.abort()
+    host.remove()
+    rejectAborted(new SharePosterError("分享图生成已取消。"))
+  }
+  input.signal?.addEventListener("abort", cancel, { once: true })
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort()
+      host.remove()
+      reject(new SharePosterError("分享图生成超时，请检查网络后重试。"))
+    }, GENERATION_TIMEOUT)
+  })
+  async function render() {
+    const code = QRCode.create(url, { errorCorrectionLevel: "M" })
+    const modules = code.modules.size + 8
+    const modulePixels = Math.max(3, Math.ceil((104 * POSTER_SCALE) / modules))
+    const qrSize = (modules * modulePixels) / POSTER_SCALE
+    if (qrSize > 260) throw new SharePosterError("文章链接过长，无法生成清晰的二维码。")
+    qr.style.width = `${qrSize}px`
+    qr.style.height = `${qrSize}px`
+    if (qrSize > 140) {
+      footer.style.flexDirection = "column"
+      copy.style.borderLeft = "0"
+      copy.style.paddingLeft = "0"
+      copy.style.alignSelf = "center"
+      copy.style.textAlign = "center"
+    }
+    qr.src = await QRCode.toDataURL(url, {
+      errorCorrectionLevel: "M",
+      margin: 4,
+      scale: modulePixels,
+      color: { dark: light["color-text-strong"], light: light["color-surface-raised"] },
+    })
+    if (controller.signal.aborted) throw new SharePosterError("分享图生成超时，请重试。")
+    document.body.append(host)
+    clearDecorativeResources(root)
+    const [, fontEmbedCSS] = await Promise.all([
+      embedPosterImages(root, resources),
+      embedPosterFonts(root, fontSources, resources),
+    ])
+    if (controller.signal.aborted) throw new SharePosterError("分享图生成超时，请重试。")
+    // Fit indivisible display formulae instead of horizontally clipping them.
+    for (const formula of Array.from(
+      root.querySelectorAll<HTMLElement>(".katex-display > .katex"),
+    )) {
+      const available = formula.parentElement!.clientWidth
+      if (formula.scrollWidth > available) {
+        const ratio = available / formula.scrollWidth
+        if (ratio < 0.75) throw new SharePosterError("文章公式过宽，暂时无法在分享图中清晰呈现。")
+        const width = formula.scrollWidth
+        const height = formula.getBoundingClientRect().height
+        const fitted = document.createElement("span")
+        fitted.className = "share-poster-math-fit"
+        fitted.style.display = "block"
+        fitted.style.width = `${available}px`
+        fitted.style.height = `${Math.ceil(height * ratio)}px`
+        fitted.style.overflow = "hidden"
+        formula.replaceWith(fitted)
+        fitted.append(formula)
+        formula.style.width = `${width}px`
+        formula.style.transformOrigin = "top left"
+        formula.style.transform = `scale(${ratio})`
+      }
+    }
+    const fixedHeight =
+      header.getBoundingClientRect().height + footer.getBoundingClientRect().height + 96
+    const maximum = Math.min(MAX_BODY_HEIGHT, MAX_POSTER_HEIGHT - fixedHeight)
+    if (maximum < 240) throw new SharePosterError("文章标题或署名过长，暂时无法生成清晰分享图。")
+    if (fitBodyHeight(excerpt.article, maximum)) {
+      root.dataset.truncated = "true"
+      note.textContent = "正文未完，继续阅读"
+    }
+    if (root.dataset.truncated === "true") {
+      const fade = document.createElement("div")
+      fade.className = "share-poster-fade"
+      body.append(fade)
+    }
+    // A missed layout case must fail visibly rather than silently cutting off content.
+    if (excerpt.article.scrollWidth > excerpt.article.clientWidth + 1)
+      throw new SharePosterError("文章中有超宽内容，暂时无法完整生成分享图。")
+    // Keep the QR's module grid on physical pixels even when flex alignment has a fraction.
+    const qrRect = qr.getBoundingClientRect()
+    const rootRect = root.getBoundingClientRect()
+    const qrX = qrRect.left - rootRect.left
+    const qrY = qrRect.top - rootRect.top
+    qr.style.transform = `translate(${Math.round(qrX * POSTER_SCALE) / POSTER_SCALE - qrX}px, ${Math.round(qrY * POSTER_SCALE) / POSTER_SCALE - qrY}px)`
+    const height = Math.ceil(root.getBoundingClientRect().height)
+    if (height > MAX_POSTER_HEIGHT)
+      throw new SharePosterError("文章内容过长，暂时无法生成清晰分享图。")
+    const blob = await toBlob(root, {
+      width: POSTER_WIDTH,
+      height,
+      pixelRatio: POSTER_SCALE,
+      backgroundColor: light["color-canvas"],
+      fontEmbedCSS,
+      skipFonts: !fontEmbedCSS,
+      includeQueryParams: true,
+      cacheBust: false,
+      fetchRequestInit: { mode: "cors", credentials: "omit", signal: controller.signal },
+      onImageErrorHandler: () => {
+        throw new SharePosterError("文章图片未能完整绘制，请重试。")
+      },
+    })
+    if (!blob || blob.type !== "image/png") throw new SharePosterError("分享图编码失败，请重试。")
+    return blob
+  }
+  try {
+    return await Promise.race([render(), timeout, aborted])
+  } catch (error) {
+    if (error instanceof SharePosterError) throw error
+    throw new SharePosterError("分享图生成失败，请刷新页面后重试。")
+  } finally {
+    clearTimeout(timer)
+    input.signal?.removeEventListener("abort", cancel)
+    controller.abort()
+    host.remove()
+  }
 }

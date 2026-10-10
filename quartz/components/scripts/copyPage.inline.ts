@@ -158,6 +158,7 @@ document.addEventListener("nav", () => {
   // Every open, close, format switch or action invalidates older UI continuations.
   let shareRequest = 0
   let disposed = false
+  const posterAbort = new AbortController()
 
   function setMenuOpen(open: boolean) {
     menu.hidden = !open
@@ -588,6 +589,7 @@ document.addEventListener("nav", () => {
                 url: data.url ?? canonicalUrl(),
                 author: article?.getAttribute("data-share-author") || undefined,
                 article: article!,
+                signal: posterAbort.signal,
               })
             : await generateShortSharePoster()
         const objectUrl = URL.createObjectURL(blob)
@@ -635,7 +637,9 @@ document.addEventListener("nav", () => {
 
   function handlePosterError(error: unknown) {
     console.error(error)
-    setShareStatus("分享图生成失败，可以再次点击保存图片重试，或先复制链接。")
+    const detail =
+      error instanceof Error && error.name === "SharePosterError" ? `${error.message} ` : ""
+    setShareStatus(`分享图生成失败，${detail}可以再次点击保存图片重试，或先复制链接。`)
   }
 
   function selectPosterFormat(format: PosterFormat) {
@@ -954,6 +958,7 @@ document.addEventListener("nav", () => {
   document.addEventListener("keydown", onKeyDown)
   window.addCleanup(() => {
     disposed = true
+    posterAbort.abort()
     button.removeEventListener("click", onButtonClick)
     shareButton.removeEventListener("click", onShareButtonClick)
     shareCloseButton.removeEventListener("click", onShareCloseClick)
