@@ -203,6 +203,8 @@ export const defaultImage: SocialImageOptions["imageStructure"] = ({
       style={{
         display: "flex",
         flexDirection: "column",
+        // Satori follows CSS content-box sizing; keep padding inside the OG canvas.
+        boxSizing: "border-box",
         height: "100%",
         width: "100%",
         backgroundColor: cfg.theme.colors[colorScheme].light,
@@ -273,6 +275,8 @@ export const defaultImage: SocialImageOptions["imageStructure"] = ({
         style={{
           display: "flex",
           flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
           fontSize: 36,
           color: cfg.theme.colors[colorScheme].darkgray,
           lineHeight: 1.4,
