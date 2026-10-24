@@ -182,8 +182,18 @@ export default (() => {
                 <li>{en ? "Reusable capabilities" : "可复用能力"}</li>
                 <li>{en ? "Evaluation-driven iteration" : "评测驱动迭代"}</li>
               </ul>
-              <a class="home-text-link" href={talk}>
-                {en ? "Read the public case · 中文" : "看公开实践"}
+              <a
+                class="home-text-link"
+                href={
+                  en
+                    ? resolveRelative(
+                        fileData.slug!,
+                        "en/program/llm/insurance-report-production" as FullSlug,
+                      )
+                    : talk
+                }
+              >
+                {en ? "Read the engineering case" : "看公开实践"}
                 <span aria-hidden="true">↗</span>
               </a>
             </article>

@@ -99,10 +99,14 @@ const allFiles: QuartzPluginData[] = [
   ...new Map(contentPages.map((page) => [page.slug, page])).values(),
 ]
 
-async function renderHome(locale: "zh-CN" | "en", extraFiles: QuartzPluginData[] = []) {
+async function renderHome(
+  locale: "zh-CN" | "en",
+  extraFiles: QuartzPluginData[] = [],
+  homeSlug?: string,
+) {
   const { HomePage, HomeHeader, Head, renderPage, pageResources } = await bundle
   const fileData = {
-    slug: locale === "en" ? "en" : "index",
+    slug: homeSlug ?? (locale === "en" ? "en" : "index"),
     frontmatter: {
       title: "The Sun Will Rise",
       pageType: "home",
@@ -468,7 +472,7 @@ test("partial emits refresh homes after article and asset add/change/delete but 
       value: "",
     },
   ]
-  const homes = [make("index", true), make("en", true)]
+  const homes = [make("index", true), make("en/index", true)]
   try {
     for (const type of ["add", "change", "delete"]) {
       const output = []
@@ -649,4 +653,15 @@ test("home art stacks before intermediate-width text can collide with portrait d
     /@media \(max-width: 1000px\)[\s\S]*?\.home-hero\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
   )
   assert.match(readFileSync("quartz/styles/variables.scss", "utf8"), /mobile:\s*800px/)
+})
+
+test("English folder homepage renders the dedicated layout and direct language entry", async () => {
+  const html = await renderHome("en", [], "en/index")
+  assert.match(html, /data-layout="home"/)
+  assert.match(html, /rel="canonical" href="https:\/\/xiaohui.cool\/en\/"/)
+  assert.doesNotMatch(html, /terminal-home|right-sidebar|class="left sidebar"/)
+  assert.match(html, /class="home-language-link internal"[^>]*href="\.\.\/"/)
+  assert.match(html, /href="\.\.\/en\/program\/llm\/insurance-report-production"/)
+  const chinese = await renderHome("zh-CN")
+  assert.match(chinese, /class="home-language-link internal"[^>]*href="\.\/en\/"/)
 })

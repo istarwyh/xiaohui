@@ -93,7 +93,8 @@ export const ContentPage: QuartzEmitterPlugin<ContentPageOptions> = (userOpts) =
         }
 
         // only process home page, non-tag pages, and non-index pages
-        if (slug.endsWith("/index") || slug.startsWith("tags/")) continue
+        if ((slug.endsWith("/index") && !isHomePage(file.data)) || slug.startsWith("tags/"))
+          continue
         yield processContent(
           ctx,
           tree,
@@ -131,7 +132,8 @@ export const ContentPage: QuartzEmitterPlugin<ContentPageOptions> = (userOpts) =
         // Both homes depend on the entire published collection and asset inventory.
         // Deletion events may not carry a parsed file, but must still rebuild feeds.
         if (!changedSlugs.has(slug) && !(changeEvents.length > 0 && isHomePage(file.data))) continue
-        if (slug.endsWith("/index") || slug.startsWith("tags/")) continue
+        if ((slug.endsWith("/index") && !isHomePage(file.data)) || slug.startsWith("tags/"))
+          continue
 
         yield processContent(
           ctx,

@@ -20,17 +20,19 @@ export function getHomeContent(locale: HomeLocale) {
         : "program/practices/如何打造可靠的Agent系统",
       en ? "How to Build Reliable Agent Systems" : "如何打造可靠的 Agent 系统",
       en
-        ? "Concurrency, sessions and runtimes for long-running services."
+        ? "Shared graphs, isolated runs, event-loop ownership and capacity limits, with Python and sequence diagrams."
         : "从并发、会话到运行时，讨论 Agent 怎样成为长期运行的服务。",
     ),
     note(
       "engineering-2",
       en
-        ? "en/program/llm/deep-research-context-engineering"
+        ? "en/program/llm/insurance-report-production"
         : "program/llm/从RAG到DeepResearch：复杂业务报告生成的上下文工程",
-      en ? "From RAG to Deep Research" : "从 RAG 到 Deep Research：复杂业务报告生成的上下文工程",
       en
-        ? "Search, evidence and counter-evidence in a traceable research process."
+        ? "A Multi-Agent Report Production Pipeline"
+        : "从 RAG 到 Deep Research：复杂业务报告生成的上下文工程",
+      en
+        ? "Scoped material tools, deterministic gates, safe artifact updates and independent evaluation."
         : "把搜索、取证与反证组织成一条可追溯的研究链路。",
     ),
     note(
@@ -140,7 +142,7 @@ export function getHomeContent(locale: HomeLocale) {
       paths: en ? "Three threads I keep following." : "我持续探索的三条线。",
       writing: en ? "All writing" : "所有文章",
       writingIntro: en
-        ? "Working notes, questions and ideas worth returning to. One continuously updated feed."
+        ? "Agent engineering notes lead this feed after the latest English revisions. Original publication dates are preserved; this list follows each article’s last update."
         : "工程里的问题，生活里的观察，以及值得反复校准的判断。都收在这一条文章流里。",
       order: en ? "Recently updated first" : "按最近更新排序",
       about: en ? "Keep the conversation going." : "继续交流，也继续生长。",

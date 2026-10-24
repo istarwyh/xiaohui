@@ -1,3 +1,4 @@
+import { getPageUiLocale } from "../util/translations"
 import { Date, getDate } from "./Date"
 import { QuartzComponentConstructor, QuartzComponentProps } from "./types"
 import readingTime from "reading-time"
@@ -30,13 +31,17 @@ export default ((opts?: Partial<ContentMetaOptions>) => {
       const segments: (string | JSX.Element)[] = []
 
       if (fileData.dates) {
-        segments.push(<Date date={getDate(cfg, fileData)!} locale={cfg.locale} />)
+        segments.push(
+          <Date date={getDate(cfg, fileData)!} locale={getPageUiLocale(fileData, cfg)} />,
+        )
       }
 
       // Display reading time if enabled
       if (options.showReadingTime) {
         const { minutes, words: _words } = readingTime(text)
-        const displayedTime = i18n(cfg.locale).components.contentMeta.readingTime({
+        const displayedTime = i18n(
+          getPageUiLocale(fileData, cfg),
+        ).components.contentMeta.readingTime({
           minutes: Math.ceil(minutes),
         })
         segments.push(<span>{displayedTime}</span>)

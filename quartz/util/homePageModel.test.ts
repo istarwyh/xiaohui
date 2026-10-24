@@ -31,7 +31,7 @@ const link = (slug: string, extra: Partial<CuratedHomeItem> = {}): CuratedHomeIt
 })
 
 test("home identification requires the explicit marker and a reserved homepage slug", () => {
-  for (const slug of ["index", "en"]) {
+  for (const slug of ["index", "en", "en/index"]) {
     assert.equal(isHomePage(page(slug, { pageType: "home" })), true)
     assert.equal(isHomePage(page(slug)), false)
   }

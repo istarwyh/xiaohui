@@ -32,7 +32,8 @@ export default (() => {
     const baseDir = fileData.slug === "404" ? path : pathToRoot(fileData.slug!)
     const iconPath = joinSegments(baseDir, "static/icon.png")
 
-    const isHome = fileData.slug === "index" || fileData.slug === "en"
+    const isHome =
+      fileData.slug === "index" || fileData.slug === "en" || fileData.slug === "en/index"
     const is404 = fileData.slug === "404"
     const canonicalUrl = is404 ? url.toString() : absolutePageUrl(cfg, fileData.slug!)
     const socialUrl = canonicalUrl

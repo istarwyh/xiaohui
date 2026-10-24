@@ -19,6 +19,7 @@ import { FolderContent } from "../../components"
 import { write } from "./helpers"
 import { i18n, TRANSLATIONS } from "../../i18n"
 import { BuildCtx } from "../../util/ctx"
+import { isHomePage } from "../../util/homePageModel"
 import { StaticResources } from "../../util/resources"
 interface FolderPageOptions extends FullPageLayout {
   sort?: (f1: QuartzPluginData, f2: QuartzPluginData) => number
@@ -37,6 +38,8 @@ async function* processFolderInfo(
   ][]) {
     const slug = joinSegments(folder, "index") as FullSlug
     const [tree, file] = folderContent
+    // Dedicated homepages are emitted by ContentPage with their own layout.
+    if (isHomePage(file.data)) continue
     const cfg = ctx.cfg.configuration
     const externalResources = pageResources(pathToRoot(slug), resources, ctx.buildId)
     const componentData: QuartzComponentProps = {

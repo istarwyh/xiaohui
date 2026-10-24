@@ -150,5 +150,6 @@ export function absolutePageUrl(cfg: GlobalConfiguration, slug: FullSlug, href?:
   if (href?.startsWith("http://") || href?.startsWith("https://")) return href
   if (href?.startsWith("/")) return joinSegments(base, href.slice(1))
   if (slug === "index") return `${base}/`
+  if (slug.endsWith("/index")) return `${joinSegments(base, slug.slice(0, -6))}/`
   return joinSegments(base, slug)
 }
