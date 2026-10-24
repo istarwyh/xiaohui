@@ -1,7 +1,7 @@
 ---
-title: Xiaohui — AI Agent Engineering
+title: The Sun Will Rise
 pageType: home
-description: Production Agent engineering by Xiaohui. Runtime architecture, evidence-driven research, and multi-Agent report delivery, with diagrams, code, and failure analysis.
+description: Xiaohui's digital garden about AI Agents, software engineering, personal growth, and investing. Projects, production case studies, and notes grounded in practice.
 socialDescription: Xiaohui's digital garden · AI Agent and MCP practitioner · Agent architecture, context engineering, engineering practice, and reflective writing.
 lang: en
 source: index

@@ -26,13 +26,11 @@ export function getHomeContent(locale: HomeLocale) {
     note(
       "engineering-2",
       en
-        ? "en/program/llm/insurance-report-production"
+        ? "en/program/llm/deep-research-context-engineering"
         : "program/llm/从RAG到DeepResearch：复杂业务报告生成的上下文工程",
+      en ? "From RAG to Deep Research" : "从 RAG 到 Deep Research：复杂业务报告生成的上下文工程",
       en
-        ? "A Multi-Agent Report Production Pipeline"
-        : "从 RAG 到 Deep Research：复杂业务报告生成的上下文工程",
-      en
-        ? "Scoped material tools, deterministic gates, safe artifact updates and independent evaluation."
+        ? "Search, evidence and counter-evidence in a traceable research process."
         : "把搜索、取证与反证组织成一条可追溯的研究链路。",
     ),
     note(
@@ -115,7 +113,18 @@ export function getHomeContent(locale: HomeLocale) {
       label: en ? "Agent diagnosis" : "Agent 诊断",
     },
   ]
+  const caseStudy = note(
+    "insurance-production",
+    en
+      ? "en/program/llm/insurance-report-production"
+      : "program/llm/保险产品解读报告系统：Multi-Agent 生产链路与评测闭环",
+    en ? "Read the engineering case" : "读工程案例",
+    en
+      ? "From product materials to reports, quality checks and independent evaluation."
+      : "从产品素材到报告生成、质量网关与独立评测。",
+  )
   return {
+    caseStudy,
     featured,
     paths,
     aboutLinks,
@@ -142,7 +151,7 @@ export function getHomeContent(locale: HomeLocale) {
       paths: en ? "Three threads I keep following." : "我持续探索的三条线。",
       writing: en ? "All writing" : "所有文章",
       writingIntro: en
-        ? "Agent engineering notes lead this feed after the latest English revisions. Original publication dates are preserved; this list follows each article’s last update."
+        ? "Engineering problems, observations from life, and investment decisions I revisit as the evidence changes."
         : "工程里的问题，生活里的观察，以及值得反复校准的判断。都收在这一条文章流里。",
       order: en ? "Recently updated first" : "按最近更新排序",
       about: en ? "Keep the conversation going." : "继续交流，也继续生长。",

@@ -71,8 +71,8 @@ Chinese source files do not need to be edited immediately. `Head.tsx` can discov
 - `LanguageSwitcher` appears only when at least two language versions exist.
 - `HomePage` renders the current editorial homepages. `TerminalHome` remains available only for the legacy layout.
 - The English homepage is `content/en/index.md` with `pageType: home` and canonical `/en/`. `ContentPage` emits it with the dedicated homepage layout; `FolderPage` skips it. Keeping a separate `content/en.md` produces inconsistent relative-link bases on `/en/`.
-- `HomeHeader` exposes a direct language link outside its menu, including narrow screens.
-- English engineering reading paths live in `quartz/components/home/homeContent.ts`. Keep the existing three themes, six curated articles and single writing feed.
+- `HomeHeader` exposes a direct language link outside its menu, including narrow screens. Language links preserve the active supported section hash (`featured`, `public-work`, `paths`, `writing`, `about`).
+- Bilingual reading paths and the business case study live in `quartz/components/home/homeContent.ts`. Corresponding curated IDs must point to the same Chinese source or its declared English translation; tests validate the real article frontmatter. Keep the existing three themes, six curated articles and single writing feed.
 - The feed already sorts by modified → published → created. New English revisions use their real update date while preserving original publication dates.
 - Article UI components use `getPageUiLocale`; this does not change the Chinese source locale used for translation discovery.
 - English article title and breadcrumb links return to `/en/`. Browser-language redirects are not used.
