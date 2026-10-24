@@ -362,7 +362,7 @@
   }
 
   body[data-slug="index"] .page > #quartz-body,
-  body[data-slug="en"] .page > #quartz-body {
+  body:is([data-slug="en"], [data-slug="en/index"]) .page > #quartz-body {
     grid-template-areas:
       "grid-center"
       "grid-sidebar-left"
@@ -371,12 +371,12 @@
   }
 
   body[data-slug="index"] .page > #quartz-body > .center,
-  body[data-slug="en"] .page > #quartz-body > .center {
+  body:is([data-slug="en"], [data-slug="en/index"]) .page > #quartz-body > .center {
     grid-area: grid-center;
   }
 
   body[data-slug="index"] .page-header > header,
-  body[data-slug="en"] .page-header > header {
+  body:is([data-slug="en"], [data-slug="en/index"]) .page-header > header {
     display: none;
     margin: 0;
   }

@@ -13,11 +13,12 @@ import { slugifyFilePath, resolveRelative, type FullSlug } from "../util/path"
 import type { QuartzPluginData } from "../plugins/vfile"
 import { getFeedPages, type CuratedHomeItem } from "../util/homePageModel"
 import { getHomeContent } from "../components/home/homeContent"
+import { getTerminalHomeContent } from "../components/terminalHomeContent"
 import { foundations, light, xiaohuiTheme } from "./tokens"
 
 const bundle = build({
   stdin: {
-    contents: `export { default as HomePage } from "./quartz/components/HomePage"; export { default as HomeHeader } from "./quartz/components/HomeHeader"; export { renderPage, pageResources } from "./quartz/components/renderPage"; export { default as Head } from "./quartz/components/Head"; export { ContentPage } from "./quartz/plugins/emitters/contentPage"`,
+    contents: `export { default as HomePage } from "./quartz/components/HomePage"; export { default as HomeHeader } from "./quartz/components/HomeHeader"; export { renderPage, pageResources } from "./quartz/components/renderPage"; export { default as Head } from "./quartz/components/Head"; export { ContentPage } from "./quartz/plugins/emitters/contentPage"; export { defaultContentPageLayout } from "./quartz.layout"`,
     resolveDir: process.cwd(),
     loader: "ts",
   },
@@ -664,4 +665,57 @@ test("English folder homepage renders the dedicated layout and direct language e
   assert.match(html, /href="\.\.\/en\/program\/llm\/insurance-report-production"/)
   const chinese = await renderHome("zh-CN")
   assert.match(chinese, /class="home-language-link internal"[^>]*href="\.\/en\/"/)
+})
+
+test("legacy English folder home keeps the terminal layout and mobile placement selectors", async () => {
+  const { renderPage, pageResources, Head, defaultContentPageLayout } = await bundle
+  const legacy = getTerminalHomeContent("en")
+  const targets = [
+    legacy.aboutSlug,
+    legacy.journeySlug,
+    legacy.membershipSlug,
+    ...legacy.featuredItems.map((item) => item.slug),
+  ]
+  const files = targets.map((slug) => ({
+    slug: slugifyFilePath(slug as any),
+    filePath: `content/${slug}.md`,
+    frontmatter: { title: slug, lang: "en", recent: false },
+  }))
+  const fileData = {
+    slug: "en/index",
+    frontmatter: { title: "English home", lang: "en", pageType: "home", recent: false },
+  }
+  const legacyCfg = { ...cfg, defaultDateType: "modified" }
+  const ctx = {
+    buildId: "legacy-regression",
+    cfg: { configuration: legacyCfg, plugins: { emitters: [] } },
+    allSlugs: [],
+    argv: {},
+  }
+  const externalResources = pageResources("..", resources, ctx.buildId)
+  const props = {
+    fileData,
+    allFiles: [...files, fileData],
+    cfg: legacyCfg,
+    ctx,
+    externalResources,
+    children: [],
+    tree: { type: "root", children: [] },
+  }
+  const html = renderPage(
+    legacyCfg,
+    fileData.slug,
+    props,
+    { ...defaultContentPageLayout, head: Head(), header: [], pageBody: empty, footer: empty },
+    externalResources,
+  )
+  assert.match(html, /data-slug="en\/index" data-layout="article"/)
+  assert.match(html, /class="terminal-home"/)
+  assert.match(html, /class="left sidebar"/)
+  assert.match(html, /href="\.\.\/en\/program\/practices\/reliable-agent-systems"/)
+  for (const filename of ["terminalHome.scss", "graph.scss"]) {
+    const css = readFileSync(`quartz/components/styles/${filename}`, "utf8")
+    assert.match(css, /body:is\(\[data-slug="en"\], \[data-slug="en\/index"\]\)/)
+    assert.doesNotMatch(css, /body\[data-slug="en"\]/)
+  }
 })

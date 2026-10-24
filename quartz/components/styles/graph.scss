@@ -232,14 +232,14 @@
 }
 
 body[data-slug="index"] .graph > .graph-outer,
-body[data-slug="en"] .graph > .graph-outer {
+body:is([data-slug="en"], [data-slug="en/index"]) .graph > .graph-outer {
   height: 420px;
 }
 
 @media all and not ($desktop) {
   .graph > .graph-outer,
   body[data-slug="index"] .graph > .graph-outer,
-  body[data-slug="en"] .graph > .graph-outer {
+  body:is([data-slug="en"], [data-slug="en/index"]) .graph > .graph-outer {
     height: 300px;
   }
 
@@ -266,7 +266,7 @@ body[data-slug="en"] .graph > .graph-outer {
 
     & > .graph-outer,
     body[data-slug="index"] & > .graph-outer,
-    body[data-slug="en"] & > .graph-outer {
+    body:is([data-slug="en"], [data-slug="en/index"]) & > .graph-outer {
       height: min(62vh, 380px);
       min-height: 320px;
     }
