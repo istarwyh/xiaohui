@@ -20,7 +20,7 @@ export function getHomeContent(locale: HomeLocale) {
         : "program/practices/如何打造可靠的Agent系统",
       en ? "How to Build Reliable Agent Systems" : "如何打造可靠的 Agent 系统",
       en
-        ? "Concurrency, sessions and runtimes for long-running services."
+        ? "Shared graphs, isolated runs, event-loop ownership and capacity limits, with Python and sequence diagrams."
         : "从并发、会话到运行时，讨论 Agent 怎样成为长期运行的服务。",
     ),
     note(
@@ -113,7 +113,18 @@ export function getHomeContent(locale: HomeLocale) {
       label: en ? "Agent diagnosis" : "Agent 诊断",
     },
   ]
+  const caseStudy = note(
+    "insurance-production",
+    en
+      ? "en/program/llm/insurance-report-production"
+      : "program/llm/保险产品解读报告系统：Multi-Agent 生产链路与评测闭环",
+    en ? "Read the engineering case" : "读工程案例",
+    en
+      ? "From product materials to reports, quality checks and independent evaluation."
+      : "从产品素材到报告生成、质量网关与独立评测。",
+  )
   return {
+    caseStudy,
     featured,
     paths,
     aboutLinks,
@@ -140,7 +151,7 @@ export function getHomeContent(locale: HomeLocale) {
       paths: en ? "Three threads I keep following." : "我持续探索的三条线。",
       writing: en ? "All writing" : "所有文章",
       writingIntro: en
-        ? "Working notes, questions and ideas worth returning to. One continuously updated feed."
+        ? "Engineering problems, observations from life, and investment decisions I revisit as the evidence changes."
         : "工程里的问题，生活里的观察，以及值得反复校准的判断。都收在这一条文章流里。",
       order: en ? "Recently updated first" : "按最近更新排序",
       about: en ? "Keep the conversation going." : "继续交流，也继续生长。",

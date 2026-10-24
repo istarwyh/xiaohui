@@ -69,8 +69,14 @@ Chinese source files do not need to be edited immediately. `Head.tsx` can discov
 
 - `Head.tsx` emits canonical URLs for the current page and `hreflang` alternates discovered through `source` or `translationKey`.
 - `LanguageSwitcher` appears only when at least two language versions exist.
-- `TerminalHome` supports both `/` and `/en`, with separate featured links, badges, awards, and recent-page filtering.
-- Chinese homepage recent items exclude `en/` pages; English homepage recent items include only `en/` pages.
+- `HomePage` renders the current editorial homepages. `TerminalHome` remains available only for the legacy layout.
+- The English homepage is `content/en/index.md` with `pageType: home` and canonical `/en/`. `ContentPage` emits it with the dedicated homepage layout; `FolderPage` skips it. Keeping a separate `content/en.md` produces inconsistent relative-link bases on `/en/`.
+- `HomeHeader` exposes a direct language link outside its menu, including narrow screens. Language links preserve the active supported section hash (`featured`, `public-work`, `paths`, `writing`, `about`).
+- Bilingual reading paths and the business case study live in `quartz/components/home/homeContent.ts`. Corresponding curated IDs must point to the same Chinese source or its declared English translation; tests validate the real article frontmatter. Keep the existing three themes, six curated articles and single writing feed.
+- The feed already sorts by modified → published → created. New English revisions use their real update date while preserving original publication dates.
+- Article UI components use `getPageUiLocale`; this does not change the Chinese source locale used for translation discovery.
+- English article title and breadcrumb links return to `/en/`. Browser-language redirects are not used.
+- The current homepage feed is scoped to the page language; English translations do not enter the Chinese feed.
 
 ## Future LLM CI/CD Flow
 
@@ -97,3 +103,9 @@ phase 3: es, fr, de
 ```
 
 English should stay the first reviewed language because it is the bridge language for most international readers and future multilingual QA.
+
+## English sharing regression checks
+
+Run `npm test`, `npm run check`, `npm run check:frontmatter`, and `npx quartz build`, then `python3 scripts/i18n/check-built-site.py`. The output check verifies both homepages, the three long-form English engineering articles, canonical/alternate URLs and their local links.
+
+In a browser, exercise `/en` and `/en/`, language switching in both directions, the English article home link, diagrams, share controls and narrow-screen layouts. The shared homepage design still applies. Translations remain `machine-draft` until the author reviews them; an editorial pass is not a claim of author approval.

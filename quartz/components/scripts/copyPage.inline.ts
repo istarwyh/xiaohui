@@ -41,6 +41,8 @@ document.addEventListener("nav", () => {
   const titleEl = document.querySelector<HTMLElement>(".article-title")
   if (!titleEl) return
   const articleTitle = titleEl
+  const english = document.documentElement.lang.startsWith("en")
+  const tr = (zh: string, en: string) => (english ? en : zh)
 
   // Don't insert duplicate buttons
   if (articleTitle.querySelector(".copy-page-control")) return
@@ -61,8 +63,8 @@ document.addEventListener("nav", () => {
   shareButton.className = "share-page-button"
   shareButton.type = "button"
   shareButton.innerHTML = svgShare
-  shareButton.ariaLabel = "打开分享面板"
-  shareButton.title = "打开分享面板"
+  shareButton.ariaLabel = tr("打开分享面板", "Open share panel")
+  shareButton.title = tr("打开分享面板", "Open share panel")
   shareButton.setAttribute("aria-haspopup", "dialog")
   shareButton.setAttribute("aria-expanded", "false")
 
@@ -75,7 +77,7 @@ document.addEventListener("nav", () => {
   markdownOption.type = "button"
   markdownOption.setAttribute("role", "menuitem")
   markdownOption.dataset.format = "markdown"
-  markdownOption.textContent = "原始 Markdown"
+  markdownOption.textContent = tr("原始 Markdown", "Raw Markdown")
 
   const htmlOption = document.createElement("button")
   htmlOption.type = "button"
@@ -93,44 +95,44 @@ document.addEventListener("nav", () => {
   shareSheet.hidden = true
   shareSheet.setAttribute("role", "dialog")
   shareSheet.setAttribute("aria-modal", "true")
-  shareSheet.setAttribute("aria-label", "分享这篇文章")
+  shareSheet.setAttribute("aria-label", tr("分享这篇文章", "Share this article"))
   shareSheet.innerHTML = `
     <section class="share-page-panel">
       <div class="share-page-header">
-        <strong>分享至</strong>
-        <button class="share-page-close" type="button" aria-label="关闭分享面板" title="关闭分享面板">${svgClose}</button>
+        <strong>${tr("分享至", "Share to")}</strong>
+        <button class="share-page-close" type="button" aria-label="${tr("关闭分享面板", "Close share panel")}" title="${tr("关闭分享面板", "Close share panel")}">${svgClose}</button>
       </div>
       <div class="share-page-preview">
-        <p class="share-page-preview-label">将分享</p>
+        <p class="share-page-preview-label">${tr("将分享", "Sharing")}</p>
         <h2 class="share-page-preview-title"></h2>
         <p class="share-page-preview-description"></p>
         <p class="share-page-preview-url"></p>
       </div>
-      <div class="share-page-formats" role="group" aria-label="分享图版式">
-        <button type="button" data-poster-format="short" aria-pressed="true">二维码短卡</button>
-        <button type="button" data-poster-format="long" aria-pressed="false">长文分享图</button>
+      <div class="share-page-formats" role="group" aria-label="${tr("分享图版式", "Share image format")}">
+        <button type="button" data-poster-format="short" aria-pressed="true">${tr("二维码短卡", "QR card")}</button>
+        <button type="button" data-poster-format="long" aria-pressed="false">${tr("长文分享图", "Full article image")}</button>
       </div>
       <p class="share-page-hint"></p>
       <div class="share-page-poster" hidden>
-        <img class="share-page-poster-image" alt="分享图片预览" />
-        <a class="share-page-poster-download" data-router-ignore download="xiaohui-share.png">保存分享图</a>
+        <img class="share-page-poster-image" alt="${tr("分享图片预览", "Share image preview")}" />
+        <a class="share-page-poster-download" data-router-ignore download="xiaohui-share.png">${tr("保存分享图", "Save share image")}</a>
       </div>
       <div class="share-page-actions">
         <button type="button" data-share-action="wechat">
           <span class="share-page-action-icon wechat">${svgMessage}</span>
-          <span>微信好友</span>
+          <span>${tr("微信好友", "WeChat friend")}</span>
         </button>
         <button type="button" data-share-action="timeline">
           <span class="share-page-action-icon timeline">${svgTimeline}</span>
-          <span>朋友圈</span>
+          <span>${tr("朋友圈", "WeChat Moments")}</span>
         </button>
         <button type="button" data-share-action="poster">
           <span class="share-page-action-icon poster">${svgImage}</span>
-          <span>保存图片</span>
+          <span>${tr("保存图片", "Save image")}</span>
         </button>
         <button type="button" data-share-action="copy">
           <span class="share-page-action-icon copy">${svgLink}</span>
-          <span>复制链接</span>
+          <span>${tr("复制链接", "Copy link")}</span>
         </button>
       </div>
       <p class="share-page-status" aria-live="polite"></p>
@@ -617,13 +619,16 @@ document.addEventListener("nav", () => {
   function showSharePoster(poster: PosterResult) {
     sharePosterPreview.hidden = false
     sharePosterImage.src = poster.objectUrl
-    sharePosterImage.alt = posterFormat === "long" ? "文章原文长图预览" : "二维码短卡预览"
+    sharePosterImage.alt =
+      posterFormat === "long"
+        ? tr("文章原文长图预览", "Full article image preview")
+        : tr("二维码短卡预览", "QR card preview")
     sharePosterDownload.href = poster.objectUrl
     sharePosterDownload.download = poster.file.name
   }
 
   function warmSharePoster(request: number, format: PosterFormat) {
-    setShareStatus("正在生成分享图…")
+    setShareStatus(tr("正在生成分享图…", "Creating share image\u2026"))
     cacheSharePoster(format)
       .then((poster) => {
         if (!currentShareRequest(request, format)) return
@@ -639,7 +644,9 @@ document.addEventListener("nav", () => {
     console.error(error)
     const detail =
       error instanceof Error && error.name === "SharePosterError" ? `${error.message} ` : ""
-    setShareStatus(`分享图生成失败，${detail}可以再次点击保存图片重试，或先复制链接。`)
+    setShareStatus(
+      `${tr("分享图生成失败，", "Could not create the share image. ")}${detail}${tr("可以再次点击保存图片重试，或先复制链接。", "Try saving again, or copy the link.")}`,
+    )
   }
 
   function selectPosterFormat(format: PosterFormat) {
@@ -653,10 +660,19 @@ document.addEventListener("nav", () => {
     sharePosterDownload.removeAttribute("href")
     shareHint.textContent =
       format === "long"
-        ? "长图展示文章原文；过长时末尾渐隐，扫码可阅读全文。预览可向下滚动。"
+        ? tr(
+            "长图展示文章原文；过长时末尾渐隐，扫码可阅读全文。预览可向下滚动。",
+            "The image includes the article text. Long articles fade at the end; scan the QR code to keep reading. Scroll to preview.",
+          )
         : isWeChatBrowser()
-          ? "微信内长按图片保存后发送给好友或朋友圈。"
-          : "系统不支持图片分享时，可保存后发送。"
+          ? tr(
+              "微信内长按图片保存后发送给好友或朋友圈。",
+              "In WeChat, press and hold to save the image, then send it to a friend or Moments.",
+            )
+          : tr(
+              "系统不支持图片分享时，可保存后发送。",
+              "If image sharing is unavailable, save the image and send it yourself.",
+            )
     warmSharePoster(++shareRequest, format)
   }
 
@@ -681,8 +697,8 @@ document.addEventListener("nav", () => {
     if (shareResetTimer) clearTimeout(shareResetTimer)
     shareResetTimer = setTimeout(() => {
       shareButton.innerHTML = svgShare
-      shareButton.ariaLabel = "打开分享面板"
-      shareButton.title = "打开分享面板"
+      shareButton.ariaLabel = tr("打开分享面板", "Open share panel")
+      shareButton.title = tr("打开分享面板", "Open share panel")
     }, 2000)
   }
 
@@ -773,7 +789,7 @@ document.addEventListener("nav", () => {
         .share(shareDataWithFile)
         .then(() => {
           if (!currentShareRequest(request, format)) return
-          showSharedState("已打开系统分享")
+          showSharedState(tr("已打开系统分享", "Share dialog opened"))
           setShareStatus(statusMessage)
         })
         .catch((error) => {
@@ -781,7 +797,7 @@ document.addEventListener("nav", () => {
           if ((error as DOMException)?.name === "AbortError") return
           if ((error as DOMException)?.name !== "NotAllowedError") console.error(error)
           showSharePoster(poster)
-          showSharedState("已生成分享图")
+          showSharedState(tr("已生成分享图", "Share image ready"))
           setShareStatus(fallbackMessage)
         })
       return true
@@ -795,11 +811,18 @@ document.addEventListener("nav", () => {
     const request = ++shareRequest
     const format = posterFormat
     try {
-      const targetLabel = target === "wechat" ? "微信好友" : "朋友圈"
+      const targetLabel =
+        target === "wechat" ? tr("微信好友", "WeChat friend") : tr("朋友圈", "WeChat Moments")
       const fallbackMessage =
         target === "wechat"
-          ? "已生成分享图。长按图片保存后发送给微信好友。"
-          : "已生成分享图。长按图片保存后发到朋友圈。"
+          ? tr(
+              "已生成分享图。长按图片保存后发送给微信好友。",
+              "Image ready. Save it and send it to a WeChat friend.",
+            )
+          : tr(
+              "已生成分享图。长按图片保存后发到朋友圈。",
+              "Image ready. Save it and post it to WeChat Moments.",
+            )
 
       const cachedPoster = cachedPosters.get(format)
       if (cachedPoster && !isWeChatBrowser()) {
@@ -807,7 +830,7 @@ document.addEventListener("nav", () => {
         setShareStatus("")
         const sharing = trySharePosterFile(
           cachedPoster,
-          `已打开系统分享。请选择${targetLabel}发送这张图片。`,
+          `${tr("已打开系统分享。请选择", "Share dialog opened. Select ")}${targetLabel}${tr("发送这张图片。", " to send this image.")}`,
           fallbackMessage,
           request,
           format,
@@ -815,11 +838,11 @@ document.addEventListener("nav", () => {
         if (sharing) return
       }
 
-      setShareStatus("正在生成分享图…")
+      setShareStatus(tr("正在生成分享图…", "Creating share image\u2026"))
       const poster = await cacheSharePoster(format)
       if (!currentShareRequest(request, format)) return
       showSharePoster(poster)
-      showSharedState("已生成分享图")
+      showSharedState(tr("已生成分享图", "Share image ready"))
       setShareStatus(fallbackMessage)
     } catch (error) {
       if (currentShareRequest(request, format)) handlePosterError(error)
@@ -837,14 +860,19 @@ document.addEventListener("nav", () => {
   function saveSharePoster() {
     const request = ++shareRequest
     const format = posterFormat
-    setShareStatus("正在生成分享图…")
+    setShareStatus(tr("正在生成分享图…", "Creating share image\u2026"))
     cacheSharePoster(format)
       .then((poster) => {
         if (!currentShareRequest(request, format)) return
         showSharePoster(poster)
         sharePosterDownload.click()
-        showSharedState("已生成分享图")
-        setShareStatus("分享图已生成；如果浏览器没有下载，请长按图片保存。")
+        showSharedState(tr("已生成分享图", "Share image ready"))
+        setShareStatus(
+          tr(
+            "分享图已生成；如果浏览器没有下载，请长按图片保存。",
+            "Image ready. If the download did not start, press and hold to save it.",
+          ),
+        )
       })
       .catch((error) => {
         if (currentShareRequest(request, format)) handlePosterError(error)
@@ -857,12 +885,15 @@ document.addEventListener("nav", () => {
     copyText(canonicalUrl()).then(
       () => {
         if (!currentShareRequest(request, format)) return
-        showSharedState("链接已复制")
-        setShareStatus("链接已复制。")
+        showSharedState(tr("链接已复制", "Link copied"))
+        setShareStatus(tr("链接已复制。", "Link copied."))
       },
       (error) => {
         console.error(error)
-        if (currentShareRequest(request, format)) setShareStatus("复制失败，请从上方选取文章链接。")
+        if (currentShareRequest(request, format))
+          setShareStatus(
+            tr("复制失败，请从上方选取文章链接。", "Copy failed. Select the article link above."),
+          )
       },
     )
   }

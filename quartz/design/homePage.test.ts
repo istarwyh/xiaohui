@@ -11,13 +11,15 @@ import { runInNewContext } from "node:vm"
 import { pathToFileURL } from "node:url"
 import { slugifyFilePath, resolveRelative, type FullSlug } from "../util/path"
 import type { QuartzPluginData } from "../plugins/vfile"
+import { parseFrontmatter } from "../util/frontmatter"
 import { getFeedPages, type CuratedHomeItem } from "../util/homePageModel"
 import { getHomeContent } from "../components/home/homeContent"
+import { getTerminalHomeContent } from "../components/terminalHomeContent"
 import { foundations, light, xiaohuiTheme } from "./tokens"
 
 const bundle = build({
   stdin: {
-    contents: `export { default as HomePage } from "./quartz/components/HomePage"; export { default as HomeHeader } from "./quartz/components/HomeHeader"; export { renderPage, pageResources } from "./quartz/components/renderPage"; export { default as Head } from "./quartz/components/Head"; export { ContentPage } from "./quartz/plugins/emitters/contentPage"`,
+    contents: `export { default as HomePage } from "./quartz/components/HomePage"; export { default as HomeHeader } from "./quartz/components/HomeHeader"; export { renderPage, pageResources } from "./quartz/components/renderPage"; export { default as Head } from "./quartz/components/Head"; export { ContentPage } from "./quartz/plugins/emitters/contentPage"; export { defaultContentPageLayout } from "./quartz.layout"`,
     resolveDir: process.cwd(),
     loader: "ts",
   },
@@ -99,10 +101,14 @@ const allFiles: QuartzPluginData[] = [
   ...new Map(contentPages.map((page) => [page.slug, page])).values(),
 ]
 
-async function renderHome(locale: "zh-CN" | "en", extraFiles: QuartzPluginData[] = []) {
+async function renderHome(
+  locale: "zh-CN" | "en",
+  extraFiles: QuartzPluginData[] = [],
+  homeSlug?: string,
+) {
   const { HomePage, HomeHeader, Head, renderPage, pageResources } = await bundle
   const fileData = {
-    slug: locale === "en" ? "en" : "index",
+    slug: homeSlug ?? (locale === "en" ? "en" : "index"),
     frontmatter: {
       title: "The Sun Will Rise",
       pageType: "home",
@@ -468,7 +474,7 @@ test("partial emits refresh homes after article and asset add/change/delete but 
       value: "",
     },
   ]
-  const homes = [make("index", true), make("en", true)]
+  const homes = [make("index", true), make("en/index", true)]
   try {
     for (const type of ["add", "change", "delete"]) {
       const output = []
@@ -596,6 +602,9 @@ test("home toolbar enhances fresh and SPA-restored markup without noscript parsi
         if (type === "nav") initialize = callback
       },
       removeEventListener() {},
+      querySelectorAll() {
+        return []
+      },
       querySelector(selector: string) {
         if (selector === ".home-tools") return tools
         if (selector === ".home-menu") return menu
@@ -649,4 +658,135 @@ test("home art stacks before intermediate-width text can collide with portrait d
     /@media \(max-width: 1000px\)[\s\S]*?\.home-hero\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
   )
   assert.match(readFileSync("quartz/styles/variables.scss", "utf8"), /mobile:\s*800px/)
+})
+
+test("English folder homepage renders the dedicated layout and direct language entry", async () => {
+  const html = await renderHome("en", [], "en/index")
+  assert.match(html, /data-layout="home"/)
+  assert.match(html, /rel="canonical" href="https:\/\/xiaohui.cool\/en\/"/)
+  assert.doesNotMatch(html, /terminal-home|right-sidebar|class="left sidebar"/)
+  assert.match(html, /class="home-language-link internal"[^>]*href="\.\.\/"/)
+  assert.match(html, /href="\.\.\/en\/program\/llm\/insurance-report-production"/)
+  const chinese = await renderHome("zh-CN")
+  assert.match(chinese, /class="home-language-link internal"[^>]*href="\.\/en\/"/)
+})
+
+test("legacy English folder home keeps the terminal layout and mobile placement selectors", async () => {
+  const { renderPage, pageResources, Head, defaultContentPageLayout } = await bundle
+  const legacy = getTerminalHomeContent("en")
+  const targets = [
+    legacy.aboutSlug,
+    legacy.journeySlug,
+    legacy.membershipSlug,
+    ...legacy.featuredItems.map((item) => item.slug),
+  ]
+  const files = targets.map((slug) => ({
+    slug: slugifyFilePath(slug as any),
+    filePath: `content/${slug}.md`,
+    frontmatter: { title: slug, lang: "en", recent: false },
+  }))
+  const fileData = {
+    slug: "en/index",
+    frontmatter: { title: "English home", lang: "en", pageType: "home", recent: false },
+  }
+  const legacyCfg = { ...cfg, defaultDateType: "modified" }
+  const ctx = {
+    buildId: "legacy-regression",
+    cfg: { configuration: legacyCfg, plugins: { emitters: [] } },
+    allSlugs: [],
+    argv: {},
+  }
+  const externalResources = pageResources("..", resources, ctx.buildId)
+  const props = {
+    fileData,
+    allFiles: [...files, fileData],
+    cfg: legacyCfg,
+    ctx,
+    externalResources,
+    children: [],
+    tree: { type: "root", children: [] },
+  }
+  const html = renderPage(
+    legacyCfg,
+    fileData.slug,
+    props,
+    { ...defaultContentPageLayout, head: Head(), header: [], pageBody: empty, footer: empty },
+    externalResources,
+  )
+  assert.match(html, /data-slug="en\/index" data-layout="article"/)
+  assert.match(html, /class="terminal-home"/)
+  assert.match(html, /class="left sidebar"/)
+  assert.match(html, /href="\.\.\/en\/program\/practices\/reliable-agent-systems"/)
+  for (const filename of ["terminalHome.scss", "graph.scss"]) {
+    const css = readFileSync(`quartz/components/styles/${filename}`, "utf8")
+    assert.match(css, /body:is\(\[data-slug="en"\], \[data-slug="en\/index"\]\)/)
+    assert.doesNotMatch(css, /body\[data-slug="en"\]/)
+  }
+})
+
+test("Chinese and English reading paths and case studies resolve to the same source", () => {
+  const chinese = getHomeContent("zh-CN")
+  const english = getHomeContent("en")
+  const original = [...chinese.featured, chinese.caseStudy]
+  const translated = [...english.featured, english.caseStudy]
+  assert.deepEqual(
+    translated.map((item) => item.id),
+    original.map((item) => item.id),
+  )
+  for (const [index, item] of translated.entries()) {
+    const source = original[index]
+    assert.equal(item.target.kind, "page")
+    assert.equal(source.target.kind, "page")
+    if (item.target.kind !== "page" || source.target.kind !== "page") continue
+    const data = parseFrontmatter(readFileSync(path.join("content", `${item.target.slug}.md`))).data
+    const canonicalSource = item.target.slug.startsWith("en/") ? data.source : item.target.slug
+    assert.equal(typeof canonicalSource, "string", `${item.id} needs translation source metadata`)
+    assert.equal(
+      slugifyFilePath(canonicalSource as any),
+      slugifyFilePath(source.target.slug as any),
+      item.id,
+    )
+  }
+})
+
+test("homepage language links retain supported sections across hash changes and remove listeners on navigation", () => {
+  const source = transformSync(
+    readFileSync("quartz/components/scripts/homeHeader.inline.ts", "utf8"),
+    { loader: "ts", format: "cjs" },
+  ).code
+  let initialize = () => {}
+  const cleanups: Array<() => void> = []
+  const listeners = new Map<string, () => void>()
+  const links = [{ href: "https://xiaohui.cool/en/" }, { href: "https://xiaohui.cool/en/" }]
+  const location = { hash: "#writing" }
+  runInNewContext(source, {
+    URL,
+    document: {
+      querySelectorAll: () => links,
+      querySelector: () => null,
+      addEventListener(type: string, fn: () => void) {
+        if (type === "nav") initialize = fn
+      },
+    },
+    window: {
+      location,
+      addEventListener: (type: string, fn: () => void) => listeners.set(type, fn),
+      removeEventListener: (type: string) => listeners.delete(type),
+      addCleanup: (fn: () => void) => cleanups.push(fn),
+    },
+  })
+  initialize()
+  assert.ok(links.every((link) => link.href === "https://xiaohui.cool/en/#writing"))
+  location.hash = "#paths"
+  listeners.get("hashchange")!()
+  assert.ok(links.every((link) => link.href.endsWith("/#paths")))
+  location.hash = "#not-a-home-section"
+  listeners.get("hashchange")!()
+  assert.ok(links.every((link) => link.href === "https://xiaohui.cool/en/"))
+  cleanups.forEach((cleanup) => cleanup())
+  assert.equal(listeners.size, 0)
+  links[0].href = "https://xiaohui.cool/"
+  location.hash = "#about"
+  initialize()
+  assert.equal(links[0].href, "https://xiaohui.cool/#about")
 })

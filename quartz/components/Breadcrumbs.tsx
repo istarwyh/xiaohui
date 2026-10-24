@@ -64,14 +64,17 @@ export default ((opts?: Partial<BreadcrumbOptions>) => {
       return null
     }
 
-    const crumbs: CrumbData[] = pathNodes.map((node, idx) => {
+    const english = fileData.slug!.startsWith("en/")
+    const nodes = english ? pathNodes.filter((node) => node.slug !== "index") : pathNodes
+    const crumbs: CrumbData[] = nodes.map((node, idx) => {
       const crumb = formatCrumb(node.displayName, fileData.slug!, simplifySlug(node.slug))
       if (idx === 0) {
         crumb.displayName = options.rootName || defaultRootName(lang)
+        if (english) crumb.path = resolveRelative(fileData.slug!, "en/index" as FullSlug)
       }
 
       // For last node (current page), set empty path
-      if (idx === pathNodes.length - 1) {
+      if (idx === nodes.length - 1) {
         crumb.path = ""
       }
 

@@ -2,7 +2,8 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { GlobalConfiguration } from "../cfg"
 import type { QuartzPluginData } from "../plugins/vfile"
-import { getPageUiLocale } from "./translations"
+import { getPageUiLocale, absolutePageUrl, getTranslationAlternates } from "./translations"
+import { resolveRelative, type FullSlug } from "./path"
 
 const config = { locale: "zh-CN" } as GlobalConfiguration
 const page = (lang?: string) => ({ frontmatter: { lang } }) as QuartzPluginData
@@ -86,4 +87,45 @@ test("rendered controls use page language, including icon-only and dynamic searc
   assert.match(zhTheme, /data-dark-label="暗色模式"/)
   assert.match(zhRss, /<title>RSS 订阅<\/title>/)
   assert.match(zhLanguage, /aria-label="语言版本"/)
+})
+
+const cfg = { baseUrl: "xiaohui.cool", locale: "zh-CN" } as GlobalConfiguration
+const translatedPage = (slug: string, frontmatter: Record<string, unknown>): QuartzPluginData => ({
+  slug: slug as FullSlug,
+  frontmatter: { title: slug, ...frontmatter },
+})
+
+const chinese = translatedPage("index", {})
+const english = translatedPage("en/index", { lang: "en", source: "index" })
+
+test("English folder homepage has one trailing-slash canonical URL", () => {
+  assert.equal(absolutePageUrl(cfg, english.slug!), "https://xiaohui.cool/en/")
+  assert.equal(absolutePageUrl(cfg, chinese.slug!), "https://xiaohui.cool/")
+  assert.equal(
+    absolutePageUrl(cfg, "en/program/practices/reliable-agent-systems" as FullSlug),
+    "https://xiaohui.cool/en/program/practices/reliable-agent-systems",
+  )
+})
+
+test("English homepage links resolve from both clean URL forms without repeating en", () => {
+  for (const url of ["https://xiaohui.cool/en", "https://xiaohui.cool/en/"]) {
+    const article = "en/program/practices/reliable-agent-systems" as FullSlug
+    assert.equal(
+      new URL(resolveRelative(english.slug!, article), url).pathname,
+      "/en/program/practices/reliable-agent-systems",
+    )
+    assert.equal(new URL(resolveRelative(english.slug!, chinese.slug!), url).pathname, "/")
+  }
+})
+
+test("homepage translation discovery remains bidirectional with the folder index", () => {
+  const files = [chinese, english]
+  for (const current of files) {
+    const alternates = getTranslationAlternates(cfg, current, files)
+    assert.equal(alternates.length, 2)
+    assert.deepEqual(
+      Object.fromEntries(alternates.map((alternate) => [alternate.lang, alternate.slug])),
+      { "zh-CN": "index", en: "en/index" },
+    )
+  }
 })

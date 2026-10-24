@@ -44,6 +44,15 @@
     align-items: center;
     min-height: var(--control-touch);
   }
+  .home-language-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-touch);
+    min-width: var(--control-touch);
+    white-space: nowrap;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
   .home-tools {
     display: flex;
     align-items: center;

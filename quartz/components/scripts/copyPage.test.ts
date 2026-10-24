@@ -32,7 +32,12 @@ type FileShareData = { files: File[]; title?: string; text?: string }
 // Execute the production script, mocking only browser and renderer boundaries.
 // Deferred promises deliberately let each test complete work in the wrong order.
 function setupShare(
-  options: { userAgent?: string; nativeShare?: boolean; fontsReady?: Promise<void> } = {},
+  options: {
+    lang?: string
+    userAgent?: string
+    nativeShare?: boolean
+    fontsReady?: Promise<void>
+  } = {},
 ) {
   type TestEvent = {
     type: string
@@ -270,6 +275,7 @@ function setupShare(
     }
   }
   const document = Object.assign(new TestElement("document"), {
+    documentElement: { lang: options.lang ?? "zh-CN" },
     title: "Browser title | AI Agent · MCP 实践者",
     body: new TestElement("body"),
     fonts: options.fontsReady ? { ready: options.fontsReady } : undefined,
@@ -1039,4 +1045,20 @@ test("long poster resources are cancelled on SPA cleanup but not on closing the 
   await setImmediate()
   assert.equal(h.downloads.length, 0)
   assert.equal(h.errors.length, 0)
+})
+
+test("English article share UI localizes both poster formats and asynchronous status", async () => {
+  const h = setupShare({ lang: "en" })
+  assert.equal(h.button.ariaLabel, "Open share panel")
+  assert.equal(h.sheet.attributes.get("aria-label"), "Share this article")
+  assert.equal(h.element('[data-poster-format="short"]').textContent, "QR card")
+  assert.equal(h.element('[data-poster-format="long"]').textContent, "Full article image")
+  assert.equal(h.close.attributes.get("aria-label"), "Close share panel")
+  h.open()
+  h.action("copy")
+  assert.equal(h.clipboardRequests.length, 1)
+  h.clipboardRequests[0].pending.resolve()
+  await setImmediate()
+  assert.equal(h.status.textContent, "Link copied.")
+  h.cleanup()
 })

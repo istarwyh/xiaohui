@@ -130,7 +130,7 @@ The type contracts are in `quartz/plugins/types.ts`. `quartz/plugins/index.ts` c
 
 Components are Preact function components under `quartz/components/`. Component-specific SCSS lives in `quartz/components/styles/`, and browser-side behavior is usually in `quartz/components/scripts/*.inline.ts`, which the esbuild inline loader bundles as text. Global styles are under `quartz/styles/`.
 
-The homepage requires `pageType: home` and a reserved `index` or `en` slug. `HomePage` and `HomeHeader` use a dedicated layout without article sidebars; docs indexes remain ordinary documentation. `QUARTZ_HOME_LAYOUT=legacy` restores the retained TerminalHome layout. `scripts/update-homepage.js` still looks for a `Component.CardFeed(...)` block when syncing card data, so verify homepage assumptions when changing the layout.
+The homepage requires `pageType: home` and a reserved `index`, `en`, or `en/index` slug. `HomePage` and `HomeHeader` use a dedicated layout without article sidebars; docs indexes remain ordinary documentation. `QUARTZ_HOME_LAYOUT=legacy` restores the retained TerminalHome layout. `scripts/update-homepage.js` still looks for a `Component.CardFeed(...)` block when syncing card data, so verify homepage assumptions when changing the layout.
 
 ### Content integration
 

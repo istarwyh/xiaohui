@@ -28,6 +28,7 @@ export default (() => {
     const resolve = (items: typeof content.featured, location: string) =>
       resolveHomeItems(items, allFiles, fileData.slug!, { location, diagnostics })
     const featured = resolve(content.featured, "featured")
+    const [caseStudy] = resolve([content.caseStudy], "caseStudy")
     const paths = resolve(content.paths, "paths")
     const aboutLinks = resolve(content.aboutLinks, "aboutLinks")
     for (const diagnostic of diagnostics)
@@ -182,8 +183,8 @@ export default (() => {
                 <li>{en ? "Reusable capabilities" : "可复用能力"}</li>
                 <li>{en ? "Evaluation-driven iteration" : "评测驱动迭代"}</li>
               </ul>
-              <a class="home-text-link" href={talk}>
-                {en ? "Read the public case · 中文" : "看公开实践"}
+              <a class="home-text-link internal" href={caseStudy.href}>
+                {caseStudy.label}
                 <span aria-hidden="true">↗</span>
               </a>
             </article>

@@ -57,7 +57,9 @@ export class HomeLinkResolutionError extends Error {
 
 /** A home layout requires both the explicit marker and one of its two reserved slugs. */
 export function isHomePage(page: QuartzPluginData): boolean {
-  return page.frontmatter?.pageType === "home" && (page.slug === "index" || page.slug === "en")
+  return (
+    page.frontmatter?.pageType === "home" && ["index", "en", "en/index"].includes(page.slug ?? "")
+  )
 }
 
 function hasLanguage(page: QuartzPluginData): boolean {

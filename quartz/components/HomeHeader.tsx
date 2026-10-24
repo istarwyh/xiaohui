@@ -16,7 +16,7 @@ export default (() => {
   const LanguageControl = LanguageSwitcher()
   const HomeHeader: QuartzComponent = (props) => {
     const en = getHomeUiLocale(props.fileData) === "en-US"
-    const home = resolveRelative(props.fileData.slug!, (en ? "en" : "index") as FullSlug)
+    const home = resolveRelative(props.fileData.slug!, (en ? "en/index" : "index") as FullSlug)
     const links = [
       ["#featured", en ? "Work" : "作品"],
       ["#paths", en ? "Themes" : "主题"],
@@ -52,6 +52,14 @@ export default (() => {
             </a>
           ))}
         </nav>
+        <a
+          class="home-language-link internal"
+          href={resolveRelative(props.fileData.slug!, (en ? "index" : "en/index") as FullSlug)}
+          lang={en ? "zh-CN" : "en"}
+          aria-label={en ? "阅读中文首页" : "Read in English"}
+        >
+          {en ? "中文" : "English"}
+        </a>
         <div class="home-tools" hidden>
           <SearchControl {...props} />
           <ThemeControl {...props} />
