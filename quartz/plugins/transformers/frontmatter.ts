@@ -1,3 +1,4 @@
+import { parseShareSlug } from "../../util/share"
 import remarkFrontmatter from "remark-frontmatter"
 import { QuartzTransformerPlugin } from "../types"
 import { FilePath, FullSlug, getFileExtension, slugifyFilePath, slugTag } from "../../util/path"
@@ -88,6 +89,14 @@ export const FrontMatter: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
               allSlugs.push(permalink)
             }
 
+            const shareSlug = parseShareSlug(data.shareSlug)
+            if (shareSlug) {
+              file.data.aliases = [
+                ...new Set([...(file.data.aliases ?? []), shareSlug as FullSlug]),
+              ]
+              allSlugs.push(shareSlug as FullSlug)
+            }
+
             const cssclasses = coerceToArray(coalesceAliases(data, ["cssclasses", "cssclass"]))
             if (cssclasses) data.cssclasses = cssclasses
 
@@ -142,6 +151,7 @@ declare module "vfile" {
         lang: string
         enableToc: string
         cssclasses: string[]
+        shareSlug: string
         socialImage: string
         comments: boolean | string
       }>

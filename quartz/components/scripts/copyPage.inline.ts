@@ -176,8 +176,12 @@ document.addEventListener("nav", () => {
     return article?.innerHTML ?? ""
   }
 
-  function canonicalUrl() {
-    return document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href ?? location.href
+  function shareUrlForPage() {
+    return (
+      document.querySelector<HTMLMetaElement>('meta[name="share-url"]')?.content ||
+      document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href ||
+      location.href
+    )
   }
 
   function metaContent(selector: string) {
@@ -325,7 +329,7 @@ document.addEventListener("nav", () => {
         metaContent('meta[property="og:description"]') ||
         metaContent('meta[name="description"]') ||
         articleExcerpt(),
-      url: canonicalUrl(),
+      url: shareUrlForPage(),
     }
   }
 
@@ -479,7 +483,7 @@ document.addEventListener("nav", () => {
       ])
       clearTimeout(timer)
     }
-    const url = data.url ?? canonicalUrl()
+    const url = data.url ?? shareUrlForPage()
     const canvas = document.createElement("canvas")
     const width = 1144
     const height = 632
@@ -588,7 +592,7 @@ document.addEventListener("nav", () => {
           format === "long"
             ? await generateLongSharePoster({
                 title: data.title ?? document.title,
-                url: data.url ?? canonicalUrl(),
+                url: data.url ?? shareUrlForPage(),
                 author: article?.getAttribute("data-share-author") || undefined,
                 article: article!,
                 signal: posterAbort.signal,
@@ -715,7 +719,7 @@ document.addEventListener("nav", () => {
       const data = shareData()
       shareTitle.textContent = data.title ?? ""
       shareDescription.textContent = data.text ?? ""
-      shareUrl.textContent = data.url ?? canonicalUrl()
+      shareUrl.textContent = data.url ?? shareUrlForPage()
       selectPosterFormat(posterFormat)
       shareCloseButton.focus()
     } else {
@@ -774,6 +778,7 @@ document.addEventListener("nav", () => {
       files: [poster.file],
       title: data.title,
       text: data.text,
+      url: data.url,
     }
 
     try {
@@ -882,7 +887,7 @@ document.addEventListener("nav", () => {
   function copyShareLink() {
     const request = ++shareRequest
     const format = posterFormat
-    copyText(canonicalUrl()).then(
+    copyText(shareUrlForPage()).then(
       () => {
         if (!currentShareRequest(request, format)) return
         showSharedState(tr("链接已复制", "Link copied"))

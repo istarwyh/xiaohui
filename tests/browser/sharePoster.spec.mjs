@@ -1577,3 +1577,81 @@ test("dense canonical URLs keep a complete QR below the footer text", async ({ p
   }
   expect(darkestQuietPixel, "Four-module quiet zone contains no dark pixels").toBeGreaterThan(240)
 })
+
+test("stable share entry survives copy, native share, QR and SPA fallback", async ({ page }) => {
+  await page.goto(`${base}/short.html`)
+  const shareUrl = "https://xiaohui.cool/agent-audit"
+  await page.evaluate((url) => {
+    const meta = document.createElement("meta")
+    meta.name = "share-url"
+    meta.content = url
+    document.head.append(meta)
+    window.shareChecks = { copied: [], native: [] }
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text) => window.shareChecks.copied.push(text),
+      },
+    })
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (data) => {
+        window.shareChecks.native.push({ url: data.url, files: data.files.length })
+      },
+    })
+    Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true })
+  }, shareUrl)
+  await page.locator(".share-page-button").click()
+  await ready(page, 1144)
+  await exportImage(page, "stable-short", 1144, shareUrl)
+  await page.locator('[data-share-action="copy"]').click()
+  await expect.poll(() => page.evaluate(() => window.shareChecks.copied)).toEqual([shareUrl])
+  await page.getByRole("button", { name: "微信好友", exact: true }).click()
+  await expect
+    .poll(() => page.evaluate(() => window.shareChecks.native))
+    .toEqual([{ url: shareUrl, files: 1 }])
+  await page.getByRole("button", { name: "长文分享图", exact: true }).click()
+  await ready(page, 720)
+  await exportImage(page, "stable-long", 720, shareUrl)
+  await page.evaluate(() => {
+    window.cleanups.splice(0).forEach((fn) => fn())
+    document.querySelector(".copy-page-control")?.remove()
+    document.querySelector('meta[name="share-url"]').remove()
+    document.querySelector(".article-title").textContent = "未配置短入口的下一篇"
+    document.dispatchEvent(new CustomEvent("nav"))
+  })
+  await page.locator(".share-page-button").click()
+  await ready(page, 1144)
+  await exportImage(page, "stable-spa-fallback", 1144, canonical("short"))
+})
+
+if (process.env.SHARE_QA_REAL_ARTICLES === "1") {
+  test("built Quartz article audit has stable entry without canonical migration", async ({
+    page,
+    request,
+  }) => {
+    const slug = "program/practices/Harness-Engineering---C-端-AIGC-实时生成系统"
+    const alias = await request.get(`${base}/built/agent-audit.html`)
+    expect(alias.status()).toBe(200)
+    const html = await alias.text()
+    expect(html).toContain('name="robots" content="noindex"')
+    expect(html).toContain('property="og:title"')
+    expect(html).toContain('property="og:image"')
+    expect(html).toContain(`url=./${slug}`)
+    // Local fixture server has no extensionless routing; inspect the real emitted
+    // refresh target above, then load the actual .html. Not an HTTP redirect claim.
+    await loadBuilt(page, { slug: `${slug}.html`, title: "Harness Engineering", key: "audit" })
+    await expect(page.locator('meta[name="share-url"]')).toHaveAttribute(
+      "content",
+      "https://xiaohui.cool/agent-audit",
+    )
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      `https://xiaohui.cool/${slug}`,
+    )
+    expect(await page.locator("article h2, article h3, article h4").count()).toBeGreaterThan(20)
+    await page.locator(".share-page-button").click()
+    await ready(page, 1144)
+    await exportImage(page, "audit-stable-short", 1144, "https://xiaohui.cool/agent-audit")
+  })
+}
