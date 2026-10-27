@@ -1,6 +1,6 @@
 ---
 created: 2026-05-30T22:42:00+08:00
-modified: 2026-06-21
+modified: 2026-10-27
 published: 2026-05-30T22:42:00+08:00
 ---
 
@@ -46,7 +46,7 @@ DIPG 对外的产品形态:用户在支付宝保险快查里打开某款产品�
 </div>          ← 第 201 行: 多出来的孤儿闭合标签
 ```
 
-问题很隐蔽。整份报告的顶层本来是平铺结构(<h2> 和各种 card 组件作为兄弟元素并列),没有外层包裹 <div>。但 LLM 凭"印象"在末尾补了一个 </div> 当作收尾。这个孤儿闭合标签进到移动端容器,被容器当成关闭自身的信号,导致下一个兄弟组件的位置错乱。
+问题很隐蔽。整份报告的顶层本来是平铺结构(`<h2>` 和各种 card 组件作为兄弟元素并列),没有外层包裹 `<div>`。但 LLM 凭"印象"在末尾补了一个 `</div>` 当作收尾。这个孤儿闭合标签进到移动端容器,被容器当成关闭自身的信号,导致下一个兄弟组件的位置错乱。
 同一时期,另一份惠民保产品的深度解读出了更隐蔽的问题。页面渲染完全正常,视觉上看不出任何毛病,但"特色保障分析"模块里赫然写着:
 
 
@@ -57,12 +57,12 @@ DIPG 对外的产品形态:用户在支付宝保险快查里打开某款产品�
 ```
 
 "85%"这个数字从哪来的?翻遍 Research Agent 拉到的全部素材 —— 保险条款、投保须知、健康告知 —— 没有任何关于"市场排名"或"百分位"的数据。这是一个典型的幻觉:LLM 为了让页面更有说服力,凭空编造了一个具体数字。
-如果说孤儿 </div> 让页面"塌掉",这个 badcase 让页面"骗人" —— 而且骗得很体面,不翻数据源根本看不出来。
+如果说孤儿 `</div>` 让页面"塌掉",这个 badcase 让页面"骗人" —— 而且骗得很体面,不翻数据源根本看不出来。
 这两个 badcase 恰好对应第一节提到的两类致命错误:渲染类(孤儿闭合标签让页面塌掉)和幻觉类(无中生有的数据让用户读到假信息)。共同特征:从文字上看完全"合理",LLM 生成时也没有"犹豫",但一个违反了 HTML 结构契约,一个违反了数据事实契约。
 
 对这两类问题,我们要回答两个层次:
 
-1. 这次能不能抓到? — 孤儿 </div> 靠纯程序化校验(HTML parser + 闭合规则)就能抓到;"优于市场 85%"则需要拿 HTML 和数据源做对比,靠 LLM 事实校验才能发现。两种校验手段正好对应 Verify Agent 内部的两个节点。
+1. 这次能不能抓到? — 孤儿 `</div>` 靠纯程序化校验(HTML parser + 闭合规则)就能抓到;"优于市场 85%"则需要拿 HTML 和数据源做对比,靠 LLM 事实校验才能发现。两种校验手段正好对应 Verify Agent 内部的两个节点。
 
 2. 下次能不能不犯? — 这才是关键。每次都能抓到,意味着离线链路有 verify 环节可以在刷入 DB 前把问题拦下,不会让 badcase 飘到用户面前。同时,抓到之后,这些错误模式也能回灌到 prompt,让后续生成从源头减少类似错误。
 
@@ -130,14 +130,14 @@ sub_agent_tools = [
 ```
 
 通常来说，Research Agent 会尝试:
-1. LLM 读 chacha_prompt 里的 <query_understanding> 章节,明确要分析的维度
+1. LLM 读 chacha_prompt 里的 `<query_understanding>` 章节,明确要分析的维度
 2. 调 download_insurance_product_materials —— 返回素材到磁盘中与素材地图,形如 {"CLAUSE": [...], "INSURE_NOTICE": [...], "HEALTH_INFORM": [...]}
 3. LLM 串联多次 read_disk_file(path) —— 逐个读条款、投保须知、健康告知
 4. 条款里缺的数据(如行业发病率),LLM 调 web_search(query) 补充
 5. 所有信息收齐后,LLM 进入"页面生成阶段",产出 HTML
 这个过程由 LLM 自主决策,没有固定编排。chacha_prompt 控制:
-- <materials_and_tools> 告诉 LLM 素材类型和工具能力
-- <workflow> 明确"阶段一:工具调用" vs "阶段二:页面生成"不得混用
+- `<materials_and_tools>` 告诉 LLM 素材类型和工具能力
+- `<workflow>` 明确"阶段一:工具调用" vs "阶段二:页面生成"不得混用
 ### 3.5 HTML 产出:写进 state["files"] 作为跨 Agent 记忆
 
 Research Agent 的 instructions 末尾被强制追加:
@@ -202,7 +202,7 @@ Verify Agent 两者都要看 —— 产物 vs 原料做对齐,才能判忠实性
 - 禁止盲目对比:没有竞品数据不得使用"优于市场 85%"(第二节那个惠民保 badcase 的直接教训)
 - 否定约束:is_state_owned: false 就严禁出现"国企/央企"
 其中最有意思的是强制前置溯源:
-利用模型自回归特性,在生成任何关键数据之前,先生成 HTML 注释说明数据来源。格式 <!-- Source: [信源] - [字段] --> <div>数据...</div>。如果写不出注释,说明该数据是幻觉,必须留空。
+利用模型自回归特性,在生成任何关键数据之前,先生成 HTML 注释说明数据来源。格式 `<!-- Source: [信源] - [字段] --> <div>数据...</div>`。如果写不出注释,说明该数据是幻觉,必须留空。
 不是求 LLM "请标注来源",而是让"写不出来源就不要写数据"变成自然的生成顺序。结构强制比语义强制有效得多。
 ### 4.3 这些规则从哪来?
 
@@ -256,7 +256,7 @@ structural_check(程序化校验) —— 纯 Python,基于 html.parser.HTMLParse
 | rule7 | 禁止内容重复 |
 | 其他 | reference-card 位置规范、标题仅允许 h2 等 |
 (编号不连续是代码的历史原因——早期规则筛选后保留了原始编号。)
-毫秒级响应,零假阳性。前面那个 badcase —— 孤儿 </div> —— 就是被 rule5 的 TAG_ORPHAN 直接命中的。而第二节那个惠民保"优于市场 85%"的 badcase,structural_check 对它无话可说(HTML 结构没问题)—— 它需要下一个节点来抓。
+毫秒级响应,零假阳性。前面那个 badcase —— 孤儿 `</div>` —— 就是被 rule5 的 TAG_ORPHAN 直接命中的。而第二节那个惠民保"优于市场 85%"的 badcase,structural_check 对它无话可说(HTML 结构没问题)—— 它需要下一个节点来抓。
 llm_verify(语义 + 事实校验) —— 消费 /audit/ 下的原始数据供给 + 生成的 HTML,产出结构化 JSON。继续跟踪惠民保 badcase —— Host Agent 把报告交给 Verify Agent 校验时,传入的任务描述:
 
 ```json
@@ -292,7 +292,7 @@ Verify Agent 遍历 /audit/ 下的全部工具调用记录,发现没有任何数
 两个节点的分工原则:能用程序判定的,不让 LLM 看。 Verify Agent 的 system prompt 里明确告诉 LLM:
 程序化 HTML 校验结果:在你的消息历史中,会有一条 [程序化HTML校验结果] 消息……请直接信任并引用程序化校验发现的所有 ERROR 和 WARN。
 这样一来,LLM 的 token 预算全部投给它真正擅长的事实性判断,不浪费在数"有几个未闭合标签"这种机械活上。
-**llm_verify 用什么模型? Verify Agent 的模型和 Research Agent 的模型最好是不同选型，这样可以减轻"同一模型既当运动员又当裁判"带来的偏置,Verify Agent 的判定更接近独立观察者。
+**llm_verify 用什么模型?** Verify Agent 的模型和 Research Agent 的模型最好是不同选型，这样可以减轻"同一模型既当运动员又当裁判"带来的偏置,Verify Agent 的判定更接近独立观察者。
 ### 5.3 Verify Agent 必须看得到生产原料 —— /audit/
 
 这是容易被忽略但非常重要的设计。Verify Agent 要判"数据是否忠实",光看 HTML 是不够的 —— 必须对比 HTML 里的每个数字和 Research Agent 当初拿到的原始数据供给。
@@ -373,8 +373,8 @@ Host Agent 按 fix_hint 里"改为基于条款的客观描述如'保障责任较
 第二节那个惠民保"优于市场 85%"的 badcase 也走了同样的路径。Verify Agent 反复抓到"数据供给中不存在市场排名数据,但 HTML 里出现了具体百分位"的 issue,聚合后写进了 Research Agent 的 prompt:
 禁止盲目对比:没有竞品数据不得使用"优于市场 XX%"等市场排名表述。缺少明确数据支撑时,使用基于条款本身的客观特色描述替代。
 至此,这个 badcase 走完了从"Verify 抓到 → Host 修正 → 回灌 prompt → 下次不犯"的完整闭环。
-再举一个 —— 第二节的另一个 badcase(孤儿 </div>)。我们保留 structural_check 的 rule5 在离线 Verify Agent 里兜底,同时更新 Research Agent 的 prompt:
-严禁额外包裹容器:不要在输出的最外层添加任何包裹性质的 <div> 容器标签。组件(head-card、text-card、table-card 等)和 <h2> 标题必须直接作为顶层元素平铺输出,彼此之间保持平级关系。
+再举一个 —— 第二节的另一个 badcase(孤儿 `</div>`)。我们保留 structural_check 的 rule5 在离线 Verify Agent 里兜底,同时更新 Research Agent 的 prompt:
+严禁额外包裹容器:不要在输出的最外层添加任何包裹性质的 `<div>` 容器标签。组件(head-card、text-card、table-card 等)和 `<h2>` 标题必须直接作为顶层元素平铺输出,彼此之间保持平级关系。
 规则写进 prompt 之后,Verify Agent 抓这类错误的频率将会下降-- 不是 Verify 变弱了,是 Research Agent 一次过得更多。
 ### 6.3 为什么这个回灌是必要的
 

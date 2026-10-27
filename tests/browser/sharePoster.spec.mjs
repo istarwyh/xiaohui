@@ -1091,6 +1091,12 @@ if (process.env.SHARE_QA_REAL_ARTICLES === "1") {
             if (image.src.endsWith("/202311220110685.png")) {
               image.removeAttribute("srcset")
               image.src = base + "/vector-euclidean.png"
+              // src changes before Chromium updates currentSrc. The renderer
+              // intentionally snapshots currentSrc synchronously, so wait for
+              // this same-origin fixture to replace the loaded remote image.
+              await image.decode()
+              if (image.currentSrc !== image.src)
+                throw new Error("Local diagram fixture has not become the selected image")
             }
           }
           document.body.append(excerpt)
