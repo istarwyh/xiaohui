@@ -141,3 +141,13 @@ test("reject aliases that escape then re-enter the output directory", async () =
     /Unsafe alias/,
   )
 })
+
+test("reject platform-dependent backslash aliases", async () => {
+  await assert.rejects(
+    validateShareRoutes(ctx(), [
+      file("a", "agent-audit"),
+      file("notes/b", undefined, [String.raw`foo\..\agent-audit`]),
+    ]),
+    /Unsafe alias/,
+  )
+})

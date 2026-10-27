@@ -32,6 +32,9 @@ export async function validateShareRoutes(ctx: BuildCtx, content: ProcessedConte
   }
   for (const [, file] of content) {
     for (const alias of file.data.aliases ?? []) {
+      if (alias.includes("\\")) {
+        throw new Error(`Unsafe alias '${alias}' contains a platform-dependent separator`)
+      }
       const target = isRelativeURL(alias)
         ? path.posix.normalize(path.posix.join(simplifySlug(file.data.slug!), "..", alias))
         : alias
