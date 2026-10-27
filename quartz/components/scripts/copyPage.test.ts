@@ -1,3 +1,4 @@
+import { createShareMetadata } from "./shareMetadata"
 import assert from "node:assert/strict"
 import { File } from "node:buffer"
 import { readFileSync } from "node:fs"
@@ -377,6 +378,7 @@ function setupShare(
     },
     clearTimeout: (id: number) => timers.delete(id),
     require: (id: string) => {
+      if (id === "./shareMetadata") return { createShareMetadata }
       if (id === "../../design/tokens") return { foundations, light }
       if (id === "qrcode")
         return {
