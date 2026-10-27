@@ -1,3 +1,4 @@
+import { createShareMetadata } from "./shareMetadata"
 import assert from "node:assert/strict"
 import { File } from "node:buffer"
 import { readFileSync } from "node:fs"
@@ -27,12 +28,13 @@ function deferred<T>() {
 
 type PosterFormat = "short" | "long"
 type ShareAction = "wechat" | "timeline" | "poster" | "copy"
-type FileShareData = { files: File[]; title?: string; text?: string }
+type FileShareData = { files: File[]; title?: string; text?: string; url?: string }
 
 // Execute the production script, mocking only browser and renderer boundaries.
 // Deferred promises deliberately let each test complete work in the wrong order.
 function setupShare(
   options: {
+    shareUrl?: string
     lang?: string
     userAgent?: string
     nativeShare?: boolean
@@ -290,6 +292,7 @@ function setupShare(
   document.append(document.body)
   document.body.innerHTML = `
     <link rel="canonical" href="https://xiaohui.cool/essays/example" />
+    ${options.shareUrl ? `<meta name="share-url" content="${options.shareUrl}" />` : ""}
     <meta property="article:author" content="站点维护者" />
     <h1 class="article-title">测试长文</h1>
     <textarea id="copy-page-markdown-source"></textarea>
@@ -375,6 +378,7 @@ function setupShare(
     },
     clearTimeout: (id: number) => timers.delete(id),
     require: (id: string) => {
+      if (id === "./shareMetadata") return { createShareMetadata }
       if (id === "../../design/tokens") return { foundations, light }
       if (id === "qrcode")
         return {
@@ -1062,3 +1066,23 @@ test("English article share UI localizes both poster formats and asynchronous st
   assert.equal(h.status.textContent, "Link copied.")
   h.cleanup()
 })
+
+for (const shareUrl of [undefined, "https://xiaohui.cool/agent-audit"]) {
+  test(`copy, native share and both poster formats agree: ${shareUrl ?? "canonical fallback"}`, async () => {
+    const h = setupShare({ nativeShare: true, shareUrl })
+    const expected = shareUrl ?? "https://xiaohui.cool/essays/example"
+    h.open()
+    await h.finishShort()
+    assert.equal(h.qrRequests[0].url, expected)
+    h.action("copy")
+    assert.equal(h.clipboardRequests[0].text, expected)
+    h.clipboardRequests[0].pending.resolve()
+    h.action("wechat")
+    assert.equal(h.shareRequests[0].data.url, expected)
+    h.shareRequests[0].pending.resolve()
+    h.select("long")
+    await h.finishLong()
+    assert.equal(h.longRequests[0].input.url, expected)
+    h.cleanup()
+  })
+}

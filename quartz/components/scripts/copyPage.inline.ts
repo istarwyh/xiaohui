@@ -1,3 +1,4 @@
+import { createShareMetadata } from "./shareMetadata"
 import * as QRCode from "qrcode"
 import { generateLongSharePoster } from "./sharePoster"
 import { light, foundations } from "../../design/tokens"
@@ -176,158 +177,11 @@ document.addEventListener("nav", () => {
     return article?.innerHTML ?? ""
   }
 
-  function canonicalUrl() {
-    return document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href ?? location.href
-  }
-
-  function metaContent(selector: string) {
-    return document.querySelector<HTMLMetaElement>(selector)?.content ?? ""
-  }
-
-  function markdownSource() {
-    return document.querySelector<HTMLTextAreaElement>("#copy-page-markdown-source")?.value ?? ""
-  }
-
-  function markdownWithoutFrontmatter() {
-    return markdownSource().replace(/^---\s*\n[\s\S]*?\n---\s*(?:\n|$)/, "")
-  }
-
-  function stripMarkdownInlineSyntax(text: string) {
-    return text
-      .replace(/!\[[^\]]*]\([^)]+\)/g, "")
-      .replace(/\[\[([^\]|]+)\|([^\]]+)]]/g, "$2")
-      .replace(/\[\[([^\]]+)]]/g, "$1")
-      .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
-      .replace(/[`*_~]/g, "")
-      .trim()
-  }
-
-  function unquoteYamlValue(value: string) {
-    const trimmed = value.trim()
-    if (trimmed.length < 2) return trimmed
-
-    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-      return trimmed.slice(1, -1).replace(/\\n/g, "\n").replace(/\\"/g, '"').trim()
-    }
-
-    if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
-      return trimmed.slice(1, -1).replace(/''/g, "'").trim()
-    }
-
-    return trimmed
-  }
-
-  function deindentYamlBlock(lines: string[]) {
-    const withoutOuterBlankLines = [...lines]
-    while (withoutOuterBlankLines[0]?.trim() === "") withoutOuterBlankLines.shift()
-    while (withoutOuterBlankLines[withoutOuterBlankLines.length - 1]?.trim() === "") {
-      withoutOuterBlankLines.pop()
-    }
-
-    const indents = withoutOuterBlankLines
-      .filter((line) => line.trim().length > 0)
-      .map((line) => line.match(/^\s*/)?.[0].length ?? 0)
-    const minIndent = indents.length > 0 ? Math.min(...indents) : 0
-
-    return withoutOuterBlankLines
-      .map((line) => line.slice(minIndent))
-      .join("\n")
-      .trim()
-  }
-
-  function markdownFrontmatterDescription() {
-    const source = markdownSource()
-    const frontmatter = source.match(/^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/)?.[1]
-    if (!frontmatter) return ""
-
-    const lines = frontmatter.split("\n")
-    for (let index = 0; index < lines.length; index += 1) {
-      const match = lines[index].match(/^description:\s*(.*)$/)
-      if (!match) continue
-
-      const rawValue = match[1].trim()
-      if (/^[>|]/.test(rawValue)) {
-        const blockLines: string[] = []
-        for (let blockIndex = index + 1; blockIndex < lines.length; blockIndex += 1) {
-          const line = lines[blockIndex]
-          if (/^\S[^:]*:\s*/.test(line)) break
-          blockLines.push(line)
-        }
-        return deindentYamlBlock(blockLines)
-      }
-
-      return unquoteYamlValue(rawValue)
-    }
-
-    return ""
-  }
-
-  function markdownBodyExcerpt() {
-    const paragraphs: string[] = []
-    let currentParagraph: string[] = []
-    const body = markdownWithoutFrontmatter().replace(/```[\s\S]*?```/g, "")
-
-    function flushParagraph() {
-      const paragraph = currentParagraph.join("\n").trim()
-      if (paragraph) paragraphs.push(paragraph)
-      currentParagraph = []
-    }
-
-    for (const line of body.split("\n")) {
-      const trimmed = line.trim()
-      if (!trimmed) {
-        flushParagraph()
-        continue
-      }
-
-      if (/^#{1,6}\s+/.test(trimmed) || /^-{3,}$/.test(trimmed)) {
-        flushParagraph()
-        continue
-      }
-
-      if (/^!\[[^\]]*]\([^)]+\)$/.test(trimmed)) continue
-
-      const text = stripMarkdownInlineSyntax(trimmed.replace(/^>\s?/, "").replace(/^[-*+]\s+/, ""))
-      if (text) currentParagraph.push(text)
-    }
-
-    flushParagraph()
-    return paragraphs.slice(0, 3).join("\n\n")
-  }
-
-  function articleExcerpt() {
-    return Array.from(document.querySelectorAll("article p"))
-      .map((paragraph) => paragraph.textContent?.replace(/[ \t]+/g, " ").trim() ?? "")
-      .filter(Boolean)
-      .slice(0, 3)
-      .join("\n\n")
-  }
-
-  function articleHeadingText() {
-    const clone = articleTitle.cloneNode(true) as HTMLElement
-    clone.querySelector(".copy-page-control")?.remove()
-    return clone.textContent?.replace(/\s+/g, " ").trim() ?? ""
-  }
-
-  function stripSiteTitleSuffix(title: string) {
-    return title.replace(/\s+\|\s+AI Agent\s*[·•]\s*MCP\s*(实践者|Practitioner)\s*$/i, "").trim()
-  }
-
-  function shareData(): ShareData {
-    return {
-      title:
-        articleHeadingText() ||
-        stripSiteTitleSuffix(metaContent('meta[property="og:title"]')) ||
-        stripSiteTitleSuffix(document.title),
-      text:
-        markdownFrontmatterDescription() ||
-        markdownBodyExcerpt() ||
-        metaContent('meta[property="og:description"]') ||
-        metaContent('meta[name="description"]') ||
-        articleExcerpt(),
-      url: canonicalUrl(),
-    }
-  }
+  const { shareUrlForPage, markdownSource, articleExcerpt, shareData } = createShareMetadata(
+    document,
+    articleTitle,
+    () => location.href,
+  )
 
   function normalizeCanvasText(text: string, preserveBreaks = false) {
     const normalized = text.replace(/\r\n?/g, "\n")
@@ -479,7 +333,7 @@ document.addEventListener("nav", () => {
       ])
       clearTimeout(timer)
     }
-    const url = data.url ?? canonicalUrl()
+    const url = data.url ?? shareUrlForPage()
     const canvas = document.createElement("canvas")
     const width = 1144
     const height = 632
@@ -588,7 +442,7 @@ document.addEventListener("nav", () => {
           format === "long"
             ? await generateLongSharePoster({
                 title: data.title ?? document.title,
-                url: data.url ?? canonicalUrl(),
+                url: data.url ?? shareUrlForPage(),
                 author: article?.getAttribute("data-share-author") || undefined,
                 article: article!,
                 signal: posterAbort.signal,
@@ -715,7 +569,7 @@ document.addEventListener("nav", () => {
       const data = shareData()
       shareTitle.textContent = data.title ?? ""
       shareDescription.textContent = data.text ?? ""
-      shareUrl.textContent = data.url ?? canonicalUrl()
+      shareUrl.textContent = data.url ?? shareUrlForPage()
       selectPosterFormat(posterFormat)
       shareCloseButton.focus()
     } else {
@@ -774,6 +628,7 @@ document.addEventListener("nav", () => {
       files: [poster.file],
       title: data.title,
       text: data.text,
+      url: data.url,
     }
 
     try {
@@ -882,7 +737,7 @@ document.addEventListener("nav", () => {
   function copyShareLink() {
     const request = ++shareRequest
     const format = posterFormat
-    copyText(canonicalUrl()).then(
+    copyText(shareUrlForPage()).then(
       () => {
         if (!currentShareRequest(request, format)) return
         showSharedState(tr("链接已复制", "Link copied"))

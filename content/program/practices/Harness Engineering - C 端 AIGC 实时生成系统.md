@@ -1,4 +1,5 @@
 ---
+shareSlug: agent-audit
 created: 2026-05-30T22:42:00+08:00
 modified: 2026-10-27
 published: 2026-05-30T22:42:00+08:00

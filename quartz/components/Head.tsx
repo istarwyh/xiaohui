@@ -148,6 +148,12 @@ export default (() => {
         />
 
         {!is404 && <link rel="canonical" href={canonicalUrl} />}
+        {!is404 && fileData.frontmatter?.shareSlug && (
+          <meta
+            name="share-url"
+            content={absolutePageUrl(cfg, fileData.frontmatter.shareSlug as FullSlug)}
+          />
+        )}
         {!is404 && alternates.length > 0 && (
           <>
             {alternates.map((alternate) => (
