@@ -96,6 +96,7 @@ async function processTagPage(
 export const TagPage: QuartzEmitterPlugin<Partial<TagPageOptions>> = (userOpts) => {
   const opts: FullPageLayout = {
     ...sharedPageComponents,
+    agentPageKind: "list",
     ...defaultListPageLayout,
     pageBody: TagContent({ sort: userOpts?.sort }),
     ...userOpts,

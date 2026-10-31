@@ -1,6 +1,4 @@
-import FlexSearch from "flexsearch"
-import type { DocumentSearchResults, DocumentValue } from "flexsearch"
-import type { ContentDetails } from "../../plugins/emitters/contentIndex"
+import type { SearchData } from "../../search/contracts/runtime"
 import { FullSlug, normalizeRelativeURLs, resolveRelative } from "../../util/path"
 import { escapeHTML } from "../../util/escape"
 import {
@@ -11,52 +9,13 @@ import {
   type SearchQuery,
 } from "./search.helpers"
 
-interface Item {
-  id: number
-  slug: FullSlug
-  title: string
-  content: string
-  tags: string[]
-  [key: string]: DocumentValue | DocumentValue[]
-}
-
-const index = new FlexSearch.Document<Item>({
-  encode: (str: string) => str.toLowerCase().split(/([^a-z]|[^\x00-\x7F])/),
-  document: {
-    id: "id",
-    tag: "tags",
-    index: [
-      { field: "title", tokenize: "forward" },
-      { field: "content", tokenize: "forward" },
-      { field: "tags", tokenize: "forward" },
-    ],
-  },
-})
-
 const parser = new DOMParser()
 const fetchContentCache = new Map<FullSlug, Promise<Element[]>>()
-type SearchData = Record<FullSlug, ContentDetails>
 const numSearchResults = 8
 const numTagResults = 5
-let indexReady: Promise<SearchData> | undefined
 
 function loadIndex(): Promise<SearchData> {
-  // One shared build across navigation and all responsive search controls.
-  indexReady ??= fetchData.then(async (data) => {
-    await Promise.all(
-      Object.entries<ContentDetails>(data).map(([slug, fileData], id) =>
-        index.addAsync(id, {
-          id,
-          slug: slug as FullSlug,
-          title: fileData.title,
-          content: fileData.content,
-          tags: fileData.tags,
-        }),
-      ),
-    )
-    return data
-  })
-  return indexReady
+  return window.quartzSearch.load()
 }
 
 function highlightHTML(searchTerm: string, el: Element): HTMLElement {
@@ -302,15 +261,17 @@ function setupSearch(searchElement: HTMLElement, currentSlug: FullSlug) {
     }
     setStatus(labels.searching)
     try {
-      const searchResults: DocumentSearchResults<Item> = await index.searchAsync({
+      const response = await window.quartzSearch.search({
         query: query.term,
         limit: query.tag ? 10000 : numSearchResults,
         index: query.type === "tags" ? ["tags"] : ["title", "content"],
         ...(query.tag ? { tag: { tags: query.tag } } : {}),
       })
       if (disposed || !isOpen() || composing || version !== queryVersion) return
+      data = response.data
+      idDataMap = Object.keys(data) as FullSlug[]
       const getByField = (field: string): number[] =>
-        (searchResults.find((result) => result.field === field)?.result ?? []) as number[]
+        (response.fields.find((result) => result.field === field)?.result ?? []) as number[]
       const ids = [
         ...new Set([...getByField("title"), ...getByField("content"), ...getByField("tags")]),
       ]

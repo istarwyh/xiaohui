@@ -1,3 +1,4 @@
+import { searchDataScript } from "../search/build/loader"
 import { render } from "preact-render-to-string"
 import { QuartzComponent, QuartzComponentProps } from "./types"
 import HeaderConstructor from "./Header"
@@ -11,6 +12,7 @@ import { GlobalConfiguration } from "../cfg"
 import { i18n } from "../i18n"
 
 interface RenderComponents {
+  agentPageKind?: "article" | "list" | "other"
   layoutVariant?: "home"
   head: QuartzComponent
   header: QuartzComponent[]
@@ -30,7 +32,7 @@ export function pageResources(
 ): StaticResources {
   const version = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : ""
   const contentIndexPath = joinSegments(baseDir, "static/contentIndex.json") + version
-  const contentIndexScript = `const fetchData = fetch("${contentIndexPath}").then(data => data.json())`
+  const contentIndexScript = searchDataScript(contentIndexPath)
 
   const resources: StaticResources = {
     css: [
@@ -256,7 +258,11 @@ export function renderPage(
   const doc = (
     <html lang={lang}>
       <Head {...componentData} />
-      <body data-slug={slug} data-layout={isHomeLayout ? "home" : "article"}>
+      <body
+        data-slug={slug}
+        data-layout={isHomeLayout ? "home" : "article"}
+        data-agent-page-kind={isHomeLayout ? "home" : (components.agentPageKind ?? "other")}
+      >
         <a class="skip-link" href="#main-content" data-no-popover data-router-ignore>
           {String(lang).startsWith("zh") ? "跳到主要内容" : "Skip to main content"}
         </a>

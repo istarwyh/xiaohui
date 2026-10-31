@@ -125,7 +125,10 @@ test("article feedback keeps tags below the body and aligns the reading column w
     layout,
     /const articleTags = Component\.ConditionalRender\(\{[\s\S]*?component: Component\.TagList\(\),[\s\S]*?condition: \(page\) => !isHomePage\(page\)/,
   )
-  assert.match(layout, /afterBody: \[homepageFeed, articleTags, bottomBreadcrumbs\]/)
+  assert.match(
+    layout,
+    /afterBody: \[homepageFeed, articleTags, bottomBreadcrumbs(?:, \.\.\.webmcp)?\]/,
+  )
   const beforeBody = layout.split("beforeBody: [")[1].split("afterBody:")[0]
   assert.doesNotMatch(beforeBody, /TagList|articleTags/)
   assert.match(

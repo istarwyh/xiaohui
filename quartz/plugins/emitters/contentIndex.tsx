@@ -1,3 +1,6 @@
+import { contentFingerprint } from "../../search/build/fingerprint"
+import { stripFrontmatter } from "../../util/frontmatter"
+import { unescapeHTML } from "../../util/escape"
 import { Root } from "hast"
 import { GlobalConfiguration } from "../../cfg"
 import { getDate } from "../../components/Date"
@@ -10,6 +13,7 @@ import { i18n } from "../../i18n"
 
 export type ContentIndexMap = Map<FullSlug, ContentDetails>
 export type ContentDetails = {
+  hash?: string
   slug: FullSlug
   filePath: FilePath
   title: string
@@ -114,6 +118,11 @@ export const ContentIndex: QuartzEmitterPlugin<Partial<Options>> = (opts) => {
             links: file.data.links ?? [],
             tags: file.data.frontmatter?.tags ?? [],
             content: file.data.text ?? "",
+            hash: contentFingerprint(
+              file.data.frontmatter?.title?.toString() ?? slug,
+              stripFrontmatter(String(file.value ?? "")).trim(),
+              unescapeHTML(file.data.text ?? ""),
+            ),
             richContent: options.rssFullHtml
               ? escapeHTML(toHtml(tree as Root, { allowDangerousHtml: true }))
               : undefined,

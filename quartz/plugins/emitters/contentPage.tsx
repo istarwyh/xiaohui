@@ -55,6 +55,7 @@ interface ContentPageOptions extends Partial<FullPageLayout> {
 export const ContentPage: QuartzEmitterPlugin<ContentPageOptions> = (userOpts) => {
   const opts: FullPageLayout = {
     ...sharedPageComponents,
+    agentPageKind: "article",
     ...defaultContentPageLayout,
     pageBody: Content(),
     ...userOpts,
