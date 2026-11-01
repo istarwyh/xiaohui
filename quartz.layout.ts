@@ -4,6 +4,8 @@ import * as Component from "./quartz/components"
 import { isHomePage as isHomeData } from "./quartz/util/homePageModel"
 import type { QuartzComponentProps } from "./quartz/components/types"
 
+const webmcp = process.env.QUARTZ_ENABLE_WEBMCP === "1" ? [Component.WebMCP()] : []
+
 const isHomePage = (page: QuartzComponentProps) => isHomeData(page.fileData)
 
 const articleTags = Component.ConditionalRender({
@@ -46,7 +48,7 @@ const sidebarThemeControls = Component.Flex({
 export const sharedPageComponents: SharedLayout = {
   head: Component.Head(),
   header: [Component.ReadingProgress()],
-  afterBody: [],
+  afterBody: [...webmcp],
   footer: Component.Footer({
     links: {
       关于我: "/Farming-in-the-cyber-world",
@@ -78,7 +80,7 @@ export const defaultContentPageLayout: PageLayout = {
       condition: (page) => !isHomePage(page),
     }),
   ],
-  afterBody: [homepageFeed, articleTags, bottomBreadcrumbs],
+  afterBody: [homepageFeed, articleTags, bottomBreadcrumbs, ...webmcp],
   left: [
     Component.PageTitle(),
     Component.MobileOnly(Component.Spacer()),
@@ -126,7 +128,7 @@ export const defaultListPageLayout: PageLayout = {
       condition: (page) => !isHomePage(page),
     }),
   ],
-  afterBody: [bottomBreadcrumbs],
+  afterBody: [bottomBreadcrumbs, ...webmcp],
   left: [
     Component.PageTitle(),
     Component.MobileOnly(Component.Spacer()),
@@ -144,7 +146,7 @@ export const homePageLayout: FullPageLayout = {
   header: [Component.HomeHeader()],
   beforeBody: [],
   pageBody: Component.HomePage(),
-  afterBody: [],
+  afterBody: [...webmcp],
   left: [],
   right: [],
 }

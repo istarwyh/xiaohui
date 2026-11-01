@@ -192,6 +192,21 @@ function setupSearch() {
   const previews: Array<ReturnType<typeof deferred<unknown>>> = []
   const cleanups: Array<() => void> = []
   let indexed = 0
+  let loaded: Promise<Record<string, unknown>> | undefined
+  const shared = {
+    load() {
+      loaded ??= source.promise.then((data) => {
+        indexed += Object.keys(data).length
+        return data
+      })
+      return loaded
+    },
+    async search({ query }: { query: string }) {
+      const pending = deferred<unknown>()
+      queries.push({ query, pending })
+      return { data: await shared.load(), fields: await pending.promise }
+    },
+  }
   const domDocument = Object.assign(document, {
     createElement: (tag: string) => new TestElement(tag),
     createDocumentFragment: () => new TestElement("fragment"),
@@ -202,7 +217,11 @@ function setupSearch() {
 
   runInNewContext(script, {
     document: domDocument,
-    window: { addCleanup: (fn: () => void) => cleanups.push(fn), dispatchEvent() {} },
+    window: {
+      quartzSearch: shared,
+      addCleanup: (fn: () => void) => cleanups.push(fn),
+      dispatchEvent() {},
+    },
     location: new URL("https://example.com/"),
     URL,
     Event,
@@ -222,20 +241,6 @@ function setupSearch() {
       return pending.promise
     },
     require: (id: string) => {
-      if (id === "flexsearch")
-        return {
-          Document: class {
-            addAsync() {
-              indexed++
-              return Promise.resolve()
-            }
-            searchAsync({ query }: { query: string }) {
-              const pending = deferred<unknown>()
-              queries.push({ query, pending })
-              return pending.promise
-            }
-          },
-        }
       if (id === "../../util/path")
         return {
           resolveRelative: (_from: string, to: string) => `/${to}`,

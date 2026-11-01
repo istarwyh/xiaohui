@@ -1,4 +1,9 @@
-import { createHash } from "crypto"
+import { buildSections } from "../../agent/build/sections"
+import fs from "node:fs/promises"
+import path from "node:path"
+import { buildCatalog } from "../../agent/build/catalog"
+import { getPageLocale, isHomePage } from "../../util/homePageModel"
+import { contentFingerprint } from "../../search/build/fingerprint"
 import { h } from "preact"
 import { Element, Root } from "hast"
 import { toString } from "hast-util-to-string"
@@ -40,6 +45,8 @@ type AgentPage = {
   text: string
   markdown: string
   hash: string
+  language: "zh" | "en"
+  kind: "article" | "home" | "list"
 }
 
 type Options = {
@@ -107,10 +114,6 @@ function dateInfo(cfg: GlobalConfiguration, file: ProcessedContent[1]): DateInfo
 
 function stripFrontmatter(source: string): string {
   return removeFrontmatter(source).trim()
-}
-
-function hashContent(content: string): string {
-  return createHash("sha256").update(content).digest("hex")
 }
 
 function yamlString(value: string): string {
@@ -309,7 +312,7 @@ function createPage(
   const tags = (file.data.frontmatter?.tags ?? []).map(String)
   const title = file.data.frontmatter?.title?.toString() ?? slug
   const filePath = file.data.relativePath!
-  const contentHash = hashContent(`${title}\n${markdown}\n${text}`)
+  const contentHash = contentFingerprint(title, markdown, text)
 
   return {
     slug,
@@ -325,11 +328,20 @@ function createPage(
     text,
     markdown,
     hash: contentHash,
+    language: getPageLocale(file.data) === "en" ? "en" : "zh",
+    kind: isHomePage(file.data)
+      ? "home"
+      : slug.startsWith("tags/") || slug.endsWith("/index")
+        ? "list"
+        : "article",
   }
 }
 
 export const AgentIndex: QuartzEmitterPlugin<Partial<Options>> = (userOpts) => {
   const opts = { ...defaultOptions, ...userOpts }
+
+  let previousFiles = new Set<string>()
+  let previousOutput: string | undefined
 
   return {
     name: "AgentIndex",
@@ -355,6 +367,36 @@ export const AgentIndex: QuartzEmitterPlugin<Partial<Options>> = (userOpts) => {
         textLength: page.text.length,
         hash: page.hash,
       }))
+
+      const catalog = buildCatalog(
+        pages.map(({ slug, title, url, markdownUrl, language, kind, hash }) => ({
+          slug,
+          title,
+          url,
+          markdownUrl,
+          language,
+          kind,
+          hash,
+        })),
+        pages.map(({ tags, dates, description, headings, links }) => ({
+          tags,
+          dates,
+          description,
+          headings,
+          links,
+        })),
+      )
+      const nextFiles = new Set(
+        pages.flatMap((page) => [
+          `${joinSegments(opts.pagesPrefix, page.slug)}.md`,
+          `agent/sections/${page.slug}.json`,
+        ]),
+      )
+      if (previousOutput === ctx.argv.output) {
+        for (const old of previousFiles) {
+          if (!nextFiles.has(old)) await fs.rm(path.join(ctx.argv.output, old), { force: true })
+        }
+      }
 
       const manifest = {
         schemaVersion: "1.0",
@@ -387,10 +429,12 @@ export const AgentIndex: QuartzEmitterPlugin<Partial<Options>> = (userOpts) => {
 
       const searchIndex = {
         schemaVersion: "1.0",
+        revision: catalog.revision,
         generatedAt,
         site: manifest.site,
         pages: pages.map((page) => ({
           slug: page.slug,
+          language: page.language,
           title: page.title,
           url: page.url,
           markdownUrl: page.markdownUrl,
@@ -431,7 +475,30 @@ export const AgentIndex: QuartzEmitterPlugin<Partial<Options>> = (userOpts) => {
         ext: ".json",
       })
 
+      yield write({
+        ctx,
+        content: JSON.stringify(catalog),
+        slug: "agent/catalog" as FullSlug,
+        ext: ".json",
+      })
+
+      const sources = new Map(content.map(([tree, file]) => [file.data.slug!, { tree, file }]))
       for (const page of pages) {
+        const { tree, file } = sources.get(page.slug)!
+        yield write({
+          ctx,
+          content: JSON.stringify(
+            buildSections(
+              String(file.value ?? ""),
+              tree as Root,
+              page.headings,
+              page.hash,
+              catalog.revision,
+            ),
+          ),
+          slug: `agent/sections/${page.slug}` as FullSlug,
+          ext: ".json",
+        })
         yield write({
           ctx,
           content: buildAgentMarkdown(page),
@@ -439,6 +506,8 @@ export const AgentIndex: QuartzEmitterPlugin<Partial<Options>> = (userOpts) => {
           ext: ".md",
         })
       }
+      previousFiles = nextFiles
+      previousOutput = ctx.argv.output
     },
     externalResources: (ctx) => {
       const cfg = ctx.cfg.configuration

@@ -75,3 +75,5 @@ export {
   HomeHeader,
   HomePage,
 }
+
+export { default as WebMCP } from "./WebMCP"

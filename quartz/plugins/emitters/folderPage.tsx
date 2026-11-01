@@ -106,6 +106,7 @@ function _getFolders(slug: FullSlug): SimpleSlug[] {
 export const FolderPage: QuartzEmitterPlugin<Partial<FolderPageOptions>> = (userOpts) => {
   const opts: FullPageLayout = {
     ...sharedPageComponents,
+    agentPageKind: "list",
     ...defaultListPageLayout,
     pageBody: FolderContent({ sort: userOpts?.sort }),
     ...userOpts,

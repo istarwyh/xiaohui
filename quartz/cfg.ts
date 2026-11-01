@@ -86,6 +86,7 @@ export interface QuartzConfig {
 }
 
 export interface FullPageLayout {
+  agentPageKind?: "article" | "list" | "other"
   layoutVariant?: "home"
   head: QuartzComponent
   header: QuartzComponent[]

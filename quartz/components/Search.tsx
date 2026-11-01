@@ -1,3 +1,5 @@
+// @ts-ignore — shared resource is bundled once by Quartz.
+import searchRuntime from "./scripts/searchRuntime.inline"
 import { QuartzComponent, QuartzComponentConstructor, QuartzComponentProps } from "./types"
 import style from "./styles/search.scss"
 // @ts-ignore
@@ -98,7 +100,7 @@ export default ((userOpts?: Partial<SearchOptions>) => {
     )
   }
 
-  Search.afterDOMLoaded = script
+  Search.afterDOMLoaded = [searchRuntime, script]
   Search.css = style
 
   return Search
