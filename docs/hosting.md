@@ -62,7 +62,7 @@ jobs:
           fetch-depth: 0 # Fetch all history for git info
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
       - name: Install Dependencies
         run: npm ci
       - name: Build Quartz
@@ -191,7 +191,7 @@ stages:
   - build
   - deploy
 
-image: node:22
+image: node:22.23.4
 cache: # Cache modules in between jobs
   key: $CI_COMMIT_REF_SLUG
   paths:
