@@ -128,3 +128,12 @@ test("emitter output supports real-article retrieval and removes withdrawn gener
     await rm(output, { recursive: true, force: true })
   }
 })
+
+test("WebMCP defaults on and respects explicit build-time opt-out", async () => {
+  const { webMCPEnabled } = await import("../build/feature")
+  assert.equal(webMCPEnabled(undefined), true)
+  assert.equal(webMCPEnabled("1"), true)
+  for (const disabled of ["0", "", "false", "unexpected"]) {
+    assert.equal(webMCPEnabled(disabled), false)
+  }
+})

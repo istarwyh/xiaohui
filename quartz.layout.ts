@@ -1,10 +1,11 @@
+import { webMCPEnabled } from "./quartz/agent/build/feature"
 import { FullPageLayout, PageLayout, SharedLayout } from "./quartz/cfg"
 import * as Component from "./quartz/components"
 
 import { isHomePage as isHomeData } from "./quartz/util/homePageModel"
 import type { QuartzComponentProps } from "./quartz/components/types"
 
-const webmcp = process.env.QUARTZ_ENABLE_WEBMCP === "1" ? [Component.WebMCP()] : []
+const webmcp = webMCPEnabled(process.env.QUARTZ_ENABLE_WEBMCP) ? [Component.WebMCP()] : []
 
 const isHomePage = (page: QuartzComponentProps) => isHomeData(page.fileData)
 

@@ -1,12 +1,12 @@
 ---
 title: xiaohui.cool WebMCP 接入技术方案
 created: 2026-10-31
-modified: 2026-10-31
+modified: 2026-11-02
 ---
 
 # xiaohui.cool WebMCP 接入技术方案
 
-状态：P1 代码已实现并完成本地自动验证，默认关闭，未部署。原生浏览器与真实 Agent 验收待完成，详见[优化记录](./webmcp/06-optimization-record.md)。
+状态：P1 已于 2026-11-01 合并并发布。2026-11-02 站点所有者要求保持开启；当前开关策略与验证边界见[公开只读工具启用](./webmcp/07-enable-public-tools.md)。原生浏览器与真实 Agent 的完整验收仍待完成。下文及 01–06 分篇保留原阶段方案与测量记录。
 
 ## 1. 决策
 
