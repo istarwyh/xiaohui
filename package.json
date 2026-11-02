@@ -16,7 +16,7 @@
     "docs": "npx quartz build --serve -d docs",
     "check": "tsc --noEmit && npx prettier . --check",
     "format": "npx prettier . --write",
-    "test": "node --import tsx --test ./quartz/util/path.test.ts ./quartz/util/share.test.ts ./quartz/depgraph.test.ts ./quartz/util/feedImage.test.ts ./quartz/util/og.test.ts ./quartz/components/scripts/spa.test.ts ./quartz/util/homePageModel.test.ts ./quartz/util/translations.test.ts ./quartz/components/scripts/feedList.test.ts ./quartz/components/scripts/search.helpers.test.ts ./quartz/components/scripts/search.test.ts ./quartz/components/scripts/copyPage.test.ts ./quartz/components/scripts/shareMetadata.test.ts ./quartz/components/pages/Content.test.ts ./quartz/components/scripts/sharePoster.test.ts ./quartz/design/homePage.test.ts && node --test ./scripts/update-homepage.test.js ./scripts/lib/frontmatter.test.js && npm run check:design && npm run test:agent",
+    "test": "node --import tsx --test ./quartz/util/path.test.ts ./quartz/util/share.test.ts ./quartz/depgraph.test.ts ./quartz/util/feedImage.test.ts ./quartz/util/og.test.ts ./quartz/components/scripts/spa.test.ts ./quartz/util/homePageModel.test.ts ./quartz/util/translations.test.ts ./quartz/components/scripts/feedList.test.ts ./quartz/components/scripts/search.helpers.test.ts ./quartz/components/scripts/search.test.ts ./quartz/components/scripts/copyPage.test.ts ./quartz/components/scripts/shareMetadata.test.ts ./quartz/components/pages/Content.test.ts ./quartz/components/scripts/sharePoster.test.ts ./quartz/design/homePage.test.ts && node --test ./scripts/runtime-contract.test.js ./scripts/update-homepage.test.js ./scripts/lib/frontmatter.test.js && npm run check:design && npm run test:agent",
     "test:share-browser": "playwright test tests/browser/sharePoster.spec.mjs --workers=1",
     "profile": "0x -D prof ./quartz/bootstrap-cli.mjs build --concurrency=1",
     "update-homepage": "node ./scripts/update-homepage.js",
@@ -31,7 +31,7 @@
   },
   "engines": {
     "npm": ">=9.3.1",
-    "node": "20 || >=22"
+    "node": ">=22.22.0"
   },
   "keywords": [
     "site generator",
@@ -53,7 +53,7 @@
     "ansi-truncate": "^1.4.0",
     "async-mutex": "^0.5.0",
     "chalk": "^6.0.1",
-    "chokidar": "^5.0.0",
+    "chokidar": "^6.0.0",
     "cli-spinner": "^0.2.10",
     "d3": "^7.9.0",
     "esbuild-sass-plugin": "^3.7.0",

@@ -17,7 +17,7 @@ This is a customized Quartz v4 static-site generator for the `xiaohui.cool` digi
 
 ## Common commands
 
-Use npm; the repo has `package-lock.json`, `.npmrc` has `engine-strict=true`, and `package.json` requires npm `>=9.3.1` with Node `20 || >=22`.
+Use npm; the repo has `package-lock.json`, `.npmrc` has `engine-strict=true`, and `package.json` requires npm `>=9.3.1` with Node `>=22.22.0`. Use the tested Node `22.23.4` pin in `.node-version` / `.nvmrc`; CI reads that same pin.
 
 ```bash
 npm install
