@@ -3,7 +3,7 @@ name: absorb
 description: |
   Absorb new content into the xiaohui.cool blog knowledge base. When the user pastes a paragraph, article, link, personal experience, or any piece of information they want to "absorb", this skill searches the existing blog and decides the best placement across three layers: portfolio (what I can do), journey (why I became this person), and knowledge (what I have learned). Always use this skill when the user says "absorb", "吸收", "纳入博客", "整理进笔记", "放到博客里", or asks where new material should go in the blog.
 created: 2026-05-13
-modified: 2026-08-15
+modified: 2026-11-08
 ---
 
 # Absorb — Content Absorption into xiaohui.cool
@@ -40,6 +40,7 @@ This skill is intentionally split into smaller rule files. Use them as the opera
 - `rules/search-and-plan.md` — input analysis, search process, directory map, and absorption plan format.
 - `rules/placement-options.md` — Options A-F for placement decisions.
 - `rules/writing-rules.md` — writing conventions, merge/create/update rules.
+- `rules/technical-lineage.md` — technical constraints, mechanism mapping, source attribution, and evidence boundaries; load for technical material. Validation examples live in `evals/technical-lineage.md`.
 - `rules/special-cases.md` — URL input, long articles, ambiguity, draft handling, and guardrails.
 
 When handling an absorption request:
@@ -49,6 +50,7 @@ When handling an absorption request:
 3. Use `rules/placement-options.md` to choose the action.
 4. Use `rules/writing-rules.md` when editing or creating content.
 5. Use `rules/special-cases.md` when the input is a URL, rough draft, long article, or ambiguous.
+6. For technical material, read `rules/technical-lineage.md` before research and drafting. Start with the constraint, search related mechanisms, and retain only connections that explain a design choice. Nontechnical material keeps the existing workflow; no retroactive rewrite of existing articles is required.
 
 ## Workflow
 

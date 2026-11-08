@@ -1,6 +1,6 @@
 ---
 created: 2026-05-15
-modified: 2026-06-05
+modified: 2026-11-08
 ---
 
 # Search and Plan
@@ -40,6 +40,14 @@ Use:
 2. relevant directory browsing and article skimming.
 
 Do not create a new article before searching for related content.
+
+## Technical material: constraints and sources
+
+For technical input, load `technical-lineage.md`. Extract the bottleneck or conflict before searching names: latency versus cost, isolation versus sharing, continuity versus throughput, or recovery versus external side effects. Search the vault first, then primary papers, standards, official design documents, source code, or reliable textbooks as needed.
+
+Keep a working record of the original problem and assumptions, the concrete objects and operations that correspond in this system, the adaptation or analogy boundary, and the choice this connection helps explain. Track each important external claim against a supporting passage and version/date. A missing useful connection is a valid outcome; do not invent a lineage.
+
+In the existing **化学反应** plan field, briefly name the useful mechanism connection, the design decision it explains, and sources or unresolved evidence. Do not add a mandatory theory section to the finished article.
 
 ## Top-level directory map
 
