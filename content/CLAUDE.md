@@ -1,7 +1,7 @@
 ---
 published: 2026-06-30
 created: 2026-05-08
-modified: 2026-09-20
+modified: 2026-11-08
 ---
 
 # CLAUDE.md
@@ -51,6 +51,7 @@ A personal knowledge base and blog managed with Obsidian, published to [xiaohui.
 - Technical content: AI, TDD, functional programming
 - Humanistic content: literature, history, social observation
 - For technical essays, prefer business-practice writing over concept-explanation writing: start from a real use case, implementation constraint, or production judgment before naming the abstraction.
+- For technical absorption, follow `.claude/skills/absorb/rules/technical-lineage.md` for mechanism mapping, source attribution, and evidence boundaries; keep the detailed rules there.
 
 ## Article Editing Review Agent
 
