@@ -14,11 +14,11 @@ modified: 2026-11-08
 
 在博客中先检索授权、权限和 `Agent Protocol`，找到 [[相比层出不穷的 Agent 框架，不变的 Agent Protocol 是什么]] 中的中断、恢复、权限与运行协议讨论，适合作为后续吸收的关联入口；本次只验证规则，不改写该文。
 
-固定回归输入（根据该版本授权文档的 Two paths、Context-only subscriptions 与 Revalidation before resume 三节转述）：
+固定回归输入（根据该版本授权文档的 `Two paths`、`Context-only subscriptions` 与 `Revalidation before resume` 三节转述）：
 
 > 宿主检查发送者与策略来决定新工作是否准入。订阅消息作为上下文进入已有任务，不增加授权。恢复前按授权基础重新验证；策略变化不立即撤销所有活动任务的授权。
 
-必须保留这三个时机与范围的差异，不得推出所有工具调用均已接受完整权限审计。
+必须保留这三个时机与范围的差异。
 
 吸收前的功能概括：系统按发送者与策略决定是否接单，也会给已有任务投递上下文。
 
@@ -28,7 +28,7 @@ modified: 2026-11-08
 >
 > 这可以借助 `Saltzer` 和 `Schroeder` 总结的最小权限原则来理解，让程序只持有完成工作所需的权限，以限制误用造成的损害。[原文 I.A 的设计原则 f](https://web.mit.edu/Saltzer/www/publications/protection/Basic.html) 在这个映射中，任务对应受限执行主体，`Mandate` 对应授权范围，订阅只增加输入而不授予新增动作。这是对授权设计的分析，不能证明工具执行层实际强制了全部限制。模型仍可解释消息，但单凭消息中的一句请求不能代替宿主的权限决策。
 >
-> 如果只在最初接单时检查，暂停之后权限变化怎么办？原型的授权文档规定恢复前重新验证，并列出不同授权基础的检查条件；策略变更不立即撤销所有活动任务的授权。[恢复与重新验证](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/8c32a9dc5d72c033816c6a8110b37f40cf94fba4/docs/002-authorization.md#revalidation-before-resume) 这也引入策略版本、授权记录和恢复检查的维护成本。后一句是架构分析，未测量其开销；这里也不能据此声称每次外部工具操作都已满足完全仲裁。
+> 如果只在最初接单时检查，暂停之后权限变化怎么办？原型的授权文档规定恢复前重新验证，并列出不同授权基础的检查条件；策略变更不立即撤销所有活动任务的授权。[恢复与重新验证](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/8c32a9dc5d72c033816c6a8110b37f40cf94fba4/docs/002-authorization.md#revalidation-before-resume) 这也引入策略版本、授权记录和恢复检查的维护成本。后一句是架构分析，未测量其开销。
 
 新增理解是区分「信息进入」和「权限扩大」，并能追问恢复时的失效条件。最小权限是本文分析采用的视角，没有证据说原型作者直接源于这篇经典论文。
 
@@ -36,9 +36,9 @@ modified: 2026-11-08
 
 | 论断 | 已读来源及位置 | 支持范围 |
 | --- | --- | --- |
-| 原型不等同内部版本，部分文章设计尚未实现 | [固定版本 README 开头](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/8c32a9dc5d72c033816c6a8110b37f40cf94fba4/README.md) | 版本范围声明，不把 issue 中的整张对应表当已交付功能 |
-| 宿主执行准入，订阅上下文不新增授权 | 上述授权文档开头、Two paths、Context-only subscriptions；[Intake.receive](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/8c32a9dc5d72c033816c6a8110b37f40cf94fba4/src/core/intake.ts) | 文档规定与入站分发代码；没有审计全部工具权限 |
-| 恢复前有重验证，策略变更不立即撤销所有活动授权 | 上述授权文档 Policy version、Revalidation before resume | 精确保留时机与授权基础的差异，不扩大为每次操作检查 |
+| 原型不等同内部版本，部分文章设计尚未实现 | [固定版本 `README` 开头](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/8c32a9dc5d72c033816c6a8110b37f40cf94fba4/README.md) | 版本范围声明，不把 `issue` 中的整张对应表当已交付功能 |
+| 宿主执行准入，订阅上下文不新增授权 | 上述授权文档开头、`Two paths`、`Context-only subscriptions`；[`Intake.receive`](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/8c32a9dc5d72c033816c6a8110b37f40cf94fba4/src/core/intake.ts) | 文档规定与入站分发代码；没有审计全部工具权限 |
+| 恢复前有重验证，策略变更不立即撤销所有活动授权 | 上述授权文档 `Policy version`、`Revalidation before resume` | 精确保留时机与授权基础的差异，不扩大为每次操作检查 |
 | 最小权限限制工作所需权限；完全仲裁要求每次访问检查授权 | [经典论文 I.A，原则 c、f](https://web.mit.edu/Saltzer/www/publications/protection/Basic.html) | 经典机制含义；不声称首创或原型已满足全部原则 |
 | 记录和恢复检查增加维护工作 | 本次架构推断 | 可通过策略变更、恢复和撤权案例检查，不写性能数字 |
 
