@@ -9,18 +9,21 @@ import { createNavigation } from "../browser/context/navigation"
 import { bootstrap } from "../webmcp/runtime/bootstrap"
 
 function host(failAt = -1) {
-  const tools = new Map<string, WebMCP.ModelContextTool>()
+  const tools = new Set<string>()
   let attempts = 0
   return {
     tools,
     context: {
-      async registerTool(
-        tool: WebMCP.ModelContextTool,
+      async registerTool<
+        const TInputSchema extends object = object,
+        const TOutputSchema extends object = object,
+      >(
+        tool: WebMCP.ModelContextToolFromSchema<TInputSchema, TOutputSchema>,
         options?: WebMCP.ModelContextRegisterToolOptions,
       ) {
         if (attempts++ === failAt) throw new Error("permission denied")
         if (tools.has(tool.name)) throw new Error("duplicate")
-        tools.set(tool.name, tool)
+        tools.add(tool.name)
         options?.signal?.addEventListener("abort", () => tools.delete(tool.name), { once: true })
       },
     },

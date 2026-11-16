@@ -45,7 +45,7 @@
     "quartz": "./quartz/bootstrap-cli.mjs"
   },
   "dependencies": {
-    "@clack/prompts": "^1.8.1",
+    "@clack/prompts": "^1.9.0",
     "@floating-ui/dom": "^1.8.0",
     "@myriaddreamin/rehype-typst": "^0.7.0",
     "@napi-rs/simple-git": "1.2.0",
@@ -72,9 +72,9 @@
     "mermaid": "^12.3.0",
     "micromorph": "^0.4.5",
     "modern-screenshot": "4.7.0",
-    "pixi.js": "^8.22.0",
+    "pixi.js": "^8.23.0",
     "preact": "^11.2.0",
-    "preact-render-to-string": "^6.8.2",
+    "preact-render-to-string": "^6.8.3",
     "pretty-bytes": "^7.2.0",
     "pretty-time": "^1.1.0",
     "qrcode": "^1.5.4",
@@ -97,7 +97,7 @@
     "rfdc": "^1.4.1",
     "rimraf": "^6.1.4",
     "satori": "^0.63.2",
-    "serve-handler": "^6.1.7",
+    "serve-handler": "^6.1.8",
     "sharp": "^0.35.5",
     "shiki": "^4.6.0",
     "source-map-support": "^0.5.21",
@@ -108,7 +108,7 @@
     "unist-util-visit": "^5.2.0",
     "vfile": "^6.0.3",
     "workerpool": "^10.0.3",
-    "ws": "^8.22.1",
+    "ws": "^8.23.0",
     "yargs": "^18.2.0"
   },
   "devDependencies": {
@@ -128,10 +128,10 @@
     "jsqr": "1.4.0",
     "linkedom": "0.18.15",
     "pngjs": "7.0.0",
-    "prettier": "^3.9.10",
+    "prettier": "^3.10.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "webmcp-types": "0.1.10"
+    "webmcp-types": "0.1.11"
   },
   "optionalDependencies": {
     "@napi-rs/simple-git-darwin-arm64": "1.2.0",
