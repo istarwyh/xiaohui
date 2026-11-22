@@ -58,7 +58,7 @@ export default (() => {
           lang={en ? "zh-CN" : "en"}
           aria-label={en ? "阅读中文首页" : "Read in English"}
         >
-          {en ? "中文" : "English"}
+          {en ? "中文" : "EN"}
         </a>
         <div class="home-tools" hidden>
           <SearchControl {...props} />
